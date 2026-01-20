@@ -23,6 +23,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.ivarna.mkm.navigation.Screen
 import com.ivarna.mkm.navigation.navItems
+import com.ivarna.mkm.ui.screens.CpuScreen
 import com.ivarna.mkm.ui.screens.HomeScreen
 import com.ivarna.mkm.ui.screens.RamScreen
 import com.ivarna.mkm.ui.theme.MKMTheme
@@ -77,11 +78,11 @@ fun MainScreen() {
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
         ) {
             composable(Screen.Home.route) { HomeScreen() }
             composable(Screen.RAM.route) { RamScreen() }
-            composable(Screen.CPU.route) { PlaceholderScreen("CPU") }
+            composable(Screen.CPU.route) { CpuScreen() }
             composable(Screen.GPU.route) { PlaceholderScreen("GPU") }
             composable(Screen.Settings.route) { PlaceholderScreen("Settings") }
         }

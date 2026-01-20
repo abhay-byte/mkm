@@ -7,7 +7,12 @@ import java.util.Locale
 object ShellUtils {
     fun readFile(path: String): String {
         return try {
-            File(path).readText().trim()
+            val file = File(path)
+            if (!file.exists() || !file.canRead()) return ""
+            // Use a small buffer and read until EOF for virtual files
+            file.inputStream().use { input ->
+                input.bufferedReader().use { it.readText() }
+            }.trim()
         } catch (e: Exception) {
             ""
         }
@@ -26,6 +31,15 @@ object ShellUtils {
             String.format(Locale.US, "%.2f GHz", khz / 1000000.0)
         } else {
             "${khz / 1000} MHz"
+        }
+    }
+
+    fun writeFile(path: String, content: String): Boolean {
+        return try {
+            File(path).writeText(content)
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 }

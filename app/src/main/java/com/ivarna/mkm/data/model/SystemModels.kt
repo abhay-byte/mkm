@@ -14,11 +14,30 @@ data class MemoryStatus(
     val buffersUi: String = "0 B"
 )
 
-data class CpuStatus(
-    val usagePercent: Float = 0f,
+data class CpuCore(
+    val id: Int,
     val currentFreq: String = "0 MHz",
+    val usagePercent: Float = 0f
+)
+
+data class CpuCluster(
+    val id: Int,
+    val coreRange: IntRange,
+    val governor: String = "unknown",
+    val currentFreq: String = "0 MHz",
+    val minFreq: String = "0 MHz",
     val maxFreq: String = "0 MHz",
-    val governor: String = "unknown"
+    val rawMinFreq: String = "",
+    val rawMaxFreq: String = "",
+    val availableGovernors: List<String> = emptyList(),
+    val availableFrequencies: List<String> = emptyList(),
+    val cores: List<CpuCore> = emptyList()
+)
+
+data class CpuStatus(
+    val overallUsage: Float = 0f,
+    val clusters: List<CpuCluster> = emptyList(),
+    val totalCores: Int = 0
 )
 
 data class GpuStatus(

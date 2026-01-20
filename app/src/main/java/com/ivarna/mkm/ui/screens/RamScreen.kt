@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,11 +31,19 @@ import com.ivarna.mkm.ui.viewmodel.RamViewModel
 @Composable
 fun RamScreen(viewModel: RamViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsState()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     
     Scaffold(
+        modifier = Modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = { Text("RAM") },
+            MediumTopAppBar(
+                title = { 
+                    Text(
+                        "RAM Management",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Black
+                    )
+                },
                 actions = {
                     IconButton(onClick = { viewModel.refresh() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
@@ -42,7 +51,8 @@ fun RamScreen(viewModel: RamViewModel = viewModel()) {
                     IconButton(onClick = { /* TODO: Overflow menu */ }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "More options")
                     }
-                }
+                },
+                scrollBehavior = scrollBehavior
             )
         },
         floatingActionButton = {
@@ -59,11 +69,11 @@ fun RamScreen(viewModel: RamViewModel = viewModel()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = 16.dp)
+                    .nestedScroll(scrollBehavior.nestedScrollConnection)
                     .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
             ) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding() + 8.dp))
                 
                 MemoryOverviewCard(data.memory)
                 

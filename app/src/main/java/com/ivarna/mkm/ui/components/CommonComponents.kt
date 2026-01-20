@@ -21,6 +21,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import kotlin.math.sin
 
 @Composable
@@ -224,5 +227,101 @@ fun InfoRow(
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
         )
+    }
+}
+
+@Composable
+fun HeroUsageCard(
+    title: String,
+    usage: Float,
+    mainValue: String,
+    subValue: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(32.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = mainValue,
+                style = MaterialTheme.typography.displayLarge.copy(
+                    fontSize = 56.sp,
+                    fontWeight = FontWeight.Black
+                ),
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Text(
+                text = subValue,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            SquigglyLinearProgressIndicator(
+                progress = { usage },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                amplitude = 2.dp,
+                wavelength = 32.dp
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SelectionBottomSheet(
+    title: String,
+    items: List<String>,
+    selectedItem: String,
+    onDismiss: () -> Unit,
+    onItemSelected: (String) -> Unit,
+    itemLabel: (String) -> String = { it }
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+                fontWeight = FontWeight.Bold
+            )
+            LazyColumn {
+                items(items) { item ->
+                    ListItem(
+                        headlineContent = { Text(itemLabel(item)) },
+                        trailingContent = {
+                            RadioButton(
+                                selected = item == selectedItem,
+                                onClick = { onItemSelected(item) }
+                            )
+                        },
+                        modifier = Modifier.clickable { onItemSelected(item) }
+                    )
+                }
+            }
+        }
     }
 }

@@ -27,29 +27,18 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.VideogameAsset
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ivarna.mkm.ui.viewmodel.HomeViewModel
 import com.ivarna.mkm.data.HomeData
@@ -61,11 +50,19 @@ import com.ivarna.mkm.ui.components.StatCard
 @Composable
 fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsState()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     
     Scaffold(
+        modifier = Modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = { Text("Minimal Kernel Manager") },
+            MediumTopAppBar(
+                title = { 
+                    Text(
+                        "Minimal Kernel Manager",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Black
+                    )
+                },
                 actions = {
                     IconButton(onClick = { viewModel.refresh() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
@@ -73,7 +70,8 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                     IconButton(onClick = { /* TODO: Overflow menu */ }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "More options")
                     }
-                }
+                },
+                scrollBehavior = scrollBehavior
             )
         }
     ) { innerPadding ->
@@ -81,27 +79,27 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = 16.dp)
+                    .nestedScroll(scrollBehavior.nestedScrollConnection)
                     .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
             ) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding() + 8.dp))
                 
                 SystemOverviewCard(data.overview)
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                SectionHeader("Quick Stats")
+                SectionHeader("QUICK STATUS MONITOR")
                 
                 QuickStatsGrid(data)
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                SectionHeader("Quick Actions")
+                SectionHeader("FREQUENT OPERATIONS")
                 
                 QuickActionsList()
                 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(innerPadding.calculateBottomPadding() + 32.dp))
             }
         }
     }
@@ -165,9 +163,9 @@ fun QuickStatsGrid(data: HomeData) {
             )
             StatCard(
                 title = "CPU",
-                value = data.cpu.currentFreq,
-                subValue = data.cpu.governor,
-                progress = data.cpu.usagePercent,
+                value = "${(data.cpu.overallUsage * 100).toInt()}%",
+                subValue = "${data.cpu.totalCores} Cores Active",
+                progress = data.cpu.overallUsage,
                 icon = Icons.Default.DeveloperBoard,
                 modifier = Modifier.weight(1f)
             )
