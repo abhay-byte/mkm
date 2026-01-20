@@ -9,6 +9,10 @@ object MemoryProvider {
         val memInfo = ShellUtils.readFile("/proc/meminfo")
         val total = parseValue(memInfo, "MemTotal")
         val available = parseValue(memInfo, "MemAvailable")
+        val cached = parseValue(memInfo, "Cached")
+        val active = parseValue(memInfo, "Active")
+        val inactive = parseValue(memInfo, "Inactive")
+        val buffers = parseValue(memInfo, "Buffers")
         val used = total - available
         
         return MemoryStatus(
@@ -17,7 +21,12 @@ object MemoryProvider {
             freeUi = ShellUtils.formatSize(available),
             usagePercent = if (total > 0) used.toFloat() / total else 0f,
             rawTotal = total,
-            rawUsed = used
+            rawUsed = used,
+            availableUi = ShellUtils.formatSize(available),
+            cachedUi = ShellUtils.formatSize(cached),
+            activeUi = ShellUtils.formatSize(active),
+            inactiveUi = ShellUtils.formatSize(inactive),
+            buffersUi = ShellUtils.formatSize(buffers)
         )
     }
 
@@ -27,17 +36,27 @@ object MemoryProvider {
         val free = parseValue(memInfo, "SwapFree")
         val used = if (total > 0) total - free else 0L
         
+        // Try to get path from /proc/swaps
+        val swaps = ShellUtils.readFile("/proc/swaps").lines().filter { it.isNotBlank() }
+        var path = "None"
+        if (swaps.size >= 2) {
+            val line = swaps[1].trim().split(Regex("\\s+"))
+            if (line.size >= 1) {
+                path = line[0]
+            }
+        }
+
         if (total > 0) {
             return SwapStatus(
                 isActive = true,
                 totalUi = ShellUtils.formatSize(total),
                 usedUi = ShellUtils.formatSize(used),
-                usagePercent = if (total > 0) used.toFloat() / total else 0f
+                usagePercent = if (total > 0) used.toFloat() / total else 0f,
+                path = path
             )
         }
 
-        // Fallback to /proc/swaps if meminfo doesn't have it or is 0
-        val swaps = ShellUtils.readFile("/proc/swaps").lines().filter { it.isNotBlank() }
+        // Fallback or detailed info from /proc/swaps
         if (swaps.size < 2) return SwapStatus()
         
         val line = swaps[1].trim().split(Regex("\\s+"))
@@ -50,7 +69,8 @@ object MemoryProvider {
             isActive = sTotal > 0,
             totalUi = ShellUtils.formatSize(sTotal),
             usedUi = ShellUtils.formatSize(sUsed),
-            usagePercent = if (sTotal > 0) sUsed.toFloat() / sTotal else 0f
+            usagePercent = if (sTotal > 0) sUsed.toFloat() / sTotal else 0f,
+            path = path
         )
     }
 

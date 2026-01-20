@@ -24,6 +24,7 @@ import androidx.navigation.compose.rememberNavController
 import com.ivarna.mkm.navigation.Screen
 import com.ivarna.mkm.navigation.navItems
 import com.ivarna.mkm.ui.screens.HomeScreen
+import com.ivarna.mkm.ui.screens.RamScreen
 import com.ivarna.mkm.ui.theme.MKMTheme
 
 class MainActivity : ComponentActivity() {
@@ -79,7 +80,7 @@ fun MainScreen() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Home.route) { HomeScreen() }
-            composable(Screen.RAM.route) { PlaceholderScreen("RAM") }
+            composable(Screen.RAM.route) { RamScreen() }
             composable(Screen.CPU.route) { PlaceholderScreen("CPU") }
             composable(Screen.GPU.route) { PlaceholderScreen("GPU") }
             composable(Screen.Settings.route) { PlaceholderScreen("Settings") }

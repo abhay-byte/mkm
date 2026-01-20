@@ -53,6 +53,9 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ivarna.mkm.ui.viewmodel.HomeViewModel
 import com.ivarna.mkm.data.HomeData
+import com.ivarna.mkm.ui.components.QuickActionItem
+import com.ivarna.mkm.ui.components.SectionHeader
+import com.ivarna.mkm.ui.components.StatCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,21 +91,13 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                Text(
-                    text = "Quick Stats",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
+                SectionHeader("Quick Stats")
                 
                 QuickStatsGrid(data)
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                Text(
-                    text = "Quick Actions",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
+                SectionHeader("Quick Actions")
                 
                 QuickActionsList()
                 
@@ -200,69 +195,6 @@ fun QuickStatsGrid(data: HomeData) {
 }
 
 @Composable
-fun StatCard(
-    title: String,
-    value: String,
-    subValue: String,
-    progress: Float,
-    icon: ImageVector,
-    modifier: Modifier = Modifier
-) {
-    val animatedProgress by animateFloatAsState(
-        targetValue = progress,
-        animationSpec = spring(stiffness = 50f), // Slow expressive spring
-        label = "progress"
-    )
-
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = subValue,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            LinearProgressIndicator(
-                progress = { animatedProgress },
-                modifier = Modifier.fillMaxWidth().height(8.dp),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
-            )
-        }
-    }
-}
-
-@Composable
 fun QuickActionsList() {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -289,26 +221,4 @@ fun QuickActionsList() {
             )
         }
     }
-}
-
-@Composable
-fun QuickActionItem(
-    icon: ImageVector,
-    title: String,
-    onClick: () -> Unit
-) {
-    ListItem(
-        headlineContent = { Text(title) },
-        leadingContent = {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-        },
-        modifier = Modifier.clickable { onClick() },
-        colors = ListItemDefaults.colors(
-            containerColor = Color.Transparent
-        )
-    )
 }

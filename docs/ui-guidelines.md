@@ -768,25 +768,45 @@ ButtonGroup(
 )
 ```
 
-#### 5. Progress Indicators
+#### 5. Progress Indicators (M3 Expressive)
 
-**Loading Indicator (New in M3 Expressive):**
+Progress indicators in MKM follow the latest Material 3 Expressive guidelines, featuring enhanced visibility and personality.
+
+**Key Expressive Features:**
+- **Wavy Shape:** Active tracks can use a wavy/squiggly pattern to increase expressiveness.
+- **Variable Track Height:** Use **6dp (Thick)** for a prominent and modern look.
+- **End Stop Indicator:** A small dot at the end of the active track to improve accessibility and progress perception.
+- **Dynamic Color:** Fully compatible with primary and secondary color schemes.
+
+**Wavy Linear Progress:**
 ```kotlin
-// Use for swap creation progress
-LoadingIndicator(
-    modifier = Modifier.size(48.dp),
+// Use for memory usage or active operations
+SquigglyLinearProgressIndicator(
+    progress = { memoryUsage / 100f },
+    modifier = Modifier.fillMaxWidth().height(6.dp), // Use 6dp for a thick, expressive look
     color = MaterialTheme.colorScheme.primary,
-    trackColor = MaterialTheme.colorScheme.surfaceVariant
+    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+    amplitude = 1.5.dp,
+    wavelength = 24.dp // Longer wavelength for low-frequency waves
 )
 ```
 
-**Linear Progress:**
+**Circular Progress:**
 ```kotlin
-// Use for memory usage
-LinearProgressIndicator(
-    progress = memoryUsage / 100f,
-    modifier = Modifier.fillMaxWidth(),
-    color = memoryColor,
+// Use for centered loading states
+CircularProgressIndicator(
+    strokeWidth = 4.dp, // Thicker style
+    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+    strokeCap = StrokeCap.Round
+)
+```
+
+**Loading Indicator (M3 Expressive):**
+```kotlin
+// Use for major swap creation progress
+LoadingIndicator(
+    modifier = Modifier.size(48.dp),
+    color = MaterialTheme.colorScheme.primary,
     trackColor = MaterialTheme.colorScheme.surfaceVariant
 )
 ```
