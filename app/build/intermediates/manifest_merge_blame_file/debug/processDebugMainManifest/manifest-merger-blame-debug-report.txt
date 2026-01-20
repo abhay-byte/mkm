@@ -1,0 +1,138 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.ivarna.mkm"
+4    android:versionCode="1"
+5    android:versionName="1.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="24"
+9        android:targetSdkVersion="36" />
+10
+11    <permission
+11-->[androidx.core:core:1.13.1] /home/flux/.gradle/caches/8.13/transforms/5a2c30360bab770f947d4c4d18970b9e/transformed/core-1.13.1/AndroidManifest.xml:22:5-24:47
+12        android:name="com.ivarna.mkm.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+12-->[androidx.core:core:1.13.1] /home/flux/.gradle/caches/8.13/transforms/5a2c30360bab770f947d4c4d18970b9e/transformed/core-1.13.1/AndroidManifest.xml:23:9-81
+13        android:protectionLevel="signature" />
+13-->[androidx.core:core:1.13.1] /home/flux/.gradle/caches/8.13/transforms/5a2c30360bab770f947d4c4d18970b9e/transformed/core-1.13.1/AndroidManifest.xml:24:9-44
+14
+15    <uses-permission android:name="com.ivarna.mkm.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+15-->[androidx.core:core:1.13.1] /home/flux/.gradle/caches/8.13/transforms/5a2c30360bab770f947d4c4d18970b9e/transformed/core-1.13.1/AndroidManifest.xml:26:5-97
+15-->[androidx.core:core:1.13.1] /home/flux/.gradle/caches/8.13/transforms/5a2c30360bab770f947d4c4d18970b9e/transformed/core-1.13.1/AndroidManifest.xml:26:22-94
+16
+17    <application
+17-->/home/flux/repos/swap-creator/app/src/main/AndroidManifest.xml:4:5-20:19
+18        android:allowBackup="true"
+18-->/home/flux/repos/swap-creator/app/src/main/AndroidManifest.xml:5:9-35
+19        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+19-->[androidx.core:core:1.13.1] /home/flux/.gradle/caches/8.13/transforms/5a2c30360bab770f947d4c4d18970b9e/transformed/core-1.13.1/AndroidManifest.xml:28:18-86
+20        android:debuggable="true"
+21        android:extractNativeLibs="false"
+22        android:icon="@android:drawable/ic_dialog_info"
+22-->/home/flux/repos/swap-creator/app/src/main/AndroidManifest.xml:6:9-56
+23        android:label="@string/app_name"
+23-->/home/flux/repos/swap-creator/app/src/main/AndroidManifest.xml:7:9-41
+24        android:roundIcon="@android:drawable/ic_dialog_info"
+24-->/home/flux/repos/swap-creator/app/src/main/AndroidManifest.xml:8:9-61
+25        android:supportsRtl="true"
+25-->/home/flux/repos/swap-creator/app/src/main/AndroidManifest.xml:9:9-35
+26        android:theme="@style/Theme.MinimalKernelManager" >
+26-->/home/flux/repos/swap-creator/app/src/main/AndroidManifest.xml:10:9-58
+27        <activity
+27-->/home/flux/repos/swap-creator/app/src/main/AndroidManifest.xml:11:9-19:20
+28            android:name="com.ivarna.mkm.MainActivity"
+28-->/home/flux/repos/swap-creator/app/src/main/AndroidManifest.xml:12:13-41
+29            android:exported="true" >
+29-->/home/flux/repos/swap-creator/app/src/main/AndroidManifest.xml:13:13-36
+30            <intent-filter>
+30-->/home/flux/repos/swap-creator/app/src/main/AndroidManifest.xml:14:13-18:29
+31                <action android:name="android.intent.action.MAIN" />
+31-->/home/flux/repos/swap-creator/app/src/main/AndroidManifest.xml:15:17-69
+31-->/home/flux/repos/swap-creator/app/src/main/AndroidManifest.xml:15:25-66
+32
+33                <category android:name="android.intent.category.LAUNCHER" />
+33-->/home/flux/repos/swap-creator/app/src/main/AndroidManifest.xml:17:17-77
+33-->/home/flux/repos/swap-creator/app/src/main/AndroidManifest.xml:17:27-74
+34            </intent-filter>
+35        </activity>
+36        <activity
+36-->[androidx.compose.ui:ui-tooling-android:1.7.6] /home/flux/.gradle/caches/8.13/transforms/50591bff7746a760d85c24a51ec23838/transformed/ui-tooling-release/AndroidManifest.xml:23:9-25:39
+37            android:name="androidx.compose.ui.tooling.PreviewActivity"
+37-->[androidx.compose.ui:ui-tooling-android:1.7.6] /home/flux/.gradle/caches/8.13/transforms/50591bff7746a760d85c24a51ec23838/transformed/ui-tooling-release/AndroidManifest.xml:24:13-71
+38            android:exported="true" />
+38-->[androidx.compose.ui:ui-tooling-android:1.7.6] /home/flux/.gradle/caches/8.13/transforms/50591bff7746a760d85c24a51ec23838/transformed/ui-tooling-release/AndroidManifest.xml:25:13-36
+39
+40        <provider
+40-->[androidx.emoji2:emoji2:1.3.0] /home/flux/.gradle/caches/8.13/transforms/aca2a98cc180b82609e1d96d75a290aa/transformed/emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
+41            android:name="androidx.startup.InitializationProvider"
+41-->[androidx.emoji2:emoji2:1.3.0] /home/flux/.gradle/caches/8.13/transforms/aca2a98cc180b82609e1d96d75a290aa/transformed/emoji2-1.3.0/AndroidManifest.xml:25:13-67
+42            android:authorities="com.ivarna.mkm.androidx-startup"
+42-->[androidx.emoji2:emoji2:1.3.0] /home/flux/.gradle/caches/8.13/transforms/aca2a98cc180b82609e1d96d75a290aa/transformed/emoji2-1.3.0/AndroidManifest.xml:26:13-68
+43            android:exported="false" >
+43-->[androidx.emoji2:emoji2:1.3.0] /home/flux/.gradle/caches/8.13/transforms/aca2a98cc180b82609e1d96d75a290aa/transformed/emoji2-1.3.0/AndroidManifest.xml:27:13-37
+44            <meta-data
+44-->[androidx.emoji2:emoji2:1.3.0] /home/flux/.gradle/caches/8.13/transforms/aca2a98cc180b82609e1d96d75a290aa/transformed/emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
+45                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+45-->[androidx.emoji2:emoji2:1.3.0] /home/flux/.gradle/caches/8.13/transforms/aca2a98cc180b82609e1d96d75a290aa/transformed/emoji2-1.3.0/AndroidManifest.xml:30:17-75
+46                android:value="androidx.startup" />
+46-->[androidx.emoji2:emoji2:1.3.0] /home/flux/.gradle/caches/8.13/transforms/aca2a98cc180b82609e1d96d75a290aa/transformed/emoji2-1.3.0/AndroidManifest.xml:31:17-49
+47            <meta-data
+47-->[androidx.lifecycle:lifecycle-process:2.8.7] /home/flux/.gradle/caches/8.13/transforms/59b1837f218a9b13b343ef2ce49394c4/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:29:13-31:52
+48                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+48-->[androidx.lifecycle:lifecycle-process:2.8.7] /home/flux/.gradle/caches/8.13/transforms/59b1837f218a9b13b343ef2ce49394c4/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:30:17-78
+49                android:value="androidx.startup" />
+49-->[androidx.lifecycle:lifecycle-process:2.8.7] /home/flux/.gradle/caches/8.13/transforms/59b1837f218a9b13b343ef2ce49394c4/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:31:17-49
+50            <meta-data
+50-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:29:13-31:52
+51                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+51-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:30:17-85
+52                android:value="androidx.startup" />
+52-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:31:17-49
+53        </provider>
+54
+55        <activity
+55-->[androidx.compose.ui:ui-test-manifest:1.7.6] /home/flux/.gradle/caches/8.13/transforms/7ab4a1d2f788c6c494c981f88878b362/transformed/ui-test-manifest-1.7.6/AndroidManifest.xml:23:9-25:39
+56            android:name="androidx.activity.ComponentActivity"
+56-->[androidx.compose.ui:ui-test-manifest:1.7.6] /home/flux/.gradle/caches/8.13/transforms/7ab4a1d2f788c6c494c981f88878b362/transformed/ui-test-manifest-1.7.6/AndroidManifest.xml:24:13-63
+57            android:exported="true" />
+57-->[androidx.compose.ui:ui-test-manifest:1.7.6] /home/flux/.gradle/caches/8.13/transforms/7ab4a1d2f788c6c494c981f88878b362/transformed/ui-test-manifest-1.7.6/AndroidManifest.xml:25:13-36
+58
+59        <receiver
+59-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:34:9-52:20
+60            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+60-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:35:13-76
+61            android:directBootAware="false"
+61-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:36:13-44
+62            android:enabled="true"
+62-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:37:13-35
+63            android:exported="true"
+63-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:38:13-36
+64            android:permission="android.permission.DUMP" >
+64-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:39:13-57
+65            <intent-filter>
+65-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:40:13-42:29
+66                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+66-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:17-91
+66-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:25-88
+67            </intent-filter>
+68            <intent-filter>
+68-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:43:13-45:29
+69                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+69-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:17-85
+69-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:25-82
+70            </intent-filter>
+71            <intent-filter>
+71-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:46:13-48:29
+72                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+72-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:17-88
+72-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:25-85
+73            </intent-filter>
+74            <intent-filter>
+74-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:49:13-51:29
+75                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+75-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:17-95
+75-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/flux/.gradle/caches/8.13/transforms/c850b0480b3354eb9f22b4e6856eeb1c/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:25-92
+76            </intent-filter>
+77        </receiver>
+78    </application>
+79
+80</manifest>
