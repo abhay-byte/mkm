@@ -53,6 +53,24 @@ class CpuViewModel : ViewModel() {
         }
     }
 
+    fun setGovernorForCore(coreId: Int, governor: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                CpuProvider.setGovernorForCore(coreId, governor)
+            }
+            refresh()
+        }
+    }
+
+    fun setFrequencyForCore(coreId: Int, freqKhz: String, isMax: Boolean) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                CpuProvider.setFrequencyForCore(coreId, freqKhz, isMax)
+            }
+            refresh()
+        }
+    }
+
     fun refresh() {
         viewModelScope.launch {
             _isRefreshing.value = true

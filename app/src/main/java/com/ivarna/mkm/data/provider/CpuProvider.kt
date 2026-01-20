@@ -73,7 +73,14 @@ object CpuProvider {
                 CpuCore(
                     id = coreId,
                     currentFreq = ShellUtils.formatFreq(coreCurFreq),
-                    usagePercent = usage
+                    usagePercent = usage,
+                    governor = governor,
+                    minFreq = ShellUtils.formatFreq(minFreq),
+                    maxFreq = ShellUtils.formatFreq(maxFreq),
+                    rawMinFreq = rawMinFreq,
+                    rawMaxFreq = rawMaxFreq,
+                    availableGovernors = availableGovernors,
+                    availableFrequencies = availableFrequencies
                 )
             }
 
@@ -135,5 +142,26 @@ object CpuProvider {
     fun setFrequency(policyId: Int, freqKhz: String, isMax: Boolean): Boolean {
         val path = if (isMax) "scaling_max_freq" else "scaling_min_freq"
         return ShellUtils.writeFile("/sys/devices/system/cpu/cpufreq/policy$policyId/$path", freqKhz)
+    }
+
+    fun setGovernorForCore(coreId: Int, governor: String): Boolean {
+        // Find which policy this core belong to
+        val policyPath = findPolicyForCore(coreId) ?: "/sys/devices/system/cpu/cpu$coreId/cpufreq"
+        return ShellUtils.writeFile("$policyPath/scaling_governor", governor)
+    }
+
+    fun setFrequencyForCore(coreId: Int, freqKhz: String, isMax: Boolean): Boolean {
+        val policyPath = findPolicyForCore(coreId) ?: "/sys/devices/system/cpu/cpu$coreId/cpufreq"
+        val file = if (isMax) "scaling_max_freq" else "scaling_min_freq"
+        return ShellUtils.writeFile("$policyPath/$file", freqKhz)
+    }
+
+    private fun findPolicyForCore(coreId: Int): String? {
+        val policyDir = File("/sys/devices/system/cpu/cpufreq")
+        policyDir.listFiles { _, name -> name.startsWith("policy") }?.forEach { policy ->
+            val affectedCores = parseCoreList(ShellUtils.readFile("${policy.absolutePath}/affected_cpus"))
+            if (affectedCores.contains(coreId)) return policy.absolutePath
+        }
+        return null
     }
 }

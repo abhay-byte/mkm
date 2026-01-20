@@ -36,6 +36,11 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel()) {
     var selectedClusterForGovernor by remember { mutableStateOf<CpuCluster?>(null) }
     var selectedClusterForMaxFreq by remember { mutableStateOf<CpuCluster?>(null) }
     var selectedClusterForMinFreq by remember { mutableStateOf<CpuCluster?>(null) }
+    
+    var selectedCoreForSettings by remember { mutableStateOf<com.ivarna.mkm.data.model.CpuCore?>(null) }
+    var showCoreGovernorSheet by remember { mutableStateOf(false) }
+    var showCoreMaxFreqSheet by remember { mutableStateOf(false) }
+    var showCoreMinFreqSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -95,7 +100,10 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel()) {
             }
 
             item {
-                CoreStatusGrid(cpuStatus.clusters.flatMap { it.cores })
+                CoreStatusGrid(
+                    cores = cpuStatus.clusters.flatMap { it.cores },
+                    onCoreClick = { selectedCoreForSettings = it }
+                )
             }
         }
 
@@ -139,6 +147,87 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel()) {
                 },
                 itemLabel = { ShellUtils.formatFreq(it.toLongOrNull() ?: 0L) }
             )
+        }
+
+        selectedCoreForSettings?.let { core ->
+            ModalBottomSheet(
+                onDismissRequest = { selectedCoreForSettings = null },
+                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+                containerColor = MaterialTheme.colorScheme.surface
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 48.dp)
+                ) {
+                    Text(
+                        text = "Core ${core.id} Settings",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 24.dp)
+                    )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        SettingRow(
+                            label = "GOVERNOR",
+                            value = core.governor,
+                            onClick = { showCoreGovernorSheet = true }
+                        )
+                        SettingRow(
+                            label = "MAX FREQUENCY",
+                            value = core.maxFreq,
+                            onClick = { showCoreMaxFreqSheet = true }
+                        )
+                        SettingRow(
+                            label = "MIN FREQUENCY",
+                            value = core.minFreq,
+                            onClick = { showCoreMinFreqSheet = true }
+                        )
+                    }
+                }
+            }
+
+            if (showCoreGovernorSheet) {
+                SelectionBottomSheet(
+                    title = "Core ${core.id} Governor",
+                    items = core.availableGovernors,
+                    selectedItem = core.governor,
+                    onDismiss = { showCoreGovernorSheet = false },
+                    onItemSelected = {
+                        viewModel.setGovernorForCore(core.id, it)
+                        showCoreGovernorSheet = false
+                    }
+                )
+            }
+
+            if (showCoreMaxFreqSheet) {
+                SelectionBottomSheet(
+                    title = "Core ${core.id} Max Frequency",
+                    items = core.availableFrequencies,
+                    selectedItem = core.rawMaxFreq,
+                    onDismiss = { showCoreMaxFreqSheet = false },
+                    onItemSelected = {
+                        viewModel.setFrequencyForCore(core.id, it, true)
+                        showCoreMaxFreqSheet = false
+                    },
+                    itemLabel = { ShellUtils.formatFreq(it.toLongOrNull() ?: 0L) }
+                )
+            }
+
+            if (showCoreMinFreqSheet) {
+                SelectionBottomSheet(
+                    title = "Core ${core.id} Min Frequency",
+                    items = core.availableFrequencies,
+                    selectedItem = core.rawMinFreq,
+                    onDismiss = { showCoreMinFreqSheet = false },
+                    onItemSelected = {
+                        viewModel.setFrequencyForCore(core.id, it, false)
+                        showCoreMinFreqSheet = false
+                    },
+                    itemLabel = { ShellUtils.formatFreq(it.toLongOrNull() ?: 0L) }
+                )
+            }
         }
     }
 }
@@ -209,47 +298,7 @@ fun CpuClusterCard(
 }
 
 @Composable
-fun SettingRow(
-    label: String,
-    value: String,
-    onClick: () -> Unit
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = value,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Icon(
-                    Icons.Default.ExpandMore,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun CoreStatusGrid(cores: List<CpuCore>) {
+fun CoreStatusGrid(cores: List<CpuCore>, onCoreClick: (CpuCore) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         cores.chunked(2).forEach { rowCores ->
             Row(
@@ -257,7 +306,11 @@ fun CoreStatusGrid(cores: List<CpuCore>) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 rowCores.forEach { core ->
-                    CoreMiniCard(core, modifier = Modifier.weight(1f))
+                    CoreMiniCard(
+                        core = core,
+                        onClick = { onCoreClick(core) },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
                 if (rowCores.size == 1) {
                     Spacer(modifier = Modifier.weight(1f))
@@ -267,34 +320,3 @@ fun CoreStatusGrid(cores: List<CpuCore>) {
     }
 }
 
-@Composable
-fun CoreMiniCard(core: CpuCore, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "CORE ${core.id}",
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = core.currentFreq,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Black
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            SquigglyLinearProgressIndicator(
-                progress = { core.usagePercent },
-                modifier = Modifier.fillMaxWidth().height(6.dp),
-                color = if (core.usagePercent > 0.8f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
-                trackColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
-            )
-        }
-    }
-}

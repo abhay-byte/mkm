@@ -17,7 +17,14 @@ data class MemoryStatus(
 data class CpuCore(
     val id: Int,
     val currentFreq: String = "0 MHz",
-    val usagePercent: Float = 0f
+    val usagePercent: Float = 0f,
+    val governor: String = "unknown",
+    val minFreq: String = "0 MHz",
+    val maxFreq: String = "0 MHz",
+    val rawMinFreq: String = "",
+    val rawMaxFreq: String = "",
+    val availableGovernors: List<String> = emptyList(),
+    val availableFrequencies: List<String> = emptyList()
 )
 
 data class CpuCluster(
@@ -43,7 +50,14 @@ data class CpuStatus(
 data class GpuStatus(
     val loadPercent: Float = 0f,
     val currentFreq: String = "0 MHz",
-    val maxFreq: String = "0 MHz"
+    val minFreq: String = "0 MHz",
+    val maxFreq: String = "0 MHz",
+    val rawMinFreq: String = "",
+    val rawMaxFreq: String = "",
+    val governor: String = "unknown",
+    val availableGovernors: List<String> = emptyList(),
+    val availableFrequencies: List<String> = emptyList(),
+    val model: String = "Unknown"
 )
 
 data class SwapStatus(

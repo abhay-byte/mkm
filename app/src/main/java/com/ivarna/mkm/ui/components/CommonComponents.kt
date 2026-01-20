@@ -5,10 +5,14 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import com.ivarna.mkm.data.model.CpuCore
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -204,6 +208,42 @@ fun SectionHeader(
 }
 
 @Composable
+fun CoreMiniCard(
+    core: CpuCore, 
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.clickable { onClick() },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "CORE ${core.id}",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = core.currentFreq,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Black
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            SquigglyLinearProgressIndicator(
+                progress = { core.usagePercent },
+                modifier = Modifier.fillMaxWidth().height(6.dp),
+                color = if (core.usagePercent > 0.8f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
+                trackColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
+            )
+        }
+    }
+}
+
+@Composable
 fun InfoRow(
     label: String,
     value: String,
@@ -227,6 +267,47 @@ fun InfoRow(
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
         )
+    }
+}
+
+@Composable
+fun SettingRow(
+    label: String,
+    value: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        color = Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Icon(
+                imageVector = androidx.compose.material.icons.Icons.Default.ExpandMore,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
