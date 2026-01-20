@@ -19,6 +19,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ivarna.mkm.data.model.GpuStatus
 import com.ivarna.mkm.ui.components.*
 import com.ivarna.mkm.ui.viewmodel.GpuViewModel
+import com.ivarna.mkm.utils.ShellUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,17 +30,26 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel()) {
     var showGovernorSheet by remember { mutableStateOf(false) }
     var showMaxFreqSheet by remember { mutableStateOf(false) }
     var showMinFreqSheet by remember { mutableStateOf(false) }
+    var showTargetFreqSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
             MediumTopAppBar(
                 title = {
-                    Text(
-                        "GPU Management",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Black
-                    )
+                    Column {
+                        Text(
+                            gpuStatus.model,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Black
+                        )
+                        Text(
+                            gpuStatus.sysfsPath,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 },
                 actions = {
                     IconButton(onClick = { /* ViewModel refresh if applicable */ }) {
@@ -77,8 +87,9 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel()) {
                 )
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    InfoRow(label = "Model", value = gpuStatus.model)
-                    InfoRow(label = "Current Frequency", value = gpuStatus.currentFreq)
+                    InfoRow(label = "Renderer", value = gpuStatus.renderer)
+                    InfoRow(label = "System Path", value = gpuStatus.sysfsPath)
+                    InfoRow(label = "Target Frequency", value = gpuStatus.targetFreq)
                     InfoRow(label = "Governor", value = gpuStatus.governor)
                 }
             }
@@ -96,18 +107,71 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel()) {
                         value = gpuStatus.governor,
                         onClick = { showGovernorSheet = true }
                     )
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingRow(
                         label = "Maximum Frequency",
                         value = gpuStatus.maxFreq,
                         onClick = { showMaxFreqSheet = true }
                     )
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingRow(
                         label = "Minimum Frequency",
                         value = gpuStatus.minFreq,
                         onClick = { showMinFreqSheet = true }
                     )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                    SettingRow(
+                        label = "Target Frequency",
+                        value = gpuStatus.targetFreq,
+                        onClick = { showTargetFreqSheet = true }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            SectionHeader("Advanced Options")
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = gpuStatus.setOnBoot,
+                            onCheckedChange = { viewModel.toggleSetOnBoot(it) }
+                        )
+                        Text(
+                            text = "Set on Boot",
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = gpuStatus.freezeValues,
+                            onCheckedChange = { viewModel.toggleFreezeValues(it) }
+                        )
+                        Text(
+                            text = "Freeze Values",
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
                 }
             }
 
@@ -135,7 +199,7 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel()) {
                 selectedItem = gpuStatus.rawMaxFreq,
                 onDismiss = { showMaxFreqSheet = false },
                 onItemSelected = {
-                    viewModel.setFrequency(it, true)
+                    viewModel.setFrequency(it, 1)
                     showMaxFreqSheet = false
                 },
                 itemLabel = { formatFreq(it) }
@@ -149,8 +213,22 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel()) {
                 selectedItem = gpuStatus.rawMinFreq,
                 onDismiss = { showMinFreqSheet = false },
                 onItemSelected = {
-                    viewModel.setFrequency(it, false)
+                    viewModel.setFrequency(it, 0)
                     showMinFreqSheet = false
+                },
+                itemLabel = { formatFreq(it) }
+            )
+        }
+
+        if (showTargetFreqSheet) {
+            SelectionBottomSheet(
+                title = "Target Frequency",
+                items = gpuStatus.availableFrequencies,
+                selectedItem = gpuStatus.rawTargetFreq,
+                onDismiss = { showTargetFreqSheet = false },
+                onItemSelected = {
+                    viewModel.setFrequency(it, 2)
+                    showTargetFreqSheet = false
                 },
                 itemLabel = { formatFreq(it) }
             )
@@ -160,7 +238,7 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel()) {
 
 private fun formatFreq(freq: String): String {
     val f = freq.toLongOrNull() ?: return freq
-    return if (f >= 1000000) "${f / 1000000} GHz"
-    else if (f >= 1000) "${f / 1000} MHz"
-    else "$f KHz"
+    // Mali freqs are usually in Hz if they are that large (> 10MHz)
+    val khz = if (f > 10000000) f / 1000 else f
+    return ShellUtils.formatFreq(khz)
 }

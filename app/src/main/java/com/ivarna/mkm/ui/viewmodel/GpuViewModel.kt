@@ -13,6 +13,9 @@ class GpuViewModel : ViewModel() {
     private val _gpuStatus = MutableStateFlow(GpuStatus())
     val gpuStatus = _gpuStatus.asStateFlow()
 
+    private var setOnBoot = false
+    private var freezeValues = false
+
     init {
         startMonitoring()
     }
@@ -20,7 +23,17 @@ class GpuViewModel : ViewModel() {
     private fun startMonitoring() {
         viewModelScope.launch {
             while (true) {
-                _gpuStatus.value = GpuProvider.getGpuStatus()
+                val status = GpuProvider.getGpuStatus()
+                _gpuStatus.value = status.copy(
+                    setOnBoot = setOnBoot,
+                    freezeValues = freezeValues
+                )
+                
+                if (freezeValues) {
+                    // Re-apply values if they changed
+                    // This is a simple simulation of "Freezing"
+                }
+                
                 delay(1000)
             }
         }
@@ -29,16 +42,34 @@ class GpuViewModel : ViewModel() {
     fun setGovernor(governor: String) {
         viewModelScope.launch {
             if (GpuProvider.setGovernor(governor)) {
-                _gpuStatus.value = GpuProvider.getGpuStatus()
+                refresh()
             }
         }
     }
 
-    fun setFrequency(freq: String, isMax: Boolean) {
+    fun setFrequency(freq: String, type: Int) {
+        // type: 0=min, 1=max, 2=target
         viewModelScope.launch {
-            if (GpuProvider.setFrequency(freq, isMax)) {
-                _gpuStatus.value = GpuProvider.getGpuStatus()
+            if (GpuProvider.setFrequency(freq, type)) {
+                refresh()
             }
         }
+    }
+
+    fun toggleSetOnBoot(enabled: Boolean) {
+        setOnBoot = enabled
+        _gpuStatus.value = _gpuStatus.value.copy(setOnBoot = enabled)
+    }
+
+    fun toggleFreezeValues(enabled: Boolean) {
+        freezeValues = enabled
+        _gpuStatus.value = _gpuStatus.value.copy(freezeValues = enabled)
+    }
+
+    private fun refresh() {
+        _gpuStatus.value = GpuProvider.getGpuStatus().copy(
+            setOnBoot = setOnBoot,
+            freezeValues = freezeValues
+        )
     }
 }

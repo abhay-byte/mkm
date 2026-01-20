@@ -52,12 +52,18 @@ data class GpuStatus(
     val currentFreq: String = "0 MHz",
     val minFreq: String = "0 MHz",
     val maxFreq: String = "0 MHz",
+    val targetFreq: String = "0 MHz",
     val rawMinFreq: String = "",
     val rawMaxFreq: String = "",
+    val rawTargetFreq: String = "",
     val governor: String = "unknown",
     val availableGovernors: List<String> = emptyList(),
     val availableFrequencies: List<String> = emptyList(),
-    val model: String = "Unknown"
+    val model: String = "Unknown",
+    val renderer: String = "Unknown",
+    val sysfsPath: String = "Unknown",
+    val setOnBoot: Boolean = false,
+    val freezeValues: Boolean = false
 )
 
 data class SwapStatus(
