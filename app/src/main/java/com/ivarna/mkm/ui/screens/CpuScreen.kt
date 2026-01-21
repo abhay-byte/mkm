@@ -46,12 +46,20 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel()) {
         modifier = Modifier.fillMaxSize(),
         topBar = {
             MediumTopAppBar(
-                title = { 
-                    Text(
-                        "CPU Management",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Black
-                    )
+                title = {
+                    Column {
+                        Text(
+                            cpuStatus.cpuName,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Black
+                        )
+                        Text(
+                            "CPU Management",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 },
                 scrollBehavior = scrollBehavior,
                 colors = TopAppBarDefaults.mediumTopAppBarColors(

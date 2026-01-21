@@ -110,10 +110,64 @@ object CpuProvider {
         Log.d("CpuProvider", "Overall usage: $overallUsage (from ${allCores.size} cores)")
 
         return CpuStatus(
+            cpuName = getCpuName(),
             overallUsage = if (overallUsage.isNaN() || overallUsage < 0) 0f else overallUsage.coerceAtMost(1f),
             clusters = clusters,
             totalCores = coreCount
         )
+    }
+
+    private fun getCpuName(): String {
+        var name = "Unknown"
+        
+        // 1. Try Build.SOC_MODEL (Android 12+)
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            val socModel = android.os.Build.SOC_MODEL
+            if (socModel != null && socModel != "unknown" && socModel.isNotEmpty()) {
+                name = socModel
+            }
+        }
+        
+        // 2. Try /proc/cpuinfo Hardware line
+        if (name == "Unknown") {
+            val cpuInfo = ShellUtils.readFile("/proc/cpuinfo")
+            if (cpuInfo.isNotEmpty()) {
+                val lines = cpuInfo.split("\n")
+                for (line in lines) {
+                    if (line.trim().startsWith("Hardware", ignoreCase = true)) {
+                        val parts = line.split(":")
+                        if (parts.size > 1) {
+                            name = parts[1].trim()
+                            break
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 3. Fallback to model name if still unknown (some kernels put it there)
+        if (name == "Unknown") {
+            val cpuInfo = ShellUtils.readFile("/proc/cpuinfo")
+            if (cpuInfo.isNotEmpty()) {
+                val lines = cpuInfo.split("\n")
+                for (line in lines) {
+                    if (line.trim().startsWith("model name", ignoreCase = true)) {
+                        val parts = line.split(":")
+                        if (parts.size > 1) {
+                            name = parts[1].trim()
+                            break
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 4. Last fallback Build.HARDWARE
+        if (name == "Unknown") {
+            name = android.os.Build.HARDWARE
+        }
+        
+        return name
     }
 
     private fun parseCoreList(content: String): List<Int> {

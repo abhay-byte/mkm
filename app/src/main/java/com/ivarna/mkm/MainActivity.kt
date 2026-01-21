@@ -13,8 +13,10 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -27,22 +29,27 @@ import com.ivarna.mkm.ui.screens.CpuScreen
 import com.ivarna.mkm.ui.screens.GpuScreen
 import com.ivarna.mkm.ui.screens.HomeScreen
 import com.ivarna.mkm.ui.screens.RamScreen
+import com.ivarna.mkm.ui.screens.SettingsScreen
 import com.ivarna.mkm.ui.theme.MKMTheme
+import com.ivarna.mkm.ui.viewmodel.SettingsViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MKMTheme {
-                MainScreen()
+            val settingsViewModel: SettingsViewModel = viewModel()
+            val theme by settingsViewModel.theme.collectAsState()
+            
+            MKMTheme(appTheme = theme) {
+                MainScreen(settingsViewModel)
             }
         }
     }
 }
 
 @Composable
-fun MainScreen() {
+fun MainScreen(settingsViewModel: SettingsViewModel) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -85,7 +92,7 @@ fun MainScreen() {
             composable(Screen.RAM.route) { RamScreen() }
             composable(Screen.CPU.route) { CpuScreen() }
             composable(Screen.GPU.route) { GpuScreen() }
-            composable(Screen.Settings.route) { PlaceholderScreen("Settings") }
+            composable(Screen.Settings.route) { SettingsScreen(settingsViewModel) }
         }
     }
 }

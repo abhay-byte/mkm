@@ -42,6 +42,7 @@ data class CpuCluster(
 )
 
 data class CpuStatus(
+    val cpuName: String = "Unknown",
     val overallUsage: Float = 0f,
     val clusters: List<CpuCluster> = emptyList(),
     val totalCores: Int = 0
