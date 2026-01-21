@@ -31,6 +31,7 @@ import com.ivarna.mkm.ui.screens.HomeScreen
 import com.ivarna.mkm.ui.screens.RamScreen
 import com.ivarna.mkm.ui.screens.SettingsScreen
 import com.ivarna.mkm.ui.theme.MKMTheme
+import com.ivarna.mkm.ui.viewmodel.HomeViewModel
 import com.ivarna.mkm.ui.viewmodel.SettingsViewModel
 
 class MainActivity : ComponentActivity() {
@@ -39,20 +40,24 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val settingsViewModel: SettingsViewModel = viewModel()
+            val homeViewModel: HomeViewModel = viewModel()
             val theme by settingsViewModel.theme.collectAsState()
             
             MKMTheme(appTheme = theme) {
-                MainScreen(settingsViewModel)
+                MainScreen(settingsViewModel, homeViewModel)
             }
         }
     }
 }
 
 @Composable
-fun MainScreen(settingsViewModel: SettingsViewModel) {
+fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewModel) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+    val homeData by homeViewModel.uiState.collectAsState()
+    
+    val isAccessGranted = homeData?.overview?.let { it.isShizukuActive || it.isRootActive } ?: false
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -60,6 +65,8 @@ fun MainScreen(settingsViewModel: SettingsViewModel) {
             NavigationBar {
                 navItems.forEach { screen ->
                     val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                    val isEnabled = isAccessGranted || screen == Screen.Home || screen == Screen.Settings
+                    
                     NavigationBarItem(
                         icon = {
                             Icon(
@@ -69,6 +76,7 @@ fun MainScreen(settingsViewModel: SettingsViewModel) {
                         },
                         label = { Text(screen.label) },
                         selected = selected,
+                        enabled = isEnabled,
                         onClick = {
                             navController.navigate(screen.route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
@@ -88,7 +96,7 @@ fun MainScreen(settingsViewModel: SettingsViewModel) {
             startDestination = Screen.Home.route,
             modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
         ) {
-            composable(Screen.Home.route) { HomeScreen() }
+            composable(Screen.Home.route) { HomeScreen(homeViewModel) }
             composable(Screen.RAM.route) { RamScreen() }
             composable(Screen.CPU.route) { CpuScreen() }
             composable(Screen.GPU.route) { GpuScreen() }

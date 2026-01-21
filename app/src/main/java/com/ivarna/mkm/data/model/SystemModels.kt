@@ -78,5 +78,6 @@ data class SwapStatus(
 data class SystemOverview(
     val deviceName: String = "",
     val kernelVersion: String = "",
-    val isShizukuActive: Boolean = false
+    val isShizukuActive: Boolean = false,
+    val isRootActive: Boolean = false
 )

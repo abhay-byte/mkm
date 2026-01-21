@@ -85,7 +85,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
             ) {
                 Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding() + 8.dp))
                 
-                SystemOverviewCard(data.overview)
+                SystemOverviewCard(data.overview, onCheckAgain = { viewModel.refresh() })
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
@@ -106,7 +106,10 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
 }
 
 @Composable
-fun SystemOverviewCard(overview: com.ivarna.mkm.data.model.SystemOverview) {
+fun SystemOverviewCard(
+    overview: com.ivarna.mkm.data.model.SystemOverview,
+    onCheckAgain: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(32.dp),
@@ -116,35 +119,104 @@ fun SystemOverviewCard(overview: com.ivarna.mkm.data.model.SystemOverview) {
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
-            Text(
-                text = overview.deviceName,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-            Text(
-                text = "Kernel: ${overview.kernelVersion}",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = overview.deviceName,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        text = "Kernel: ${overview.kernelVersion}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    )
+                }
+                IconButton(
+                    onClick = onCheckAgain,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f)
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Check Again",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val color = if (overview.isShizukuActive) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
-                val text = if (overview.isShizukuActive) "Shizuku: Active" else "Shizuku: Inactive"
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = color
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                StatusBadge(
+                    label = "Shizuku",
+                    isActive = overview.isShizukuActive,
+                    modifier = Modifier.weight(1f)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = color,
-                    fontWeight = FontWeight.Medium
+                StatusBadge(
+                    label = "Root",
+                    isActive = overview.isRootActive,
+                    modifier = Modifier.weight(1f)
                 )
             }
+            
+            if (!overview.isShizukuActive && !overview.isRootActive) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Access denied. Please enable Shizuku or grant Root access to use all features.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StatusBadge(label: String, isActive: Boolean, modifier: Modifier = Modifier) {
+    val color = if (isActive) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+    val icon = if (isActive) Icons.Default.Settings else Icons.Default.Settings // Could use different icons
+    
+    Surface(
+        color = color.copy(alpha = 0.1f),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.2f)),
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = color
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "$label: ${if (isActive) "Active" else "Inactive"}",
+                style = MaterialTheme.typography.labelLarge,
+                color = color,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

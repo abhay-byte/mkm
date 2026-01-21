@@ -2,7 +2,9 @@ package com.ivarna.mkm.data.provider
 
 import android.os.Build
 import com.ivarna.mkm.data.model.SystemOverview
+import com.ivarna.mkm.shell.ShizukuHelper
 import com.ivarna.mkm.utils.ShellUtils
+import com.topjohnwu.superuser.Shell
 
 object DeviceInfoProvider {
     fun getOverview(): SystemOverview {
@@ -17,7 +19,8 @@ object DeviceInfoProvider {
         return SystemOverview(
             deviceName = "${Build.MANUFACTURER} ${Build.MODEL}",
             kernelVersion = kernelVersion,
-            isShizukuActive = false // TODO: Add Shizuku API check
+            isShizukuActive = ShizukuHelper.isAvailable() && ShizukuHelper.hasPermission(),
+            isRootActive = Shell.getShell().isRoot
         )
     }
 }
