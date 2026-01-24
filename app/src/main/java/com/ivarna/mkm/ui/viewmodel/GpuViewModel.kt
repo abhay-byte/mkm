@@ -16,6 +16,9 @@ class GpuViewModel : ViewModel() {
     private var setOnBoot = false
     private var freezeValues = false
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing = _isRefreshing.asStateFlow()
+
     init {
         startMonitoring()
     }
@@ -66,10 +69,15 @@ class GpuViewModel : ViewModel() {
         _gpuStatus.value = _gpuStatus.value.copy(freezeValues = enabled)
     }
 
-    private fun refresh() {
-        _gpuStatus.value = GpuProvider.getGpuStatus().copy(
-            setOnBoot = setOnBoot,
-            freezeValues = freezeValues
-        )
+    fun refresh() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            _gpuStatus.value = GpuProvider.getGpuStatus().copy(
+                setOnBoot = setOnBoot,
+                freezeValues = freezeValues
+            )
+            delay(500)
+            _isRefreshing.value = false
+        }
     }
 }

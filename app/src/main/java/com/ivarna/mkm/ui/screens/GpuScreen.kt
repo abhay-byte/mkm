@@ -6,9 +6,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.VideogameAsset
 import androidx.compose.material3.*
+import com.ivarna.mkm.ui.components.PullToRefreshWrapper
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,6 +25,7 @@ import com.ivarna.mkm.utils.ShellUtils
 @Composable
 fun GpuScreen(viewModel: GpuViewModel = viewModel()) {
     val gpuStatus by viewModel.gpuStatus.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     var showGovernorSheet by remember { mutableStateOf(false) }
@@ -52,22 +53,25 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel()) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* ViewModel refresh if applicable */ }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                    }
+                    // Refresh button removed
                 },
                 scrollBehavior = scrollBehavior
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .nestedScroll(scrollBehavior.nestedScrollConnection)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
+        PullToRefreshWrapper(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.refresh() },
+            modifier = Modifier.padding(padding)
         ) {
-            Spacer(modifier = Modifier.height(padding.calculateTopPadding() + 8.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .nestedScroll(scrollBehavior.nestedScrollConnection)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+            ) {
+            Spacer(modifier = Modifier.height(8.dp))
 
             HeroUsageCard(
                 title = "GPU UTILIZATION",
@@ -176,6 +180,7 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel()) {
             }
 
             Spacer(modifier = Modifier.height(32.dp))
+            }
         }
 
         // Selection Sheets

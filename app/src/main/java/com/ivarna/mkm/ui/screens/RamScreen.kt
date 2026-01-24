@@ -9,9 +9,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.ivarna.mkm.ui.components.PullToRefreshWrapper
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,6 +33,7 @@ import com.ivarna.mkm.ui.viewmodel.RamViewModel
 fun RamScreen(viewModel: RamViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     
@@ -62,9 +63,7 @@ fun RamScreen(viewModel: RamViewModel = viewModel()) {
                     )
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                    }
+                    // Refresh button removed in favor of pull-to-refresh
                 },
                 scrollBehavior = scrollBehavior
             )
@@ -79,14 +78,19 @@ fun RamScreen(viewModel: RamViewModel = viewModel()) {
             )
         }
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .nestedScroll(scrollBehavior.nestedScrollConnection)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
+        PullToRefreshWrapper(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.refresh() },
+            modifier = Modifier.padding(innerPadding)
         ) {
-            Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding() + 8.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .nestedScroll(scrollBehavior.nestedScrollConnection)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+            ) {
+            Spacer(modifier = Modifier.height(8.dp))
             
             if (isProcessing) {
                 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -136,6 +140,7 @@ fun RamScreen(viewModel: RamViewModel = viewModel()) {
             }
         }
     }
+}
 }
 
 @Composable

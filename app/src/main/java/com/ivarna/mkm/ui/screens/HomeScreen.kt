@@ -23,11 +23,11 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DeveloperBoard
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.VideogameAsset
 import androidx.compose.material3.*
+import com.ivarna.mkm.ui.components.PullToRefreshWrapper
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -50,6 +50,7 @@ import com.ivarna.mkm.ui.components.StatCard
 @Composable
 fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     
     Scaffold(
@@ -64,9 +65,6 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                     )
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                    }
                     IconButton(onClick = { /* TODO: Overflow menu */ }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "More options")
                     }
@@ -76,14 +74,19 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
         }
     ) { innerPadding ->
         uiState?.let { data ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .nestedScroll(scrollBehavior.nestedScrollConnection)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp)
+            PullToRefreshWrapper(
+                isRefreshing = isRefreshing,
+                onRefresh = { viewModel.refresh() },
+                modifier = Modifier.padding(innerPadding)
             ) {
-                Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding() + 8.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .nestedScroll(scrollBehavior.nestedScrollConnection)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp)
+                ) {
+                Spacer(modifier = Modifier.height(8.dp))
                 
                 SystemOverviewCard(data.overview, onCheckAgain = { viewModel.refresh() })
                 
@@ -103,6 +106,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
             }
         }
     }
+}
 }
 
 @Composable
@@ -137,18 +141,7 @@ fun SystemOverviewCard(
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                     )
                 }
-                IconButton(
-                    onClick = onCheckAgain,
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f)
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Check Again",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
+                // Check again button removed
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -274,11 +267,7 @@ fun QuickActionsList() {
         )
     ) {
         Column(modifier = Modifier.padding(vertical = 8.dp)) {
-            QuickActionItem(
-                icon = Icons.Default.Refresh,
-                title = "Refresh Stats",
-                onClick = {}
-            )
+            // Refresh stats action removed
             QuickActionItem(
                 icon = Icons.Default.Add,
                 title = "Create Swap",

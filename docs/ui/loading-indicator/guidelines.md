@@ -108,6 +108,7 @@ LoadingIndicator() // What's loading? User doesn't know.
 | Context | Size | Use Case |
 |---------|------|----------|
 | **Default** | 48dp | Standard loading screens |
+| **Container Variant** | 48dp (Box) / 38dp (Icon) | Pull-to-refresh, floating indicators |
 | **Prominent** | 64-80dp | Splash screens, major transitions |
 | **Compact** | 40dp | Smaller containers, cards |
 | **Large Display** | 96-120dp | Tablet/desktop full-screen loading |

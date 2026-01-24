@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.ivarna.mkm.ui.components.PullToRefreshWrapper
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,6 +32,7 @@ import com.ivarna.mkm.utils.ShellUtils
 @Composable
 fun CpuScreen(viewModel: CpuViewModel = viewModel()) {
     val cpuStatus by viewModel.cpuStatus.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     var selectedClusterForGovernor by remember { mutableStateOf<CpuCluster?>(null) }
@@ -69,18 +71,23 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel()) {
             )
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .nestedScroll(scrollBehavior.nestedScrollConnection),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
-            contentPadding = PaddingValues(
-                top = padding.calculateTopPadding() + 8.dp,
-                bottom = padding.calculateBottomPadding() + 32.dp,
-                start = 16.dp,
-                end = 16.dp
-            )
+        PullToRefreshWrapper(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.refresh() },
+            modifier = Modifier.padding(padding)
         ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .nestedScroll(scrollBehavior.nestedScrollConnection),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+                contentPadding = PaddingValues(
+                    top = 8.dp, // padding consumed by wrapper, just need top spacing
+                    bottom = 32.dp,
+                    start = 16.dp,
+                    end = 16.dp
+                )
+            ) {
             item {
                 HeroUsageCard(
                     title = "OVERALL UTILIZATION",
@@ -112,6 +119,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel()) {
                     cores = cpuStatus.clusters.flatMap { it.cores },
                     onCoreClick = { selectedCoreForSettings = it }
                 )
+            }
             }
         }
 

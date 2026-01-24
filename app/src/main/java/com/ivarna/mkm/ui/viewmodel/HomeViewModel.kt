@@ -14,6 +14,9 @@ class HomeViewModel(private val repository: SystemRepository = SystemRepository(
     private val _uiState = MutableStateFlow<HomeData?>(null)
     val uiState: StateFlow<HomeData?> = _uiState.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     init {
         startMonitoring()
     }
@@ -29,7 +32,10 @@ class HomeViewModel(private val repository: SystemRepository = SystemRepository(
     
     fun refresh() {
         viewModelScope.launch {
+            _isRefreshing.value = true
             _uiState.value = repository.getHomeData()
+            delay(500)
+            _isRefreshing.value = false
         }
     }
 }

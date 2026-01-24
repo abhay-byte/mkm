@@ -22,6 +22,9 @@ class RamViewModel(private val repository: SystemRepository = SystemRepository()
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     init {
         startMonitoring()
     }
@@ -37,7 +40,10 @@ class RamViewModel(private val repository: SystemRepository = SystemRepository()
     
     fun refresh() {
         viewModelScope.launch {
+            _isRefreshing.value = true
             _uiState.value = repository.getRamData()
+            delay(500) // Artificial delay for visual feedback if operation is too fast
+            _isRefreshing.value = false
         }
     }
 
