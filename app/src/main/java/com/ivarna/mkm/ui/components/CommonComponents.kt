@@ -31,85 +31,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import kotlin.math.sin
 
-@Composable
-fun SquigglyLinearProgressIndicator(
-    progress: () -> Float,
-    modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.primary,
-    trackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
-    amplitude: Dp = 1.5.dp,
-    wavelength: Dp = 24.dp,
-    showEndStop: Boolean = true
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "squiggly")
-    val phase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 2f * Math.PI.toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "phase"
-    )
-
-    Canvas(modifier = modifier) {
-        val width = size.width
-        val height = size.height
-        val centerY = height / 2
-        val currentProgress = progress().coerceIn(0f, 1f)
-        
-        // Draw track
-        drawLine(
-            color = trackColor,
-            start = Offset(0f, centerY),
-            end = Offset(width, centerY),
-            strokeWidth = height,
-            cap = StrokeCap.Round
-        )
-        
-        // Draw squiggly progress
-        if (currentProgress > 0f) {
-            val progressWidth = width * currentProgress
-            val path = Path()
-            val ampPx = amplitude.toPx()
-            val wavelengthPx = wavelength.toPx()
-            
-            // Adjust phase based on x to make wave appear to move
-            val startY = centerY + ampPx * sin(phase)
-            path.moveTo(0f, startY)
-            
-            val step = 4f
-            var x = 0f
-            var lastY = startY
-            while (x < progressWidth) {
-                x = (x + step).coerceAtMost(progressWidth)
-                val relativeX = x / wavelengthPx
-                val y = centerY + ampPx * sin(phase + relativeX * 2 * Math.PI.toFloat())
-                path.lineTo(x, y)
-                lastY = y
-            }
-            
-            drawPath(
-                path = path,
-                color = color,
-                style = Stroke(
-                    width = height,
-                    cap = StrokeCap.Round,
-                    join = StrokeJoin.Round
-                )
-            )
-
-            // Draw end stop indicator (M3 Expressive)
-            if (showEndStop && currentProgress < 1f) {
-                drawCircle(
-                    color = color,
-                    radius = height * 0.8f, // Slightly larger than track
-                    center = Offset(progressWidth, lastY)
-                )
-            }
-        }
-    }
-}
+// SquigglyLinearProgressIndicator removed in favor of LinearWavyProgressIndicator
 
 @Composable
 fun StatCard(
@@ -163,7 +85,9 @@ fun StatCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(12.dp))
-            SquigglyLinearProgressIndicator(
+            Spacer(modifier = Modifier.height(12.dp))
+            @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+            LinearWavyProgressIndicator(
                 progress = { animatedProgress },
                 modifier = Modifier.fillMaxWidth().height(6.dp),
                 color = MaterialTheme.colorScheme.primary,
@@ -234,7 +158,8 @@ fun CoreMiniCard(
                 fontWeight = FontWeight.Black
             )
             Spacer(modifier = Modifier.height(12.dp))
-            SquigglyLinearProgressIndicator(
+            @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+            LinearWavyProgressIndicator(
                 progress = { core.usagePercent },
                 modifier = Modifier.fillMaxWidth().height(6.dp),
                 color = if (core.usagePercent > 0.8f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
@@ -351,15 +276,17 @@ fun HeroUsageCard(
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
             )
             Spacer(modifier = Modifier.height(24.dp))
-            SquigglyLinearProgressIndicator(
+            @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+            LinearWavyProgressIndicator(
                 progress = { usage },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp),
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                amplitude = 2.dp,
-                wavelength = 32.dp
+                // amplitude and wavelength commented out as they match defaults or require validation
+                // amplitude = 2.dp, 
+                // wavelength = 32.dp
             )
         }
     }

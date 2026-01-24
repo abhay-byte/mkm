@@ -25,7 +25,6 @@ import com.ivarna.mkm.data.model.MemoryStatus
 import com.ivarna.mkm.data.model.SwapStatus
 import com.ivarna.mkm.ui.components.InfoRow
 import com.ivarna.mkm.ui.components.SectionHeader
-import com.ivarna.mkm.ui.components.SquigglyLinearProgressIndicator
 import com.ivarna.mkm.ui.components.SwapConfigDialog
 import com.ivarna.mkm.ui.viewmodel.RamViewModel
 
@@ -90,7 +89,8 @@ fun RamScreen(viewModel: RamViewModel = viewModel()) {
             Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding() + 8.dp))
             
             if (isProcessing) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp))
+                @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+                LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp))
             }
 
             errorMessage?.let { msg ->
@@ -161,7 +161,9 @@ fun MemoryOverviewCard(memory: MemoryStatus) {
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
             Spacer(modifier = Modifier.height(12.dp))
-            SquigglyLinearProgressIndicator(
+            Spacer(modifier = Modifier.height(12.dp))
+            @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+            LinearWavyProgressIndicator(
                 progress = { animatedProgress },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -274,7 +276,9 @@ fun ActiveSwapContent(
         style = MaterialTheme.typography.bodyMedium
     )
     Spacer(modifier = Modifier.height(8.dp))
-    SquigglyLinearProgressIndicator(
+    Spacer(modifier = Modifier.height(8.dp))
+    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+    LinearWavyProgressIndicator(
         progress = { animatedProgress },
         modifier = Modifier
             .fillMaxWidth()
