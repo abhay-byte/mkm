@@ -172,7 +172,7 @@ fun MemoryOverviewCard(memory: MemoryStatus) {
                 progress = { animatedProgress },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(6.dp),
+                    .height(10.dp),
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f)
             )
@@ -287,7 +287,7 @@ fun ActiveSwapContent(
         progress = { animatedProgress },
         modifier = Modifier
             .fillMaxWidth()
-            .height(6.dp),
+            .height(10.dp),
         color = MaterialTheme.colorScheme.secondary,
         trackColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
     )

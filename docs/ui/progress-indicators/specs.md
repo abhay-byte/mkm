@@ -14,6 +14,14 @@ This document provides detailed technical specifications for Material 3 progress
 | **Minimum Width** | 40dp |
 | **Container Inset** | 4dp from edge |
 
+### Configurations
+
+Configurations of the linear determinate progress indicator:
+
+- **Behavior:** Determinate and indeterminate
+- **Thickness:** Default (4dp) and variable
+- **Shape:** Flat and wavy
+
 ### Wavy Variant Dimensions
 
 | Variant | Total Height | Active Indicator Height | Wave Amplitude |

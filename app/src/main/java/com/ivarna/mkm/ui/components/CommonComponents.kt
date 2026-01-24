@@ -89,7 +89,7 @@ fun StatCard(
             @OptIn(ExperimentalMaterial3ExpressiveApi::class)
             LinearWavyProgressIndicator(
                 progress = { animatedProgress },
-                modifier = Modifier.fillMaxWidth().height(6.dp),
+                modifier = Modifier.fillMaxWidth().height(10.dp),
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
             )
@@ -161,7 +161,7 @@ fun CoreMiniCard(
             @OptIn(ExperimentalMaterial3ExpressiveApi::class)
             LinearWavyProgressIndicator(
                 progress = { core.usagePercent },
-                modifier = Modifier.fillMaxWidth().height(6.dp),
+                modifier = Modifier.fillMaxWidth().height(10.dp),
                 color = if (core.usagePercent > 0.8f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
                 trackColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
             )
@@ -281,7 +281,7 @@ fun HeroUsageCard(
                 progress = { usage },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(8.dp),
+                    .height(10.dp),
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
                 // amplitude and wavelength commented out as they match defaults or require validation
