@@ -2,21 +2,29 @@ package com.ivarna.mkm.ui.screens
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.ivarna.mkm.data.model.SwapDeviceInfo
 import com.ivarna.mkm.ui.components.PullToRefreshWrapper
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,96 +59,99 @@ fun RamScreen(viewModel: RamViewModel = viewModel()) {
         )
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        topBar = {
-            MediumTopAppBar(
-                title = { 
-                    Text(
-                        "RAM Management",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Black
-                    )
-                },
-                actions = {
-                    // Refresh button removed in favor of pull-to-refresh
-                },
-                scrollBehavior = scrollBehavior
-            )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { showSwapDialog = true },
-                icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("Create New Swap") },
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
-    ) { innerPadding ->
-        PullToRefreshWrapper(
-            isRefreshing = isRefreshing,
-            onRefresh = { viewModel.refresh() },
-            modifier = Modifier.padding(innerPadding)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .nestedScroll(scrollBehavior.nestedScrollConnection)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp)
-            ) {
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            if (isProcessing) {
-                @OptIn(ExperimentalMaterial3ExpressiveApi::class)
-                LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp))
-            }
-
-            errorMessage?.let { msg ->
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            topBar = {
+                MediumTopAppBar(
+                    title = { 
                         Text(
-                            text = msg,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.weight(1f)
+                            "RAM Management",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Black
                         )
-                        TextButton(onClick = { viewModel.clearError() }) {
-                            Text("Dismiss", color = MaterialTheme.colorScheme.error)
+                    },
+                    actions = {
+                        // Refresh button removed in favor of pull-to-refresh
+                    },
+                    scrollBehavior = scrollBehavior
+                )
+            },
+            floatingActionButton = {
+                ExtendedFloatingActionButton(
+                    onClick = { showSwapDialog = true },
+                    icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                    text = { Text("Create New Swap") },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        ) { innerPadding ->
+            PullToRefreshWrapper(
+                isRefreshing = isRefreshing,
+                onRefresh = { viewModel.refresh() },
+                modifier = Modifier.padding(innerPadding)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .nestedScroll(scrollBehavior.nestedScrollConnection)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp)
+                ) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // Removed top progress indicator in favor of LoadingOverlay
+
+                    errorMessage?.let { msg ->
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = msg,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                TextButton(onClick = { viewModel.clearError() }) {
+                                    Text("Dismiss", color = MaterialTheme.colorScheme.error)
+                                }
+                            }
                         }
+                    }
+
+                    uiState?.let { data ->
+                        MemoryOverviewCard(data.memory)
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        SectionHeader("Swap Configuration")
+                        SwapConfigurationCard(
+                            swap = data.swap,
+                            onConfigureClick = { showSwapDialog = true },
+                            onDisableClick = { viewModel.disableSwap(data.swap.path) },
+                            onRemoveClick = { path -> viewModel.removeSwap(path) }
+                        )
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        SectionHeader("Memory Details")
+                        MemoryDetailsCard(data.memory)
+                        
+                        Spacer(modifier = Modifier.height(80.dp)) // Space for FAB
                     }
                 }
             }
+        }
 
-            uiState?.let { data ->
-                MemoryOverviewCard(data.memory)
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                SectionHeader("Swap Configuration")
-                SwapConfigurationCard(
-                    swap = data.swap,
-                    onConfigureClick = { showSwapDialog = true },
-                    onDisableClick = { viewModel.disableSwap(data.swap.path) },
-                    onRemoveClick = { viewModel.removeSwap(data.swap.path) }
-                )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                SectionHeader("Memory Details")
-                MemoryDetailsCard(data.memory)
-                
-                Spacer(modifier = Modifier.height(80.dp)) // Space for FAB
-            }
+        if (isProcessing) {
+            LoadingOverlay(message = "Processing...")
         }
     }
-}
 }
 
 @Composable
@@ -192,7 +203,7 @@ fun SwapConfigurationCard(
     swap: SwapStatus,
     onConfigureClick: () -> Unit,
     onDisableClick: () -> Unit,
-    onRemoveClick: () -> Unit
+    onRemoveClick: (String) -> Unit
 ) {
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -216,20 +227,20 @@ fun ActiveSwapContent(
     swap: SwapStatus,
     onConfigureClick: () -> Unit,
     onDisableClick: () -> Unit,
-    onRemoveClick: () -> Unit
+    onRemoveClick: (String) -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
     
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Current Swap",
+                text = "Swap Usage",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "${swap.totalUi} · Active",
+                text = "${swap.usedUi} / ${swap.totalUi}",
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium
             )
@@ -242,64 +253,106 @@ fun ActiveSwapContent(
                 expanded = showMenu,
                 onDismissRequest = { showMenu = false }
             ) {
-                DropdownMenuItem(
-                    text = { Text("Disable Swap") },
-                    onClick = {
-                        onDisableClick()
-                        showMenu = false
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Delete Swap File") },
-                    onClick = {
-                        onRemoveClick()
-                        showMenu = false
-                    },
-                    colors = MenuDefaults.itemColors(
-                        textColor = MaterialTheme.colorScheme.error
+                // If there is specifically a file-based swap that we manage, show Disable/Delete
+                // Otherwise only show Create New (which is handled by FAB)
+                if (swap.path != "None") {
+                    DropdownMenuItem(
+                        text = { Text("Disable Main Swap") },
+                        onClick = {
+                            onDisableClick()
+                            showMenu = false
+                        }
                     )
-                )
+                    DropdownMenuItem(
+                        text = { Text("Delete Main Swap File") },
+                        onClick = {
+                            onRemoveClick(swap.path)
+                            showMenu = false
+                        },
+                        colors = MenuDefaults.itemColors(
+                            textColor = MaterialTheme.colorScheme.error
+                        )
+                    )
+                }
             }
         }
     }
     
-    Text(
-        text = swap.path,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
+    Spacer(modifier = Modifier.height(16.dp))
+
+    // List all active devices
+    if (swap.devices.isNotEmpty()) {
+        swap.devices.forEach { device ->
+            SwapDeviceRow(device = device, onRemove = { onRemoveClick(device.path) })
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        }
+    } else {
+         // Fallback for when detailed info is missing but swap is active (shouldn't happen often)
+        Text(
+            text = "Active: ${swap.path}",
+            style = MaterialTheme.typography.bodyMedium
+        )
+    }
     
     Spacer(modifier = Modifier.height(16.dp))
     
-    val animatedProgress by animateFloatAsState(
-        targetValue = swap.usagePercent,
-        animationSpec = spring(stiffness = 50f),
-        label = "swap_progress"
-    )
-    
-    Text(
-        text = "Usage: ${swap.usedUi} / ${swap.totalUi}",
-        style = MaterialTheme.typography.bodyMedium
-    )
-    Spacer(modifier = Modifier.height(8.dp))
-    Spacer(modifier = Modifier.height(8.dp))
-    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
-    LinearWavyProgressIndicator(
-        progress = { animatedProgress },
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(10.dp),
-        color = MaterialTheme.colorScheme.secondary,
-        trackColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
-    )
-    
-    Spacer(modifier = Modifier.height(20.dp))
+    Spacer(modifier = Modifier.height(16.dp))
     
     Button(
         onClick = onConfigureClick,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Text("Reconfigure / Resize")
+        Text("Create New Swap / Resize")
+    }
+}
+
+@Composable
+fun SwapDeviceRow(device: SwapDeviceInfo, onRemove: () -> Unit) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                 Text(
+                    text = device.path,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                 Text(
+                    text = device.type,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+            
+            if (device.type == "file") {
+                IconButton(onClick = onRemove) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete swap file",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+             Text(
+                text = "${device.usedUi} used of ${device.sizeUi}",
+                style = MaterialTheme.typography.bodySmall,
+                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "Prio: ${device.priority}",
+                 style = MaterialTheme.typography.labelSmall,
+                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
@@ -348,6 +401,45 @@ fun MemoryDetailsCard(memory: MemoryStatus) {
             InfoRow(label = "Inactive", value = memory.inactiveUi)
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             InfoRow(label = "Buffers", value = memory.buffersUi)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun LoadingOverlay(message: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
+            .clickable(enabled = false) {}, // Block clicks
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .background(
+                    MaterialTheme.colorScheme.surfaceContainerHighest,
+                    RoundedCornerShape(16.dp)
+                )
+                .padding(24.dp)
+        ) {
+            LoadingIndicator(
+                modifier = Modifier
+                    .size(48.dp)
+                    .semantics {
+                        contentDescription = message
+                        progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
+                    },
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }

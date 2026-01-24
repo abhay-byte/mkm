@@ -6,11 +6,15 @@ import com.ivarna.mkm.data.RamData
 import com.ivarna.mkm.data.SystemRepository
 import com.ivarna.mkm.shell.ShellManager
 import com.ivarna.mkm.shell.ShellScripts
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import android.util.Log
 
 class RamViewModel(private val repository: SystemRepository = SystemRepository()) : ViewModel() {
     private val _uiState = MutableStateFlow<RamData?>(null)
@@ -31,6 +35,31 @@ class RamViewModel(private val repository: SystemRepository = SystemRepository()
 
     private fun startMonitoring() {
         viewModelScope.launch {
+             Log.d("RamViewModel", "Starting monitoring...")
+            // Check root status on startup
+            try {
+                 Log.e("RamViewModel", "Checking root status...")
+                 
+                 // Diagnostic: Check if su exists manually
+                 val suPaths = listOf("/system/bin/su", "/system/xbin/su", "/sbin/su", "/magisk/.core/bin/su")
+                 val existingSu = suPaths.find { java.io.File(it).exists() }
+                 Log.e("RamViewModel", "Manual SU Check: Found at $existingSu")
+                 
+                val isRoot = withContext(Dispatchers.IO) {
+                    val shell = com.topjohnwu.superuser.Shell.getShell()
+                    val idResult = com.topjohnwu.superuser.Shell.cmd("id").exec()
+                    Log.e("RamViewModel", "Shell ID output: ${idResult.out}")
+                    shell.isRoot
+                }
+                Log.e("RamViewModel", "Root status: $isRoot")
+                if (!isRoot) {
+                    _errorMessage.value = "Root access denied. SU found at: $existingSu"
+                }
+            } catch (e: Exception) {
+                Log.e("RamViewModel", "Failed to check root", e)
+                _errorMessage.value = "Root check failed: ${e.message}"
+            }
+
             while (true) {
                 _uiState.value = repository.getRamData()
                 delay(2000) // Refresh every 2 seconds
@@ -53,9 +82,12 @@ class RamViewModel(private val repository: SystemRepository = SystemRepository()
             _errorMessage.value = null
             try {
                 val script = ShellScripts.createSwap(path, sizeMb)
-                val result = ShellManager.exec(script)
+                val result = withContext(Dispatchers.IO) {
+                    ShellManager.exec(script)
+                }
                 if (!result.isSuccess) {
-                    _errorMessage.value = result.stderr.ifEmpty { "Failed to apply swap" }
+                    val errorMsg = result.stderr.ifEmpty { result.stdout.ifEmpty { "Failed to apply swap (exit ${result.exitCode})" } }
+                    _errorMessage.value = errorMsg
                 }
                 _uiState.value = repository.getRamData()
             } catch (e: Exception) {
@@ -71,7 +103,13 @@ class RamViewModel(private val repository: SystemRepository = SystemRepository()
             _isProcessing.value = true
             try {
                 val script = ShellScripts.disableSwap(path)
-                ShellManager.exec(script)
+                val result = withContext(Dispatchers.IO) {
+                    ShellManager.exec(script)
+                }
+                if (!result.isSuccess) {
+                    val errorMsg = result.stderr.ifEmpty { result.stdout.ifEmpty { "Failed to disable (exit ${result.exitCode})" } }
+                    _errorMessage.value = errorMsg
+                }
                 _uiState.value = repository.getRamData()
             } catch (e: Exception) {
                 _errorMessage.value = e.message
@@ -86,10 +124,17 @@ class RamViewModel(private val repository: SystemRepository = SystemRepository()
             _isProcessing.value = true
             try {
                 val script = ShellScripts.removeSwap(path)
-                ShellManager.exec(script)
+                val result = withContext(Dispatchers.IO) {
+                    ShellManager.exec(script)
+                }
+                if (!result.isSuccess) {
+                    val errorMsg = result.stderr.ifEmpty { result.stdout.ifEmpty { "Failed to delete (exit ${result.exitCode})" } }
+                    _errorMessage.value = errorMsg
+                }
                 _uiState.value = repository.getRamData()
             } catch (e: Exception) {
-                _errorMessage.value = e.message
+                e.printStackTrace()
+                _errorMessage.value = "Delete failed: ${e.message}"
             } finally {
                 _isProcessing.value = false
             }

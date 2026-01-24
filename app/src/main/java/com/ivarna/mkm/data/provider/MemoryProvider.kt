@@ -1,7 +1,9 @@
 package com.ivarna.mkm.data.provider
 
 import com.ivarna.mkm.data.model.MemoryStatus
+import com.ivarna.mkm.data.model.SwapDeviceInfo
 import com.ivarna.mkm.data.model.SwapStatus
+import com.ivarna.mkm.shell.ShellManager
 import com.ivarna.mkm.utils.ShellUtils
 
 object MemoryProvider {
@@ -35,42 +37,56 @@ object MemoryProvider {
         val total = parseValue(memInfo, "SwapTotal")
         val free = parseValue(memInfo, "SwapFree")
         val used = if (total > 0) total - free else 0L
-        
-        // Try to get path from /proc/swaps
-        val swaps = ShellUtils.readFile("/proc/swaps").lines().filter { it.isNotBlank() }
-        var path = "None"
-        if (swaps.size >= 2) {
-            val line = swaps[1].trim().split(Regex("\\s+"))
-            if (line.size >= 1) {
-                path = line[0]
+
+        // Get detailed swap info from /proc/swaps using ShellManager (root/shizuku compatible)
+        val devices = mutableListOf<SwapDeviceInfo>()
+        val swapsOutput = ShellManager.exec("cat /proc/swaps").stdout
+        if (swapsOutput.isNotEmpty()) {
+            val lines = swapsOutput.lines()
+            if (lines.size > 1) { // Skip header
+                for (i in 1 until lines.size) {
+                    val line = lines[i].trim()
+                    if (line.isBlank()) continue
+                    
+                    val parts = line.split(Regex("\\s+"))
+                    if (parts.size >= 5) {
+                        var path = parts[0]
+                        // Fix for some devices reporting /local/tmp instead of /data/local/tmp
+                        if (path.startsWith("/local/")) {
+                            path = "/data" + path
+                        }
+                        
+                        val type = parts[1]
+                        val sizeParam = parts[2].toLongOrNull() ?: 0L // in KB
+                        val usedParam = parts[3].toLongOrNull() ?: 0L // in KB
+                        val priority = parts[4].toIntOrNull() ?: -1
+                        
+                        devices.add(
+                            SwapDeviceInfo(
+                                path = path,
+                                type = type,
+                                sizeUi = ShellUtils.formatSize(sizeParam),
+                                usedUi = ShellUtils.formatSize(usedParam),
+                                priority = priority
+                            )
+                        )
+                    }
+                }
             }
         }
 
-        if (total > 0) {
-            return SwapStatus(
-                isActive = true,
-                totalUi = ShellUtils.formatSize(total),
-                usedUi = ShellUtils.formatSize(used),
-                usagePercent = if (total > 0) used.toFloat() / total else 0f,
-                path = path
-            )
-        }
+        // Determine main path (first non-zram file if possible, else first device)
+        val mainPath = devices.firstOrNull { it.type == "file" }?.path 
+            ?: devices.firstOrNull()?.path 
+            ?: "None"
 
-        // Fallback or detailed info from /proc/swaps
-        if (swaps.size < 2) return SwapStatus()
-        
-        val line = swaps[1].trim().split(Regex("\\s+"))
-        if (line.size < 4) return SwapStatus()
-        
-        val sTotal = line[2].toLongOrNull() ?: 0L
-        val sUsed = line[3].toLongOrNull() ?: 0L
-        
         return SwapStatus(
-            isActive = sTotal > 0,
-            totalUi = ShellUtils.formatSize(sTotal),
-            usedUi = ShellUtils.formatSize(sUsed),
-            usagePercent = if (sTotal > 0) sUsed.toFloat() / sTotal else 0f,
-            path = path
+            isActive = total > 0,
+            totalUi = ShellUtils.formatSize(total),
+            usedUi = ShellUtils.formatSize(used),
+            usagePercent = if (total > 0) used.toFloat() / total else 0f,
+            path = mainPath,
+            devices = devices
         )
     }
 

@@ -67,12 +67,21 @@ data class GpuStatus(
     val freezeValues: Boolean = false
 )
 
+data class SwapDeviceInfo(
+    val path: String,
+    val type: String,
+    val sizeUi: String,
+    val usedUi: String,
+    val priority: Int
+)
+
 data class SwapStatus(
     val isActive: Boolean = false,
     val totalUi: String = "0 B",
     val usedUi: String = "0 B",
     val usagePercent: Float = 0f,
-    val path: String = "None"
+    val path: String = "None",
+    val devices: List<SwapDeviceInfo> = emptyList()
 )
 
 data class SystemOverview(

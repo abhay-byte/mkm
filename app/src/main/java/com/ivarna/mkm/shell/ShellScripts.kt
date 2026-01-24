@@ -18,8 +18,10 @@ object ShellScripts {
      */
     fun createSwap(path: String, sizeMb: Int): String {
         return """
+            set -e # fail on error
+            
             # Disable existing swap if any
-            swapoff "$path" 2>/dev/null
+            swapoff "$path" 2>/dev/null || true
             
             # Create file
             dd if=/dev/zero of="$path" bs=1M count=$sizeMb
@@ -42,7 +44,7 @@ object ShellScripts {
      * Script to disable swap.
      */
     fun disableSwap(path: String): String {
-        return "swapoff \"$path\""
+        return "set -e; swapoff \"$path\""
     }
 
     /**
@@ -57,10 +59,13 @@ object ShellScripts {
      */
     fun removeSwap(path: String): String {
         return """
-            swapoff "$path" 2>/dev/null
+            set -e # fail on error
+            swapoff "$path" 2>/dev/null || true
             rm -f "$path"
         """.trimIndent()
     }
+
+
 
     /**
      * Script to get current CPU info.
