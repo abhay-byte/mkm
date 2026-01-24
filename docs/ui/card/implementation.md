@@ -57,7 +57,7 @@ See the [reference](https://developer.android.com/reference/kotlin/androidx/comp
 
 ### Filled Card
 
-The filled card is the default card type. Use the `colors` property to change the filled color.
+The filled card is reserved for "Hero" or primary status indicators in this application. Use the `colors` property to change the filled color.
 
 ```kotlin
 @Composable
@@ -212,8 +212,11 @@ fun CompleteCardExample() {
 
 To make a card respond to clicks, use the `Card` overload with the `onClick` parameter:
 
+> [!IMPORTANT]
+> To ensure proper Material Design 3 state animations (ripple, elevation lift), ALWAYS use the `onClick` parameter, even if the action is empty `{}` for purely informational cards that need to feel interactive.
+>
 > [!WARNING]
-> The `Card` overload that defines the `onClick` parameter is experimental.
+> The `Card` overload that defines the `onClick` parameter is experimental but required for proper state handling.
 
 ```kotlin
 @Composable
@@ -347,10 +350,10 @@ See the [Scroll documentation](https://developer.android.com/develop/ui/compose/
 ## Best Practices
 
 ### Layout Guidelines
-
-- Use **16dp** padding inside cards for content
-- Use **8dp** spacing between cards in a collection
-- Cards have **12dp** corner radius by default
+- **12dp** corner radius for all cards
+- **16dp** internal padding for content
+- Use `ElevatedCard` with `surfaceContainerLow` for standard content
+- Use `Card` (Filled) with `primaryContainer` for Hero/Status cards
 
 ### Color Usage
 

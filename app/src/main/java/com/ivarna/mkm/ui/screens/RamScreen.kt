@@ -152,13 +152,14 @@ fun MemoryOverviewCard(memory: MemoryStatus) {
     )
 
     Card(
+        onClick = {},
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(32.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         )
     ) {
-        Column(modifier = Modifier.padding(24.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = "${memory.usedUi} / ${memory.totalUi}",
                 style = MaterialTheme.typography.headlineSmall,
@@ -193,14 +194,14 @@ fun SwapConfigurationCard(
     onDisableClick: () -> Unit,
     onRemoveClick: () -> Unit
 ) {
-    Card(
+    ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             if (swap.isActive) {
                 ActiveSwapContent(swap, onConfigureClick, onDisableClick, onRemoveClick)
             } else {
@@ -329,14 +330,15 @@ fun NoSwapContent(onConfigureClick: () -> Unit) {
 
 @Composable
 fun MemoryDetailsCard(memory: MemoryStatus) {
-    Card(
+    ElevatedCard(
+        onClick = {},
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             InfoRow(label = "Available", value = memory.availableUi)
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             InfoRow(label = "Cached", value = memory.cachedUi)

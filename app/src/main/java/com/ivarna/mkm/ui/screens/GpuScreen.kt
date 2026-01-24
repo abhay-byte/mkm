@@ -83,11 +83,12 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel()) {
             Spacer(modifier = Modifier.height(24.dp))
 
             SectionHeader("Graphics Information")
-            Card(
+            ElevatedCard(
+                onClick = {},
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 )
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -101,9 +102,12 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel()) {
             Spacer(modifier = Modifier.height(24.dp))
 
             SectionHeader("Performance Controls")
-            Card(
+            ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp)
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
             ) {
                 Column {
                     SettingRow(
@@ -135,14 +139,15 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel()) {
             Spacer(modifier = Modifier.height(24.dp))
 
             SectionHeader("Advanced Options")
-            Card(
+            ElevatedCard(
+                onClick = {},
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 )
             ) {
-                Column(modifier = Modifier.padding(8.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
