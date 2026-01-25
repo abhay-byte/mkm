@@ -5,6 +5,8 @@ import com.ivarna.mkm.data.model.CpuCluster
 import com.ivarna.mkm.data.model.CpuCore
 import com.ivarna.mkm.data.model.CpuStatus
 import com.ivarna.mkm.utils.ShellUtils
+import com.ivarna.mkm.shell.ShellManager
+import com.ivarna.mkm.shell.CpuScripts
 import java.io.File
 
 object CpuProvider {
@@ -21,7 +23,7 @@ object CpuProvider {
 
         policyFiles?.forEach { policy ->
             val id = policy.name.removePrefix("policy").toInt()
-            val affectedCoresStr = ShellUtils.readFile("${policy.absolutePath}/affected_cpus")
+            val affectedCoresStr = readSystemFile("${policy.absolutePath}/affected_cpus")
             val affectedCores = if (affectedCoresStr.isNotEmpty()) {
                 parseCoreList(affectedCoresStr)
             } else {
@@ -34,28 +36,28 @@ object CpuProvider {
                 0..0
             }
 
-            val governor = ShellUtils.readFile("${policy.absolutePath}/scaling_governor")
-            val curFreq = ShellUtils.readFile("${policy.absolutePath}/scaling_cur_freq").toLongOrNull() ?: 0L
-            val minFreq = ShellUtils.readFile("${policy.absolutePath}/scaling_min_freq").toLongOrNull() ?: 0L
-            val maxFreq = ShellUtils.readFile("${policy.absolutePath}/scaling_max_freq").toLongOrNull() ?: 0L
+            val governor = readSystemFile("${policy.absolutePath}/scaling_governor")
+            val curFreq = readSystemFile("${policy.absolutePath}/scaling_cur_freq").toLongOrNull() ?: 0L
+            val minFreq = readSystemFile("${policy.absolutePath}/scaling_min_freq").toLongOrNull() ?: 0L
+            val maxFreq = readSystemFile("${policy.absolutePath}/scaling_max_freq").toLongOrNull() ?: 0L
             
             // Get hardware min/max for accurate usage calculation
-            val hwMinFreq = ShellUtils.readFile("${policy.absolutePath}/cpuinfo_min_freq").toLongOrNull() ?: minFreq
-            val hwMaxFreq = ShellUtils.readFile("${policy.absolutePath}/cpuinfo_max_freq").toLongOrNull() ?: maxFreq
+            val hwMinFreq = readSystemFile("${policy.absolutePath}/cpuinfo_min_freq").toLongOrNull() ?: minFreq
+            val hwMaxFreq = readSystemFile("${policy.absolutePath}/cpuinfo_max_freq").toLongOrNull() ?: maxFreq
             
-            val rawMinFreq = ShellUtils.readFile("${policy.absolutePath}/scaling_min_freq")
-            val rawMaxFreq = ShellUtils.readFile("${policy.absolutePath}/scaling_max_freq")
+            val rawMinFreq = readSystemFile("${policy.absolutePath}/scaling_min_freq")
+            val rawMaxFreq = readSystemFile("${policy.absolutePath}/scaling_max_freq")
             
-            val availableGovernors = ShellUtils.readFile("${policy.absolutePath}/scaling_available_governors")
+            val availableGovernors = readSystemFile("${policy.absolutePath}/scaling_available_governors")
                 .split(Regex("\\s+")).filter { it.isNotBlank() }
             
-            val availableFrequencies = ShellUtils.readFile("${policy.absolutePath}/scaling_available_frequencies")
+            val availableFrequencies = readSystemFile("${policy.absolutePath}/scaling_available_frequencies")
                 .split(Regex("\\s+")).filter { it.isNotBlank() }
 
             val cores = affectedCores.map { coreId ->
                 val coreCurFreqFile = File("/sys/devices/system/cpu/cpu$coreId/cpufreq/scaling_cur_freq")
                 val coreCurFreq = if (coreCurFreqFile.exists()) {
-                    ShellUtils.readFile(coreCurFreqFile.absolutePath).toLongOrNull() ?: curFreq
+                    readSystemFile(coreCurFreqFile.absolutePath).toLongOrNull() ?: curFreq
                 } else curFreq
                 
                 // Calculate usage based on frequency: (current - hwMin) / (hwMax - hwMin)
@@ -115,6 +117,23 @@ object CpuProvider {
             clusters = clusters,
             totalCores = coreCount
         )
+    }
+    
+    /**
+     * Reads a system file. execution fails with permission errors, falls back to SU.
+     */
+    private fun readSystemFile(path: String): String {
+        // 1. Try normal read first (faster)
+        val content = ShellUtils.readFile(path)
+        if (content.isNotEmpty()) return content
+        
+        // 2. Fallback to SU if empty (assuming file exists but not readable)
+        // Check if file exists first to avoid unnecessary SU calls? No, ShellUtils.readFile checks existence too.
+        // But if it exists and is just empty, we might waste SU call.
+        // However, sysfs files usually return something if readable.
+        
+        val result = ShellManager.exec("cat \"$path\"")
+        return if (result.isSuccess) result.stdout else ""
     }
 
     private fun getCpuName(): String {
@@ -190,24 +209,27 @@ object CpuProvider {
     }
 
     fun setGovernor(policyId: Int, governor: String): Boolean {
-        return ShellUtils.writeFile("/sys/devices/system/cpu/cpufreq/policy$policyId/scaling_governor", governor)
+        return ShellManager.exec(CpuScripts.setGovernor(policyId, governor)).isSuccess
     }
 
     fun setFrequency(policyId: Int, freqKhz: String, isMax: Boolean): Boolean {
-        val path = if (isMax) "scaling_max_freq" else "scaling_min_freq"
-        return ShellUtils.writeFile("/sys/devices/system/cpu/cpufreq/policy$policyId/$path", freqKhz)
+        return if (isMax) {
+            ShellManager.exec(CpuScripts.setMaxFreq(policyId, freqKhz)).isSuccess
+        } else {
+            ShellManager.exec(CpuScripts.setMinFreq(policyId, freqKhz)).isSuccess
+        }
     }
 
     fun setGovernorForCore(coreId: Int, governor: String): Boolean {
         // Find which policy this core belong to
         val policyPath = findPolicyForCore(coreId) ?: "/sys/devices/system/cpu/cpu$coreId/cpufreq"
-        return ShellUtils.writeFile("$policyPath/scaling_governor", governor)
+        return ShellManager.exec("echo \"$governor\" > \"$policyPath/scaling_governor\"").isSuccess
     }
 
     fun setFrequencyForCore(coreId: Int, freqKhz: String, isMax: Boolean): Boolean {
         val policyPath = findPolicyForCore(coreId) ?: "/sys/devices/system/cpu/cpu$coreId/cpufreq"
         val file = if (isMax) "scaling_max_freq" else "scaling_min_freq"
-        return ShellUtils.writeFile("$policyPath/$file", freqKhz)
+        return ShellManager.exec("echo \"$freqKhz\" > \"$policyPath/$file\"").isSuccess
     }
 
     private fun findPolicyForCore(coreId: Int): String? {
