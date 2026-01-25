@@ -36,11 +36,7 @@ fun SwapConfigDialog(
                     label = { Text("Path") },
                     modifier = Modifier.fillMaxWidth()
                 )
-                Text(
-                    "Note: Shizuku or Root is required to apply these changes.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline
-                )
+                // Note removed as requested
             }
         },
         confirmButton = {

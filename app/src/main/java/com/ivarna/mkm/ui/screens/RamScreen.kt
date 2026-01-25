@@ -49,9 +49,13 @@ fun RamScreen(viewModel: RamViewModel = viewModel()) {
 
     if (showSwapDialog) {
         val currentSwap = uiState?.swap
+        val defaultPath = "/data/local/tmp/swapfile"
+        // Don't suggest /dev/block paths (zram) as they are not safe/valid for file creation
+        val suggestion = currentSwap?.path?.takeIf { it != "None" && !it.startsWith("/dev/") } ?: defaultPath
+        
         SwapConfigDialog(
-            initialSize = if (currentSwap?.isActive == true) 1024 else 2048,
-            initialPath = currentSwap?.path?.takeIf { it != "None" } ?: "/data/local/tmp/swapfile",
+            initialSize = if (currentSwap?.isActive == true && currentSwap.path == suggestion) 1024 else 2048,
+            initialPath = suggestion,
             onDismiss = { showSwapDialog = false },
             onConfirm = { path, size ->
                 viewModel.applySwap(path, size)

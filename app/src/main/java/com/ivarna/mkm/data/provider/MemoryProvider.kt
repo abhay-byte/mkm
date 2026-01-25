@@ -54,6 +54,14 @@ object MemoryProvider {
                         // Fix for some devices reporting /local/tmp instead of /data/local/tmp
                         if (path.startsWith("/local/")) {
                             path = "/data" + path
+                        } else if (path.startsWith("/dev/block/loop") || path.startsWith("/dev/loop")) {
+                            // Resolve backing file for loop devices
+                            val backingFile = ShellManager.exec("losetup $path").stdout
+                            // Output format: /dev/block/loop0: [64768]:52523 (/data/local/tmp/swapfile)
+                            val match = Regex("\\((.*?)\\)").find(backingFile)
+                            if (match != null) {
+                                path = match.groupValues[1]
+                            }
                         }
                         
                         val type = parts[1]
