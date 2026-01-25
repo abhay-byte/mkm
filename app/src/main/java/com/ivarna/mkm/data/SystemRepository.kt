@@ -20,7 +20,8 @@ class SystemRepository {
         RamData(
             memory = MemoryProvider.getMemoryStatus(),
             swap = MemoryProvider.getSwapStatus(),
-            ufs = UfsProvider.getUfsStatus()
+            ufs = UfsProvider.getUfsStatus(),
+            devfreq = DevfreqProvider.getDevfreqStatus()
         )
     }
 }
@@ -36,5 +37,6 @@ data class HomeData(
 data class RamData(
     val memory: MemoryStatus,
     val swap: SwapStatus,
-    val ufs: UfsStatus = UfsStatus()
+    val ufs: UfsStatus = UfsStatus(),
+    val devfreq: DevfreqStatus = DevfreqStatus()
 )

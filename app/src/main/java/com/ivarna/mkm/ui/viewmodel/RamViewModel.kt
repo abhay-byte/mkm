@@ -201,6 +201,50 @@ class RamViewModel(private val repository: SystemRepository = SystemRepository()
         }
     }
 
+    fun setDevfreqGovernor(path: String, governor: String) {
+        viewModelScope.launch {
+            _isProcessing.value = true
+            try {
+                val script = com.ivarna.mkm.shell.DevfreqScripts.setGovernor(path, governor)
+                val result = withContext(Dispatchers.IO) {
+                    ShellManager.exec(script)
+                }
+                if (!result.isSuccess) {
+                    _errorMessage.value = "Failed to set devfreq gov: " + result.stderr.ifEmpty { result.stdout }
+                }
+                _uiState.value = repository.getRamData()
+            } catch (e: Exception) {
+                _errorMessage.value = "Error setting devfreq gov: ${e.message}"
+            } finally {
+                _isProcessing.value = false
+            }
+        }
+    }
+
+    fun setDevfreqFreq(path: String, freq: String) {
+        viewModelScope.launch {
+            _isProcessing.value = true
+            try {
+                // To set a specific freq, we often need to be in userspace governor first.
+                // However, we'll let the user manually switch to userspace if needed, 
+                // OR we could force it. For now, we'll just try setting the freq.
+                // If it fails, the user might need to switch governor.
+                val script = com.ivarna.mkm.shell.DevfreqScripts.setFreq(path, freq)
+                val result = withContext(Dispatchers.IO) {
+                    ShellManager.exec(script)
+                }
+                if (!result.isSuccess) {
+                     _errorMessage.value = "Failed to set devfreq freq: " + result.stderr.ifEmpty { result.stdout }
+                }
+                _uiState.value = repository.getRamData()
+            } catch (e: Exception) {
+                _errorMessage.value = "Error setting devfreq freq: ${e.message}"
+            } finally {
+                _isProcessing.value = false
+            }
+        }
+    }
+
     fun clearError() {
         _errorMessage.value = null
     }

@@ -151,6 +151,14 @@ fun RamScreen(viewModel: RamViewModel = viewModel()) {
                             onMinFreqSelected = { path, freq -> viewModel.setUfsMinFreq(path, freq) },
                             onMaxFreqSelected = { path, freq -> viewModel.setUfsMaxFreq(path, freq) }
                         )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+                        SectionHeader("DDR Frequency Tuning")
+                        DevfreqTuningCard(
+                            devfreq = data.devfreq,
+                            onGovernorSelected = { path, gov -> viewModel.setDevfreqGovernor(path, gov) },
+                            onFreqSelected = { path, freq -> viewModel.setDevfreqFreq(path, freq) }
+                        )
                         
                         Spacer(modifier = Modifier.height(24.dp))
                         
@@ -715,6 +723,225 @@ fun LoadingOverlay(message: String) {
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DevfreqTuningCard(
+    devfreq: com.ivarna.mkm.data.model.DevfreqStatus,
+    onGovernorSelected: (String, String) -> Unit,
+    onFreqSelected: (String, String) -> Unit
+) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                 Column(modifier = Modifier.weight(1f)) {
+                    val title = if (devfreq.isSupported) "DDR Controller: ${devfreq.controllerPath.substringAfterLast("/")}" else "DDR Controller"
+                    val subtitle = if (devfreq.isSupported) devfreq.controllerPath else "Not detected or not supported"
+                    
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                     Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
+            }
+
+            if (devfreq.isSupported) {
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    text = "Bandwidth Governor",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                var expanded by remember { mutableStateOf(false) }
+                
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = it },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        readOnly = true,
+                        value = devfreq.currentGovernor,
+                        onValueChange = {},
+                        label = { Text("Select Mode") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                    ) {
+                        devfreq.availableGovernors.forEach { gov ->
+                            DropdownMenuItem(
+                                text = { Text(gov) },
+                                onClick = {
+                                    onGovernorSelected(devfreq.controllerPath, gov)
+                                    expanded = false
+                                },
+                                contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
+                            )
+                        }
+                    }
+                }
+
+                if (devfreq.availableFrequencies.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Frequencies",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Text(
+                        text = "Current: ${devfreq.currentFreq}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f))
+                    ) {
+                        Row(modifier = Modifier.padding(12.dp)) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Changing DDR frequencies can cause immediate system reboots.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // Freq Dropdown (only relevant if we want to force specific freq)
+                     var freqExpanded by remember { mutableStateOf(false) }
+                    ExposedDropdownMenuBox(
+                        expanded = freqExpanded,
+                        onExpandedChange = { freqExpanded = it },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            readOnly = true,
+                            value = devfreq.currentFreq.takeIf { it != "0" && it.isNotBlank() } ?: "Set Specific Frequency",
+                            onValueChange = {},
+                            label = { Text("Force Frequency (Userspace)") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = freqExpanded) },
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = freqExpanded,
+                            onDismissRequest = { freqExpanded = false },
+                        ) {
+                            devfreq.availableFrequencies.forEach { freq ->
+                                DropdownMenuItem(
+                                    text = { Text(freq) },
+                                    onClick = {
+                                        onFreqSelected(devfreq.controllerPath, freq)
+                                        freqExpanded = false
+                                    },
+                                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (devfreq.availableGovernors.isEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "No governors found. This usually means the app was denied Root access.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    
+                    if (devfreq.debugInfo.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(8.dp)) {
+                                Text(
+                                    text = "Debug Info:",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                androidx.compose.foundation.text.selection.SelectionContainer {
+                                    Text(
+                                        text = devfreq.debugInfo,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                        fontSize = 10.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Could not find a supported DDR/Interconnect devfreq controller on this device.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+                
+                if (devfreq.debugInfo.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                             Text(
+                                text = "Debug Info:",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                             androidx.compose.foundation.text.selection.SelectionContainer {
+                                Text(
+                                    text = devfreq.debugInfo,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
