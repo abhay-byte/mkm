@@ -19,7 +19,8 @@ class SystemRepository {
     suspend fun getRamData(): RamData = withContext(Dispatchers.IO) {
         RamData(
             memory = MemoryProvider.getMemoryStatus(),
-            swap = MemoryProvider.getSwapStatus()
+            swap = MemoryProvider.getSwapStatus(),
+            ufs = UfsProvider.getUfsStatus()
         )
     }
 }
@@ -34,5 +35,6 @@ data class HomeData(
 
 data class RamData(
     val memory: MemoryStatus,
-    val swap: SwapStatus
+    val swap: SwapStatus,
+    val ufs: UfsStatus = UfsStatus()
 )

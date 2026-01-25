@@ -141,6 +141,66 @@ class RamViewModel(private val repository: SystemRepository = SystemRepository()
         }
     }
 
+    fun setUfsGovernor(path: String, governor: String) {
+        viewModelScope.launch {
+            _isProcessing.value = true
+            try {
+                val script = com.ivarna.mkm.shell.UfsScripts.setGovernor(path, governor)
+                val result = withContext(Dispatchers.IO) {
+                    ShellManager.exec(script)
+                }
+                if (!result.isSuccess) {
+                    _errorMessage.value = "Failed to set governor: " + result.stderr.ifEmpty { result.stdout }
+                }
+                _uiState.value = repository.getRamData()
+            } catch (e: Exception) {
+                _errorMessage.value = e.message
+            } finally {
+                _isProcessing.value = false
+            }
+        }
+    }
+
+    fun setUfsMinFreq(path: String, freq: String) {
+        viewModelScope.launch {
+            _isProcessing.value = true
+            try {
+                val script = com.ivarna.mkm.shell.UfsScripts.setMinFreq(path, freq)
+                val result = withContext(Dispatchers.IO) {
+                    ShellManager.exec(script)
+                }
+                if (!result.isSuccess) {
+                    _errorMessage.value = "Failed to set min freq: " + result.stderr.ifEmpty { result.stdout }
+                }
+                _uiState.value = repository.getRamData()
+            } catch (e: Exception) {
+                _errorMessage.value = "Error setting min freq: ${e.message}"
+            } finally {
+                _isProcessing.value = false
+            }
+        }
+    }
+
+    fun setUfsMaxFreq(path: String, freq: String) {
+        viewModelScope.launch {
+            _isProcessing.value = true
+            try {
+                val script = com.ivarna.mkm.shell.UfsScripts.setMaxFreq(path, freq)
+                val result = withContext(Dispatchers.IO) {
+                    ShellManager.exec(script)
+                }
+                if (!result.isSuccess) {
+                    _errorMessage.value = "Failed to set max freq: " + result.stderr.ifEmpty { result.stdout }
+                }
+                _uiState.value = repository.getRamData()
+            } catch (e: Exception) {
+                _errorMessage.value = "Error setting max freq: ${e.message}"
+            } finally {
+                _isProcessing.value = false
+            }
+        }
+    }
+
     fun clearError() {
         _errorMessage.value = null
     }

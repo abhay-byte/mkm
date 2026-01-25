@@ -90,3 +90,15 @@ data class SystemOverview(
     val isShizukuActive: Boolean = false,
     val isRootActive: Boolean = false
 )
+
+data class UfsStatus(
+    val controllerPath: String = "",
+    val currentGovernor: String = "unknown",
+    val availableGovernors: List<String> = emptyList(),
+    val isSupported: Boolean = false,
+    val debugInfo: String = "",
+    val currentFreq: String = "0",
+    val minFreq: String = "0",
+    val maxFreq: String = "0",
+    val availableFrequencies: List<String> = emptyList()
+)
