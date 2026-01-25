@@ -1,21 +1,114 @@
 package com.ivarna.mkm.data.provider
 
 import com.ivarna.mkm.data.model.GpuStatus
+import com.ivarna.mkm.shell.GpuScripts
+import com.ivarna.mkm.shell.ShellManager
 import com.ivarna.mkm.utils.ShellUtils
 import java.io.File
 import android.opengl.EGL14
 import android.opengl.GLES20
 
 object GpuProvider {
-    private val maliPath = "/sys/class/misc/mali0/device/devfreq/13000000.mali"
-    private val adrenoPath = "/sys/class/kgsl/kgsl-3d0"
-    
+    private var cachedPath: String? = null
     private var cachedGpuModel: String? = null
 
-    private fun getGpuPath(): String? {
-        if (File(maliPath).exists()) return maliPath
-        if (File(adrenoPath).exists()) return adrenoPath
-        return null
+    fun getGpuStatus(): GpuStatus {
+        val pathResult = getPath()
+        val path = pathResult.first
+        
+        // Default / Empty values
+        var load = 0f
+        var curFreq = 0L
+        var minFreq = 0L
+        var maxFreq = 0L
+        var targetFreq = 0L
+        var rawMinFreq = ""
+        var rawMaxFreq = ""
+        var rawTargetFreq = ""
+        var governor = "unknown"
+        var availableGovernors = listOf("dummy", "performance", "powersave")
+        var availableFrequencies = listOf("265000000", "500000000", "1400000000")
+        
+        if (path.isNotEmpty()) {
+             val result = ShellManager.exec(GpuScripts.getGpuInfo(path))
+             if (result.isSuccess) {
+                 result.stdout.lines().forEach { line ->
+                     when {
+                         line.startsWith("GOV=") -> governor = line.removePrefix("GOV=").takeIf { it.isNotEmpty() } ?: "unknown"
+                         line.startsWith("AVAIL=") -> availableGovernors = line.removePrefix("AVAIL=").split("\\s+".toRegex()).filter { it.isNotBlank() }
+                         line.startsWith("CUR_FREQ=") -> curFreq = line.removePrefix("CUR_FREQ=").toLongOrNull() ?: 0L
+                         line.startsWith("MIN_FREQ=") -> {
+                             rawMinFreq = line.removePrefix("MIN_FREQ=")
+                             minFreq = rawMinFreq.toLongOrNull() ?: 0L
+                         }
+                         line.startsWith("MAX_FREQ=") -> {
+                             rawMaxFreq = line.removePrefix("MAX_FREQ=")
+                             maxFreq = rawMaxFreq.toLongOrNull() ?: 0L
+                         }
+                         line.startsWith("TARGET_FREQ=") -> {
+                              rawTargetFreq = line.removePrefix("TARGET_FREQ=")
+                              targetFreq = rawTargetFreq.toLongOrNull() ?: 0L
+                         }
+                         line.startsWith("AVAIL_FREQ=") -> availableFrequencies = line.removePrefix("AVAIL_FREQ=").split("\\s+".toRegex()).filter { it.isNotBlank() }
+                         line.startsWith("LOAD=") -> {
+                             val rawLoad = line.removePrefix("LOAD=").toFloatOrNull() ?: 0f
+                             // Heuristic: if load > 1, assume 0-100 scale, else 0-1 scale. 
+                             // But my script attempts to normalize adreno percent. Mali might be raw.
+                             // Let's assume if slightly > 1 it's percent.
+                             load = if (rawLoad > 1f) rawLoad / 100f else rawLoad
+                         }
+                     }
+                 }
+                 
+                 // Fallback: If load is 0, estimate based on frequency usage
+                 if (load == 0f && availableFrequencies.isNotEmpty()) {
+                     val maxAvail = availableFrequencies.mapNotNull { it.toLongOrNull() }.maxOrNull() ?: 0L
+                     if (maxAvail > 0 && curFreq > 0) {
+                         load = curFreq.toFloat() / maxAvail.toFloat()
+                     }
+                 }
+             }
+        }
+        
+        // Fallback for defaults if empty from script
+        if (availableGovernors.isEmpty()) availableGovernors = listOf("dummy", "performance", "powersave")
+        if (availableFrequencies.isEmpty()) availableFrequencies = listOf("265000000", "500000000", "1400000000")
+
+        val sysfsName = if (path.isNotEmpty()) File(path).name else "Unknown"
+        val renderer = getGpuModel()
+
+        return GpuStatus(
+            loadPercent = load,
+            currentFreq = ShellUtils.formatFreq(curFreq),
+            minFreq = ShellUtils.formatFreq(minFreq),
+            maxFreq = ShellUtils.formatFreq(maxFreq),
+            targetFreq = ShellUtils.formatFreq(targetFreq),
+            rawMinFreq = rawMinFreq,
+            rawMaxFreq = rawMaxFreq,
+            rawTargetFreq = rawTargetFreq,
+            governor = governor,
+            availableGovernors = availableGovernors,
+            availableFrequencies = availableFrequencies,
+            model = renderer,
+            renderer = renderer,
+            sysfsPath = sysfsName
+        )
+    }
+
+    private fun getPath(): Pair<String, String> {
+        cachedPath?.let { return Pair(it, "Using cached path") }
+        
+        val result = ShellManager.exec(GpuScripts.findGpuPath())
+        val debugLog = "CMD: findGpuPath\nEXIT: ${result.exitCode}\nSTDOUT: ${result.stdout}\nSTDERR: ${result.stderr}"
+        
+        if (result.stdout.isNotBlank()) {
+            val p = result.stdout.trim().lines().firstOrNull() ?: ""
+            if (p.isNotEmpty() && p.startsWith("/")) {
+                cachedPath = p
+                return Pair(p, debugLog)
+            }
+        }
+        return Pair("", debugLog)
     }
 
     private fun getGpuModel(): String {
@@ -53,86 +146,27 @@ object GpuProvider {
             
             renderer?.also { cachedGpuModel = it } ?: "Unknown GPU"
         } catch (e: Exception) {
-            val path = getGpuPath()
-            if (path == maliPath) "Mali GPU" else if (path == adrenoPath) "Adreno GPU" else "Unknown GPU"
+            val path = cachedPath ?: ""
+            if (path.contains("mali", true)) "Mali GPU" else if (path.contains("kgsl", true)) "Adreno GPU" else "Unknown GPU"
         }
-    }
-
-    fun getGpuStatus(): GpuStatus {
-        val path = getGpuPath()
-        
-        // Load
-        var load = 0f
-        if (path == maliPath) {
-            load = ShellUtils.readFile("/sys/kernel/ged/hal/gpu_utilization").toFloatOrNull() ?: 0f
-        } else if (path == adrenoPath) {
-            load = ShellUtils.readFile("$adrenoPath/gpubusy").split(Regex("\\s+"))
-                .getOrNull(0)?.toFloatOrNull() ?: 0f
-        }
-
-        // Frequencies and Governor
-        val devfreqPath = if (path == adrenoPath) "$adrenoPath/devfreq" else path
-        
-        var curFreq = ShellUtils.readFile(if (path == adrenoPath) "$adrenoPath/gpuclk" else "$devfreqPath/cur_freq").toLongOrNull() ?: 0L
-        var minFreq = ShellUtils.readFile("$devfreqPath/min_freq").toLongOrNull() ?: 0L
-        var maxFreq = ShellUtils.readFile("$devfreqPath/max_freq").toLongOrNull() ?: 0L
-        var targetFreq = ShellUtils.readFile("$devfreqPath/target_freq").toLongOrNull() ?: 0L
-        
-        val rawMinFreq = ShellUtils.readFile("$devfreqPath/min_freq")
-        val rawMaxFreq = ShellUtils.readFile("$devfreqPath/max_freq")
-        val rawTargetFreq = ShellUtils.readFile("$devfreqPath/target_freq")
-        
-        val governor = ShellUtils.readFile("$devfreqPath/governor")
-        val availableGovernors = ShellUtils.readFile("$devfreqPath/available_governors")
-            .split(Regex("\\s+")).filter { it.isNotBlank() }
-        
-        val availableFrequencies = ShellUtils.readFile("$devfreqPath/available_frequencies")
-            .split(Regex("\\s+")).filter { it.isNotBlank() }
-
-        // Frequency normalization (Hz vs KHz vs MHz)
-        if (curFreq > 10000000) curFreq /= 1000
-        if (minFreq > 10000000) minFreq /= 1000
-        if (maxFreq > 10000000) maxFreq /= 1000
-        if (targetFreq > 10000000) targetFreq /= 1000
-
-        // Identification
-        val sysfsName = if (path == maliPath) "13000000.mali" else if (path == adrenoPath) "kgsl-3d0" else "Unknown"
-        val renderer = getGpuModel()
-
-        return GpuStatus(
-            loadPercent = load / 100f,
-            currentFreq = ShellUtils.formatFreq(curFreq),
-            minFreq = ShellUtils.formatFreq(minFreq),
-            maxFreq = ShellUtils.formatFreq(maxFreq),
-            targetFreq = ShellUtils.formatFreq(targetFreq),
-            rawMinFreq = rawMinFreq,
-            rawMaxFreq = rawMaxFreq,
-            rawTargetFreq = rawTargetFreq,
-            governor = if (governor.isEmpty()) "unknown" else governor,
-            availableGovernors = if (availableGovernors.isEmpty()) listOf("dummy", "performance", "powersave") else availableGovernors,
-            availableFrequencies = if (availableFrequencies.isEmpty()) listOf("265000000", "500000000", "1400000000") else availableFrequencies,
-            model = renderer,
-            renderer = renderer,
-            sysfsPath = sysfsName
-        )
     }
 
     fun setGovernor(governor: String): Boolean {
-        val path = getGpuPath() ?: return false
-        val devfreqPath = if (path == adrenoPath) "$adrenoPath/devfreq" else path
-        return ShellUtils.writeFile("$devfreqPath/governor", governor)
+        val path = getPath().first
+        if (path.isEmpty()) return false
+        return ShellManager.exec(GpuScripts.setGovernor(path, governor)).isSuccess
     }
 
     fun setFrequency(freq: String, type: Int): Boolean {
         // type: 0=min, 1=max, 2=target
-        val path = getGpuPath() ?: return false
-        val devfreqPath = if (path == adrenoPath) "$adrenoPath/devfreq" else path
-        val file = when(type) {
+        val path = getPath().first
+        if (path.isEmpty()) return false
+        val fileType = when(type) {
             0 -> "min_freq"
             1 -> "max_freq"
             2 -> "target_freq"
             else -> return false
         }
-        return ShellUtils.writeFile("$devfreqPath/$file", freq)
+        return ShellManager.exec(GpuScripts.setFrequency(path, freq, fileType)).isSuccess
     }
 }

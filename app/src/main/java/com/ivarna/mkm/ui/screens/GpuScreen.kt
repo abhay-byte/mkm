@@ -7,7 +7,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.VideogameAsset
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
+import androidx.compose.foundation.BorderStroke
 import com.ivarna.mkm.ui.components.PullToRefreshWrapper
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -102,6 +104,34 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel()) {
             Spacer(modifier = Modifier.height(24.dp))
 
             SectionHeader("Performance Controls")
+            
+            // Warning Card
+            OutlinedCard(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                colors = CardDefaults.outlinedCardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f),
+                    contentColor = MaterialTheme.colorScheme.error
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = "Warning",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = "Changing frequencies and governors may cause system instability or reboots. Proceed with caution.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -138,51 +168,7 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel()) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            SectionHeader("Advanced Options")
-            ElevatedCard(
-                onClick = {},
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                )
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = gpuStatus.setOnBoot,
-                            onCheckedChange = { viewModel.toggleSetOnBoot(it) }
-                        )
-                        Text(
-                            text = "Set on Boot",
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(start = 8.dp)
-                        )
-                    }
-                    
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = gpuStatus.freezeValues,
-                            onCheckedChange = { viewModel.toggleFreezeValues(it) }
-                        )
-                        Text(
-                            text = "Freeze Values",
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(start = 8.dp)
-                        )
-                    }
-                }
-            }
+
 
             Spacer(modifier = Modifier.height(32.dp))
             }
