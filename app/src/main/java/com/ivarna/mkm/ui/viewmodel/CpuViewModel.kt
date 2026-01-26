@@ -66,9 +66,15 @@ class CpuViewModel : ViewModel() {
 
     fun setFrequency(policyId: Int, freqKhz: String, isMax: Boolean) {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) {
+            val type = if (isMax) "MAX" else "MIN"
+            val cmd = "printf '%s' '$freqKhz' > /sys/devices/system/cpu/cpufreq/policy$policyId/scaling_${if (isMax) "max" else "min"}_freq"
+            android.util.Log.d("CpuViewModel", "Setting $type freq for policy $policyId: $cmd")
+            
+            val result = withContext(Dispatchers.IO) {
                 CpuProvider.setFrequency(policyId, freqKhz, isMax)
             }
+            
+            android.util.Log.d("CpuViewModel", "Result: $result")
             refresh()
         }
     }
@@ -84,9 +90,16 @@ class CpuViewModel : ViewModel() {
 
     fun setFrequencyForCore(coreId: Int, freqKhz: String, isMax: Boolean) {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) {
+            val type = if (isMax) "MAX" else "MIN"
+            val policyPath = CpuProvider.findPolicyForCore(coreId) ?: "/sys/devices/system/cpu/cpu$coreId/cpufreq"
+            val cmd = "printf '%s' '$freqKhz' > $policyPath/scaling_${if (isMax) "max" else "min"}_freq"
+            android.util.Log.d("CpuViewModel", "Setting $type freq for core $coreId: $cmd")
+            
+            val result = withContext(Dispatchers.IO) {
                 CpuProvider.setFrequencyForCore(coreId, freqKhz, isMax)
             }
+            
+            android.util.Log.d("CpuViewModel", "Result: $result")
             refresh()
         }
     }

@@ -5,7 +5,7 @@ object CpuScripts {
      * Script to set the governor for a specific CPU policy (cluster).
      */
     fun setGovernor(policyId: Int, governor: String): String {
-        return "echo \"$governor\" > /sys/devices/system/cpu/cpufreq/policy$policyId/scaling_governor"
+        return "printf '%s' '$governor' > /sys/devices/system/cpu/cpufreq/policy$policyId/scaling_governor"
     }
 
     /**
@@ -13,7 +13,7 @@ object CpuScripts {
      * Verify frequency availability before calling this.
      */
     fun setMinFreq(policyId: Int, freqKhz: String): String {
-        return "echo \"$freqKhz\" > /sys/devices/system/cpu/cpufreq/policy$policyId/scaling_min_freq"
+        return "printf '%s' '$freqKhz' > /sys/devices/system/cpu/cpufreq/policy$policyId/scaling_min_freq"
     }
 
     /**
@@ -21,6 +21,6 @@ object CpuScripts {
      * Verify frequency availability before calling this.
      */
     fun setMaxFreq(policyId: Int, freqKhz: String): String {
-        return "echo \"$freqKhz\" > /sys/devices/system/cpu/cpufreq/policy$policyId/scaling_max_freq"
+        return "printf '%s' '$freqKhz' > /sys/devices/system/cpu/cpufreq/policy$policyId/scaling_max_freq"
     }
 }

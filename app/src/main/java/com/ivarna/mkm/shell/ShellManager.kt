@@ -100,4 +100,76 @@ object ShellManager {
     ) {
         val isSuccess: Boolean get() = exitCode == 0
     }
+    /**
+     * Executes a command and streams output line by line.
+     * @param onOutput Callback for each line of stdout/stderr
+     */
+    fun execStreaming(command: String, onOutput: (String) -> Unit): CommandResult {
+        return if (Shell.getShell().isRoot) {
+            execRootStreaming(command, onOutput)
+        } else {
+            execLocalStreaming(command, onOutput)
+        }
+    }
+
+    private fun execRootStreaming(command: String, onOutput: (String) -> Unit): CommandResult {
+        val stdout = StringBuilder()
+        val stderr = StringBuilder()
+        
+        val stdoutCallback = object : java.util.ArrayList<String>() {
+            override fun add(element: String): Boolean {
+                stdout.append(element).append("\n")
+                onOutput(element)
+                return super.add(element)
+            }
+        }
+        
+        val stderrCallback = object : java.util.ArrayList<String>() {
+            override fun add(element: String): Boolean {
+                stderr.append(element).append("\n")
+                onOutput("ERR: $element")
+                return super.add(element)
+            }
+        }
+
+        val result = Shell.cmd(command)
+            .to(stdoutCallback)
+            .to(stderrCallback)
+            .exec()
+            
+        return CommandResult(result.code, stdout.toString().trim(), stderr.toString().trim())
+    }
+
+    private fun execLocalStreaming(command: String, onOutput: (String) -> Unit): CommandResult {
+        return try {
+            val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
+            val output = StringBuilder()
+            val error = StringBuilder()
+            
+            val outReader = BufferedReader(InputStreamReader(process.inputStream))
+            val errReader = BufferedReader(InputStreamReader(process.errorStream))
+            
+            var line: String?
+            while (outReader.readLine().also { line = it } != null) {
+                line?.let {
+                    output.append(it).append("\n")
+                    onOutput(it)
+                }
+            }
+            
+            while (errReader.readLine().also { line = it } != null) {
+                line?.let {
+                    error.append(it).append("\n")
+                    onOutput("ERR: $it")
+                }
+            }
+            
+            process.waitFor()
+            CommandResult(process.exitValue(), output.toString().trim(), error.toString().trim())
+        } catch (e: Exception) {
+            val msg = e.message ?: "Unknown local error"
+            onOutput("EXCEPTION: $msg")
+            CommandResult(-1, "", msg)
+        }
+    }
 }

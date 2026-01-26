@@ -36,6 +36,8 @@ data class CpuCluster(
     val maxFreq: String = "0 MHz",
     val rawMinFreq: String = "",
     val rawMaxFreq: String = "",
+    val hwMinFreq: String = "",
+    val hwMaxFreq: String = "",
     val availableGovernors: List<String> = emptyList(),
     val availableFrequencies: List<String> = emptyList(),
     val cores: List<CpuCore> = emptyList()

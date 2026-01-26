@@ -95,6 +95,8 @@ object CpuProvider {
                 maxFreq = ShellUtils.formatFreq(maxFreq),
                 rawMinFreq = rawMinFreq,
                 rawMaxFreq = rawMaxFreq,
+                hwMinFreq = hwMinFreq.toString(),
+                hwMaxFreq = hwMaxFreq.toString(),
                 availableGovernors = availableGovernors,
                 availableFrequencies = availableFrequencies,
                 cores = cores
@@ -229,10 +231,17 @@ object CpuProvider {
     fun setFrequencyForCore(coreId: Int, freqKhz: String, isMax: Boolean): Boolean {
         val policyPath = findPolicyForCore(coreId) ?: "/sys/devices/system/cpu/cpu$coreId/cpufreq"
         val file = if (isMax) "scaling_max_freq" else "scaling_min_freq"
-        return ShellManager.exec("echo \"$freqKhz\" > \"$policyPath/$file\"").isSuccess
+        val result = ShellManager.exec("printf '%s' '$freqKhz' > $policyPath/$file")
+        
+        // Log error if failed
+        if (!result.isSuccess) {
+            android.util.Log.e("CpuProvider", "Failed to set freq for core $coreId: ${result.stderr}")
+        }
+        
+        return result.isSuccess
     }
 
-    private fun findPolicyForCore(coreId: Int): String? {
+    fun findPolicyForCore(coreId: Int): String? {
         val policyDir = File("/sys/devices/system/cpu/cpufreq")
         policyDir.listFiles { _, name -> name.startsWith("policy") }?.forEach { policy ->
             val affectedCores = parseCoreList(ShellUtils.readFile("${policy.absolutePath}/affected_cpus"))

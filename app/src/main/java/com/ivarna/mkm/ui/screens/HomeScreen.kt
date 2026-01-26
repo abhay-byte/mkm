@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DeveloperBoard
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.VideogameAsset
@@ -48,7 +49,10 @@ import com.ivarna.mkm.ui.components.StatCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
+fun HomeScreen(
+    viewModel: HomeViewModel = viewModel(),
+    onNavigateToPower: () -> Unit = {}
+) {
     val uiState by viewModel.uiState.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -100,7 +104,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                 
                 SectionHeader("FREQUENT OPERATIONS")
                 
-                QuickActionsList()
+                QuickActionsList(onNavigateToPower)
                 
                 Spacer(modifier = Modifier.height(innerPadding.calculateBottomPadding() + 32.dp))
             }
@@ -258,8 +262,10 @@ fun QuickStatsGrid(data: HomeData) {
     }
 }
 
+
+
 @Composable
-fun QuickActionsList() {
+fun QuickActionsList(onNavigateToPower: () -> Unit) {
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -269,6 +275,11 @@ fun QuickActionsList() {
     ) {
         Column(modifier = Modifier.padding(vertical = 8.dp)) {
             // Refresh stats action removed
+            QuickActionItem(
+                icon = Icons.Default.Bolt,
+                title = "Power Efficiency Manager",
+                onClick = onNavigateToPower
+            )
             QuickActionItem(
                 icon = Icons.Default.Add,
                 title = "Create Swap",
