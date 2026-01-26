@@ -25,6 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ivarna.mkm.data.model.CpuCluster
 import com.ivarna.mkm.data.model.CpuCore
 import com.ivarna.mkm.ui.components.*
+import com.ivarna.mkm.ui.components.ThermalCard
 import com.ivarna.mkm.ui.viewmodel.CpuViewModel
 import com.ivarna.mkm.utils.ShellUtils
 
@@ -64,7 +65,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel()) {
                     }
                 },
                 scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.mediumTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
@@ -96,6 +97,21 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel()) {
                     subValue = "${cpuStatus.totalCores} Processors Active"
                 )
             }
+
+            // Thermal Status
+            item {
+                val thermalStatus by viewModel.thermalStatus.collectAsState()
+                // Show card if we have data OR if we are refreshing (to show loading state)
+                if (thermalStatus.zones.isNotEmpty() || isRefreshing) {
+                    ThermalCard(
+                        status = thermalStatus,
+                        isLoading = isRefreshing && thermalStatus.zones.isEmpty(), // Only show specific loading if empty
+                        onSetLimit = { limit -> viewModel.setThermalLimit(limit) },
+                        onDisableThrottling = { viewModel.disableThrottling() }
+                    )
+                }
+            }
+
 
             item {
                 SectionHeader("CPU Clusters")

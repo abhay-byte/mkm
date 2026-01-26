@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ivarna.mkm.data.model.CpuStatus
 import com.ivarna.mkm.data.provider.CpuProvider
+import com.ivarna.mkm.data.provider.ThermalProvider
+import com.ivarna.mkm.data.provider.ThermalStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,17 +21,35 @@ class CpuViewModel : ViewModel() {
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
+    private val _thermalStatus = MutableStateFlow(ThermalStatus(emptyList(), 0f))
+    val thermalStatus: StateFlow<ThermalStatus> = _thermalStatus.asStateFlow()
+
+    private var cachedLimit = 0
+
     init {
         startMonitoring()
     }
 
     private fun startMonitoring() {
         viewModelScope.launch {
+            // Fetch thermal limit ONCE initially (heavy operation)
+            cachedLimit = withContext(Dispatchers.IO) {
+                ThermalProvider.getThermalLimit()
+            }
+
             while (true) {
                 val status = withContext(Dispatchers.IO) {
                     CpuProvider.getCpuStatus()
                 }
                 _cpuStatus.value = status
+                
+                val tStatus = withContext(Dispatchers.IO) {
+                    // Fast poll (no limit parsing)
+                    ThermalProvider.getThermalStatus(fetchLimit = false)
+                }
+                
+                _thermalStatus.value = tStatus.copy(currentLimit = cachedLimit)
+                
                 delay(2000)
             }
         }
@@ -71,13 +91,45 @@ class CpuViewModel : ViewModel() {
         }
     }
 
+    fun setThermalLimit(limit: Int) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                if (ThermalProvider.setThermalLimit(limit)) {
+                    cachedLimit = limit
+                }
+            }
+            refresh()
+        }
+    }
+
+    fun disableThrottling() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                ThermalProvider.disableThrottling()
+            }
+            refresh()
+        }
+    }
+
     fun refresh() {
         viewModelScope.launch {
             _isRefreshing.value = true
+            
+            // Full refresh, including limit (heavy)
+            cachedLimit = withContext(Dispatchers.IO) {
+                ThermalProvider.getThermalLimit()
+            }
+            
             val status = withContext(Dispatchers.IO) {
                 CpuProvider.getCpuStatus()
             }
             _cpuStatus.value = status
+            
+            val tStatus = withContext(Dispatchers.IO) {
+                ThermalProvider.getThermalStatus(fetchLimit = false)
+            }
+            _thermalStatus.value = tStatus.copy(currentLimit = cachedLimit)
+
             delay(500)
             _isRefreshing.value = false
         }
