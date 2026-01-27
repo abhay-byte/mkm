@@ -10,6 +10,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,7 +36,8 @@ import com.ivarna.mkm.ui.viewmodel.PowerViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PowerScreen(
-    viewModel: PowerViewModel = viewModel()
+    viewModel: PowerViewModel = viewModel(),
+    onOpenDrawer: () -> Unit = {}
 ) {
     val powerStatus by viewModel.powerStatus.collectAsState()
     val cpuResults by viewModel.cpuResults.collectAsState()
@@ -68,6 +71,11 @@ fun PowerScreen(
         modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             MediumTopAppBar(
+                navigationIcon = {
+                     IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                    }
+                },
                 title = {
                     Column {
                         Text(

@@ -7,11 +7,26 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.NavigationDrawerItemDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -52,6 +67,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewModel) {
     val navController = rememberNavController()
@@ -60,51 +76,77 @@ fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewMode
     val homeData by homeViewModel.uiState.collectAsState()
     
     val isAccessGranted = homeData?.overview?.let { it.isShizukuActive || it.isRootActive } ?: false
+    
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    val currentScreen = navItems.find { it.route == currentDestination?.route }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        bottomBar = {
-            NavigationBar {
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = "MKM Manager",
+                    modifier = Modifier.padding(horizontal = 28.dp, vertical = 20.dp),
+                    style = androidx.compose.material3.MaterialTheme.typography.titleMedium
+                )
+                HorizontalDivider(modifier = Modifier.padding(bottom = 8.dp))
                 navItems.forEach { screen ->
                     val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
                     val isEnabled = isAccessGranted || screen == Screen.Home || screen == Screen.Settings
                     
-                    NavigationBarItem(
+                    NavigationDrawerItem(
+                        label = { Text(screen.label) },
                         icon = {
                             Icon(
                                 imageVector = if (selected) screen.selectedIcon else screen.unselectedIcon,
                                 contentDescription = null
                             )
                         },
-                        label = { Text(screen.label) },
                         selected = selected,
-                        enabled = isEnabled,
                         onClick = {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+                            if (isEnabled) {
+                                scope.launch { drawerState.close() }
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
                             }
-                        }
+                        },
+                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                     )
                 }
             }
         }
-    ) { innerPadding ->
+    ) {
+        val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
+        
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
+            modifier = Modifier.fillMaxSize()
         ) {
-            composable(Screen.Home.route) { HomeScreen(homeViewModel) }
-            composable(Screen.RAM.route) { RamScreen() }
-            composable(Screen.CPU.route) { CpuScreen() }
-            composable(Screen.GPU.route) { GpuScreen() }
-            composable(Screen.Storage.route) { StorageScreen() }
-            composable(Screen.Power.route) { PowerScreen() }
-            composable(Screen.Settings.route) { SettingsScreen(settingsViewModel) }
+            composable(Screen.Home.route) { 
+                HomeScreen(
+                    viewModel = homeViewModel, 
+                    onOpenDrawer = openDrawer
+                ) 
+            }
+            composable(Screen.RAM.route) { RamScreen(onOpenDrawer = openDrawer) }
+            composable(Screen.CPU.route) { CpuScreen(onOpenDrawer = openDrawer) }
+            composable(Screen.GPU.route) { GpuScreen(onOpenDrawer = openDrawer) }
+            composable(Screen.Storage.route) { StorageScreen(onOpenDrawer = openDrawer) }
+            composable(Screen.Power.route) { PowerScreen(onOpenDrawer = openDrawer) }
+            composable(Screen.Settings.route) { 
+                SettingsScreen(
+                    viewModel = settingsViewModel, 
+                    onOpenDrawer = openDrawer
+                ) 
+            }
         }
     }
 }

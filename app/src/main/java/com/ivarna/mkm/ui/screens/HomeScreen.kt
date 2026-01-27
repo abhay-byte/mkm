@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.VideogameAsset
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import com.ivarna.mkm.ui.components.PullToRefreshWrapper
 import androidx.compose.runtime.Composable
@@ -51,7 +52,8 @@ import com.ivarna.mkm.ui.components.StatCard
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel = viewModel(),
-    onNavigateToPower: () -> Unit = {}
+    onNavigateToPower: () -> Unit = {},
+    onOpenDrawer: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
@@ -67,6 +69,11 @@ fun HomeScreen(
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Black
                     )
+                },
+                navigationIcon = {
+                     IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                    }
                 },
                 actions = {
                     IconButton(onClick = { /* TODO: Overflow menu */ }) {

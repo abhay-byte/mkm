@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeveloperBoard
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.ivarna.mkm.ui.components.PullToRefreshWrapper
@@ -31,7 +32,7 @@ import com.ivarna.mkm.utils.ShellUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CpuScreen(viewModel: CpuViewModel = viewModel()) {
+fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = {}) {
     val cpuStatus by viewModel.cpuStatus.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -49,6 +50,11 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel()) {
         modifier = Modifier.fillMaxSize(),
         topBar = {
             MediumTopAppBar(
+                navigationIcon = {
+                     IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                    }
+                },
                 title = {
                     Column {
                         Text(

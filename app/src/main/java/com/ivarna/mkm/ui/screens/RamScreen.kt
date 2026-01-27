@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.ivarna.mkm.data.model.SwapDeviceInfo
@@ -40,7 +41,7 @@ import com.ivarna.mkm.ui.viewmodel.RamViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RamScreen(viewModel: RamViewModel = viewModel()) {
+fun RamScreen(viewModel: RamViewModel = viewModel(), onOpenDrawer: () -> Unit = {}) {
     val uiState by viewModel.uiState.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
@@ -76,6 +77,11 @@ fun RamScreen(viewModel: RamViewModel = viewModel()) {
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Black
                         )
+                    },
+                    navigationIcon = {
+                         IconButton(onClick = onOpenDrawer) {
+                            Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                        }
                     },
                     actions = {
                         // Refresh button removed in favor of pull-to-refresh

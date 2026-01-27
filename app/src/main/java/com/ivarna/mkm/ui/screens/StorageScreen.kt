@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 // import androidx.compose.material.icons.filled.Storage // Might not exist
 import androidx.compose.material.icons.filled.SdStorage
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -25,7 +26,7 @@ import com.ivarna.mkm.ui.viewmodel.StorageViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StorageScreen(viewModel: StorageViewModel = viewModel()) {
+fun StorageScreen(viewModel: StorageViewModel = viewModel(), onOpenDrawer: () -> Unit = {}) {
     val uiState by viewModel.uiState.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -34,6 +35,11 @@ fun StorageScreen(viewModel: StorageViewModel = viewModel()) {
         modifier = Modifier.fillMaxSize(),
         topBar = {
             MediumTopAppBar(
+                navigationIcon = {
+                     IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                    }
+                },
                 title = {
                     Text(
                         "STORAGE Management",

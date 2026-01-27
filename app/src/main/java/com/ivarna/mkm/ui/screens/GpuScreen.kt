@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.VideogameAsset
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.foundation.BorderStroke
 import com.ivarna.mkm.ui.components.PullToRefreshWrapper
@@ -25,7 +26,7 @@ import com.ivarna.mkm.utils.ShellUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GpuScreen(viewModel: GpuViewModel = viewModel()) {
+fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = {}) {
     val gpuStatus by viewModel.gpuStatus.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -39,6 +40,11 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel()) {
         modifier = Modifier.fillMaxSize(),
         topBar = {
             MediumTopAppBar(
+                navigationIcon = {
+                     IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                    }
+                },
                 title = {
                     Column {
                         Text(
