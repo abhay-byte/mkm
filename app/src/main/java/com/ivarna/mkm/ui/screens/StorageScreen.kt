@@ -36,7 +36,7 @@ fun StorageScreen(viewModel: StorageViewModel = viewModel()) {
             MediumTopAppBar(
                 title = {
                     Text(
-                        "STORAGE MANAGEMENT",
+                        "STORAGE Management",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Black
                     )
