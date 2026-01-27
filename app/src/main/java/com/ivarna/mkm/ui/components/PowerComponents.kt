@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ivarna.mkm.data.model.CpuEfficiencyResult
 import com.ivarna.mkm.data.model.PowerStatus
 
@@ -24,18 +25,19 @@ fun PowerMonitorCard(
     status: PowerStatus,
     modifier: Modifier = Modifier
 ) {
-    ElevatedCard(
+    Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(32.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f))
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
             Text(
-                text = "Power Monitor",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
+                text = "SYSTEM POWER DRAW",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             
             // Big Watts Display
             Row(
@@ -43,47 +45,53 @@ fun PowerMonitorCard(
             ) {
                 Text(
                     text = "%.2f".format(status.powerW),
-                    style = MaterialTheme.typography.displayLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface 
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        fontSize = 56.sp,
+                        fontWeight = FontWeight.Black
+                    ),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "W",
                     style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
             }
             Text(
                 text = "Total System Consumption",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
             )
             
             Spacer(modifier = Modifier.height(24.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f))
             Spacer(modifier = Modifier.height(24.dp))
             
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                PowerDetailItem("Voltage", "${status.voltageUv / 1000} mV")
-                PowerDetailItem("Current", "${status.currentUa / 1000} mA")
+                PowerDetailItem("Voltage", "${status.voltageUv / 1000} mV", isHero = true)
+                PowerDetailItem("Current", "${status.currentUa / 1000} mA", isHero = true)
             }
         }
     }
 }
 
 @Composable
-fun PowerDetailItem(label: String, value: String) {
+fun PowerDetailItem(label: String, value: String, isHero: Boolean = false) {
     Column {
-        Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
+        Text(
+            text = label, 
+            style = MaterialTheme.typography.labelMedium, 
+            color = if (isHero) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.secondary
+        )
         Text(
             text = value,
             style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = if (isHero) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.SemiBold
         )
     }
