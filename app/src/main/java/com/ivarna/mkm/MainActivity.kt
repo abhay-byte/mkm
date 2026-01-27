@@ -30,6 +30,7 @@ import com.ivarna.mkm.ui.screens.GpuScreen
 import com.ivarna.mkm.ui.screens.HomeScreen
 import com.ivarna.mkm.ui.screens.PowerScreen
 import com.ivarna.mkm.ui.screens.RamScreen
+import com.ivarna.mkm.ui.screens.StorageScreen
 import com.ivarna.mkm.ui.screens.SettingsScreen
 import com.ivarna.mkm.ui.theme.MKMTheme
 import com.ivarna.mkm.ui.viewmodel.HomeViewModel
@@ -101,6 +102,7 @@ fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewMode
             composable(Screen.RAM.route) { RamScreen() }
             composable(Screen.CPU.route) { CpuScreen() }
             composable(Screen.GPU.route) { GpuScreen() }
+            composable(Screen.Storage.route) { StorageScreen() }
             composable(Screen.Power.route) { PowerScreen() }
             composable(Screen.Settings.route) { SettingsScreen(settingsViewModel) }
         }

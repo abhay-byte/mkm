@@ -24,6 +24,10 @@ class SystemRepository {
             devfreq = DevfreqProvider.getDevfreqStatus()
         )
     }
+
+    suspend fun getStorageStatus(): StorageStatus = withContext(Dispatchers.IO) {
+        StorageProvider.getStorageStatus()
+    }
 }
 
 data class HomeData(

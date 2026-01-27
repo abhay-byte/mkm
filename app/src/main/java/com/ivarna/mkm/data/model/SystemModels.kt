@@ -104,3 +104,20 @@ data class UfsStatus(
     val maxFreq: String = "0",
     val availableFrequencies: List<String> = emptyList()
 )
+
+data class StoragePartition(
+    val mountPoint: String,
+    val total: String,
+    val used: String,
+    val free: String,
+    val usagePercent: Float,
+    val rawTotal: Long,
+    val rawUsed: Long,
+    val blockSize: Long = 0
+)
+
+data class StorageStatus(
+    val partitions: List<StoragePartition> = emptyList(),
+    val type: String = "Unknown",
+    val ufsStatus: UfsStatus = UfsStatus()
+)
