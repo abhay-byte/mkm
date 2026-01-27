@@ -15,9 +15,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ivarna.mkm.R
 
 @Composable
 fun SettingsSection(
@@ -189,14 +191,13 @@ fun AppInfoCard(
         Surface(
             modifier = Modifier.size(80.dp),
             shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.surfaceContainerLow
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Default.Memory,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary
+                Image(
+                    painter = painterResource(id = R.mipmap.ic_launcher),
+                    contentDescription = "App Logo",
+                    modifier = Modifier.size(80.dp)
                 )
             }
         }

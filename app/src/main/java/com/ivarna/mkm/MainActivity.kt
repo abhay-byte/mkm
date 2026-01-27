@@ -27,6 +27,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.Image
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.painterResource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -86,11 +92,22 @@ fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewMode
         drawerContent = {
             ModalDrawerSheet {
                 Spacer(Modifier.height(12.dp))
-                Text(
-                    text = "MKM Manager",
+                Row(
                     modifier = Modifier.padding(horizontal = 28.dp, vertical = 20.dp),
-                    style = androidx.compose.material3.MaterialTheme.typography.titleMedium
-                )
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Image(
+                        painter = painterResource(id = R.mipmap.ic_launcher),
+                        contentDescription = "MKM Logo",
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = "MKM",
+                        style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    )
+                }
                 HorizontalDivider(modifier = Modifier.padding(bottom = 8.dp))
                 navItems.forEach { screen ->
                     val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
