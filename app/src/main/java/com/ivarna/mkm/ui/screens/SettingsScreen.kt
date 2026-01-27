@@ -75,6 +75,16 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onOpenDrawer: () 
                             AppTheme.LIGHT -> "Light"
                             AppTheme.DARK -> "Dark"
                             AppTheme.AMOLED -> "Black (AMOLED)"
+                            AppTheme.NORD -> "Nord Theme"
+                            AppTheme.NORD_LIGHT -> "Nord Light"
+                            AppTheme.DRACULA -> "Dracula"
+                            AppTheme.MONOKAI -> "Monokai"
+                            AppTheme.GRUVBOX -> "Gruvbox"
+                            AppTheme.GRUVBOX_LIGHT -> "Gruvbox Light"
+                            AppTheme.SOLARIZED -> "Solarized Dark"
+                            AppTheme.SOLARIZED_LIGHT -> "Solarized Light"
+                            AppTheme.SYNTHWAVE -> "Synthwave (Neon)"
+                            AppTheme.ONE_LIGHT -> "One Light"
                         },
                         onClick = { showThemeDialog = true }
                     )
@@ -190,6 +200,16 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onOpenDrawer: () 
                     AppTheme.LIGHT -> "Light"
                     AppTheme.DARK -> "Dark"
                     AppTheme.AMOLED -> "Black (AMOLED)"
+                    AppTheme.NORD -> "Nord Theme"
+                    AppTheme.NORD_LIGHT -> "Nord Light"
+                    AppTheme.DRACULA -> "Dracula"
+                    AppTheme.MONOKAI -> "Monokai"
+                    AppTheme.GRUVBOX -> "Gruvbox"
+                    AppTheme.GRUVBOX_LIGHT -> "Gruvbox Light"
+                    AppTheme.SOLARIZED -> "Solarized Dark"
+                    AppTheme.SOLARIZED_LIGHT -> "Solarized Light"
+                    AppTheme.SYNTHWAVE -> "Synthwave (Neon)"
+                    AppTheme.ONE_LIGHT -> "One Light"
                 }
             }
         )

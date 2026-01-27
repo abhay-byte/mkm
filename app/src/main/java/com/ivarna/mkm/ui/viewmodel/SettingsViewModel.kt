@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 enum class AppTheme {
-    SYSTEM, DYNAMIC, LIGHT, DARK, AMOLED
+    SYSTEM, DYNAMIC, LIGHT, DARK, AMOLED, NORD, NORD_LIGHT, DRACULA, MONOKAI, GRUVBOX, GRUVBOX_LIGHT, SOLARIZED, SOLARIZED_LIGHT, SYNTHWAVE, ONE_LIGHT
 }
 
 class SettingsViewModel : ViewModel() {
