@@ -44,7 +44,7 @@ fun PowerMonitorCard(
                 verticalAlignment = Alignment.Bottom
             ) {
                 Text(
-                    text = "%.2f".format(status.powerW),
+                    text = "%.2f".format(status.calibratedPowerW),
                     style = MaterialTheme.typography.displayLarge.copy(
                         fontSize = 56.sp,
                         fontWeight = FontWeight.Black
@@ -60,7 +60,7 @@ fun PowerMonitorCard(
                 )
             }
             Text(
-                text = "Total System Consumption",
+                text = if (status.multiplier != 1.0f) "Calibrated System Consumption (x${status.multiplier})" else "Total System Consumption",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
             )

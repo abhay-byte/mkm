@@ -7,6 +7,7 @@ import com.ivarna.mkm.data.model.BenchmarkStatus
 import com.ivarna.mkm.data.model.CpuEfficiencyResult
 import com.ivarna.mkm.data.model.GpuEfficiencyResult
 import com.ivarna.mkm.data.model.PowerStatus
+import com.ivarna.mkm.data.provider.PowerCalibrationManager
 import com.ivarna.mkm.data.provider.PowerProvider
 import com.ivarna.mkm.shell.ShellManager
 import kotlinx.coroutines.Job
@@ -19,8 +20,9 @@ import kotlinx.coroutines.launch
 class PowerViewModel(application: Application) : AndroidViewModel(application) {
 
     private val powerProvider = PowerProvider()
+    private val calibrationManager = PowerCalibrationManager(application)
 
-    private val _powerStatus = MutableStateFlow(PowerStatus())
+    private val _powerStatus = MutableStateFlow(PowerStatus(multiplier = calibrationManager.getMultiplier()))
     val powerStatus: StateFlow<PowerStatus> = _powerStatus.asStateFlow()
     
     // CPU Bench
@@ -47,10 +49,15 @@ class PowerViewModel(application: Application) : AndroidViewModel(application) {
         monitoringJob?.cancel()
         monitoringJob = viewModelScope.launch {
             while (true) {
-                _powerStatus.value = powerProvider.getPowerStatus()
+                val currentMultiplier = calibrationManager.getMultiplier()
+                _powerStatus.value = powerProvider.getPowerStatus(currentMultiplier)
                 delay(1000) // 1 second update rate
             }
         }
+    }
+
+    fun saveCalibrationMultiplier(multiplier: Float) {
+        calibrationManager.saveMultiplier(multiplier)
     }
     
     private val _realTimeLogs = MutableStateFlow("")
@@ -64,9 +71,13 @@ class PowerViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _cpuBenchStatus.value = BenchmarkStatus.Running
             try {
-                val result = powerProvider.runCpuBenchmarkKotlin { logLine ->
-                    _realTimeLogs.value = _realTimeLogs.value + "\n" + logLine
-                }
+                val currentMultiplier = calibrationManager.getMultiplier()
+                val result = powerProvider.runCpuBenchmarkKotlin(
+                    onProgress = { logLine ->
+                        _realTimeLogs.value = _realTimeLogs.value + "\n" + logLine
+                    },
+                    multiplier = currentMultiplier
+                )
                 _cpuResults.value = result.data
                 _cpuBenchStatus.value = BenchmarkStatus.Completed(
                     "Benchmark Finished. Found ${result.data.size} points.",
@@ -86,9 +97,13 @@ class PowerViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _gpuBenchStatus.value = BenchmarkStatus.Running
             try {
-                val result = powerProvider.runGpuBenchmark { logLine ->
-                    _realTimeLogs.value = _realTimeLogs.value + "\n" + logLine
-                }
+                val currentMultiplier = calibrationManager.getMultiplier()
+                val result = powerProvider.runGpuBenchmark(
+                    onProgress = { logLine ->
+                        _realTimeLogs.value = _realTimeLogs.value + "\n" + logLine
+                    },
+                    multiplier = currentMultiplier
+                )
                 _gpuResults.value = result.data
                 _gpuBenchStatus.value = BenchmarkStatus.Completed(
                     "Benchmark Finished. Found ${result.data.size} points.",

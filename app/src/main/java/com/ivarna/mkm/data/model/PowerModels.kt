@@ -4,7 +4,9 @@ data class PowerStatus(
     val voltageUv: Long = 0, // Microvolts
     val currentUa: Long = 0, // Microamperes
     val powerUw: Long = 0,   // Microwatts
-    val powerW: Float = 0f   // Watts
+    val powerW: Float = 0f,  // Raw Watts
+    val calibratedPowerW: Float = 0f, // Calibrated Watts
+    val multiplier: Float = 1.0f      // Current multiplier
 )
 
 data class CpuEfficiencyResult(

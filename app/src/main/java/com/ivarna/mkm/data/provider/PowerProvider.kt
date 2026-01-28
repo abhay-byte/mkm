@@ -14,9 +14,9 @@ import kotlin.math.sqrt
 
 class PowerProvider {
 
-    suspend fun getPowerStatus(): PowerStatus = withContext(Dispatchers.IO) {
+    suspend fun getPowerStatus(multiplier: Float = 1.0f): PowerStatus = withContext(Dispatchers.IO) {
         val output = ShellManager.exec(PowerScripts.getPowerAndVoltage()).stdout
-        if (output.isBlank()) return@withContext PowerStatus()
+        if (output.isBlank()) return@withContext PowerStatus(multiplier = multiplier)
 
         try {
             val parts = output.trim().split(" ")
@@ -30,18 +30,26 @@ class PowerProvider {
                 
                 val powerUw = (currentUa * voltageUv) / 1_000_000L
                 val powerW = powerUw / 1_000_000f
+                val calibratedPowerW = powerW * multiplier
                 
-                return@withContext PowerStatus(voltageUv, currentUa, powerUw, powerW)
+                return@withContext PowerStatus(
+                    voltageUv = voltageUv, 
+                    currentUa = currentUa, 
+                    powerUw = powerUw, 
+                    powerW = powerW,
+                    calibratedPowerW = calibratedPowerW,
+                    multiplier = multiplier
+                )
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        return@withContext PowerStatus()
+        return@withContext PowerStatus(multiplier = multiplier)
     }
 
     data class BenchmarkResult<T>(val data: List<T>, val logs: String)
 
-    suspend fun runCpuBenchmarkKotlin(onProgress: (String) -> Unit): BenchmarkResult<CpuEfficiencyResult> = withContext(Dispatchers.IO) {
+    suspend fun runCpuBenchmarkKotlin(onProgress: (String) -> Unit, multiplier: Float = 1.0f): BenchmarkResult<CpuEfficiencyResult> = withContext(Dispatchers.IO) {
         val sb = StringBuilder()
         val results = mutableListOf<CpuEfficiencyResult>()
         
@@ -186,7 +194,7 @@ class PowerProvider {
                 val avgFreqKHz = if (clusters.isNotEmpty()) avgFreqSum / clusters.size else 0L
                 
                 // Measure Power Pre
-                val p1 = getPowerStatus()
+                val p1 = getPowerStatus(multiplier)
                 
                 // Run Load - Cache-Intensive Workload (CPU + Memory subsystem)
                 val startTime = System.nanoTime()
@@ -234,10 +242,10 @@ class PowerProvider {
                 sb.appendLine("Cluster Freqs: ${stepClusterFreqs.values.joinToString("|") { "${it/1000}" }}")
                 
                 // Measure Power Post
-                val p2 = getPowerStatus()
+                val p2 = getPowerStatus(multiplier)
                 
                 // Calculate
-                val avgPowerW = (p1.powerW + p2.powerW) / 2f
+                val avgPowerW = (p1.calibratedPowerW + p2.calibratedPowerW) / 2f
                 
                 // Score Calculation - based on array operations
                 // Each core: 100 iterations * 50K array * 3 passes = 15M operations
@@ -278,7 +286,7 @@ class PowerProvider {
         BenchmarkResult(results, sb.toString())
     }
     
-    suspend fun runGpuBenchmark(onProgress: (String) -> Unit): BenchmarkResult<GpuEfficiencyResult> = withContext(Dispatchers.IO) {
+    suspend fun runGpuBenchmark(onProgress: (String) -> Unit, multiplier: Float = 1.0f): BenchmarkResult<GpuEfficiencyResult> = withContext(Dispatchers.IO) {
         val sb = StringBuilder()
         val scriptPath = "/data/local/tmp/mkm_gpu_bench.sh"
         val outputPath = "gpu_efficiency_results.csv"
@@ -304,11 +312,11 @@ class PowerProvider {
         onProgress("Reading Results...")
         val fileContent = ShellManager.exec("cat /data/local/tmp/$outputPath").stdout
         
-        val results = parseGpuCsv(fileContent)
+        val results = parseGpuCsv(fileContent, multiplier)
         BenchmarkResult(results, sb.toString())
     }
     
-    private fun parseGpuCsv(content: String): List<GpuEfficiencyResult> {
+    private fun parseGpuCsv(content: String, multiplier: Float): List<GpuEfficiencyResult> {
         val lines = content.lines().drop(1)
         val results = mutableListOf<GpuEfficiencyResult>()
         
@@ -320,9 +328,11 @@ class PowerProvider {
                     // Frequency_Hz,Duration_Sec,Score,Power_W,Efficiency_ScorePerWatt
                     val freq = parts[0].toLongOrNull() ?: 0L
                     val util = parts[2].toFloatOrNull() ?: 0f 
-                    val power = parts[3].toFloatOrNull() ?: 0f
+                    val rawPower = parts[3].toFloatOrNull() ?: 0f
+                    val power = rawPower * multiplier
                     
-                    results.add(GpuEfficiencyResult(freq, util, power, 0f))
+                    val efficiency = if (power > 0) util / power else 0f
+                    results.add(GpuEfficiencyResult(freq, util, power, efficiency))
                 } catch (e: Exception) {
                     continue
                 }

@@ -3,6 +3,7 @@ package com.ivarna.mkm.ui.screens
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,6 +32,7 @@ import com.ivarna.mkm.data.model.GpuEfficiencyResult
 import com.ivarna.mkm.ui.components.BenchmarkResultsTable
 import com.ivarna.mkm.ui.components.EfficiencyGraph
 import com.ivarna.mkm.ui.components.PowerMonitorCard
+import com.ivarna.mkm.ui.components.PowerCalibrationComponent
 import com.ivarna.mkm.ui.viewmodel.PowerViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,6 +51,14 @@ fun PowerScreen(
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Monitor", "CPU Bench", "GPU Bench")
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+    val tabContainerColor by animateColorAsState(
+        targetValue = if (scrollBehavior.state.overlappedFraction > 0.01f)
+            MaterialTheme.colorScheme.surfaceContainer
+        else
+            MaterialTheme.colorScheme.surface,
+        label = "TabRowColorAnimation"
+    )
 
     var showLogDialog by remember { mutableStateOf(false) }
     var logContent by remember { mutableStateOf("") }
@@ -102,7 +112,7 @@ fun PowerScreen(
         Column(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
             TabRow(
                 selectedTabIndex = selectedTab,
-                containerColor = MaterialTheme.colorScheme.surface,
+                containerColor = tabContainerColor,
                 contentColor = MaterialTheme.colorScheme.primary,
                 indicator = { tabPositions ->
                     TabRowDefaults.SecondaryIndicator(
@@ -128,7 +138,10 @@ fun PowerScreen(
             }
 
             when (selectedTab) {
-                0 -> MonitorTab(powerStatus)
+                0 -> MonitorTab(
+                    powerStatus = powerStatus,
+                    onSaveMultiplier = { viewModel.saveCalibrationMultiplier(it) }
+                )
                 1 -> CpuBenchTab(
                     cpuStatus, 
                     cpuResults, 
@@ -176,9 +189,19 @@ fun PowerScreen(
 }
 
 @Composable
-fun MonitorTab(powerStatus: com.ivarna.mkm.data.model.PowerStatus) {
+fun MonitorTab(
+    powerStatus: com.ivarna.mkm.data.model.PowerStatus,
+    onSaveMultiplier: (Float) -> Unit
+) {
     Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
         PowerMonitorCard(status = powerStatus)
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        PowerCalibrationComponent(
+            status = powerStatus,
+            onSaveMultiplier = onSaveMultiplier
+        )
+
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             "Values are read directly from kernel power supply subsystem.",
