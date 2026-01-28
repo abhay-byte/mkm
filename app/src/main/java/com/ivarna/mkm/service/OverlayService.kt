@@ -273,7 +273,12 @@ class OverlayService : Service() {
                                     CompactMetric("CPU", "${(homeData.cpu.overallUsage * 100).toInt()}%", homeData.cpu.overallUsage)
                                 }
                                 if (showCpuFreqState) {
-                                    CompactMetric("FREQ", homeData.cpu.avgFreq, 0f, false)
+                                    val clusterFreqs = homeData.cpu.clusters.sortedBy { it.id }.joinToString(" ") { cluster ->
+                                        cluster.currentFreq
+                                            .replace(" GHz", "G")
+                                            .replace(" MHz", "M")
+                                    }
+                                    CompactMetric("FREQ", clusterFreqs, 0f, false)
                                 }
                                 if (showGpuUsageState) {
                                     CompactMetric("GPU", "${(homeData.gpu.loadPercent * 100).toInt()}%", homeData.gpu.loadPercent)
@@ -324,18 +329,29 @@ class OverlayService : Service() {
                         trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                     )
                 }
+                
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.width(42.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
             } else {
-                Spacer(modifier = Modifier.width(68.dp))
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.width(114.dp), // 68 + 42 + 4 = 114
+                    textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
             }
-
-            Text(
-                text = value,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Black,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.width(42.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.End
-            )
         }
     }
 
