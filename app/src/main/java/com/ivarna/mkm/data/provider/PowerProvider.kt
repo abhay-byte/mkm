@@ -193,63 +193,148 @@ class PowerProvider {
                 
                 val avgFreqKHz = if (clusters.isNotEmpty()) avgFreqSum / clusters.size else 0L
                 
-                // Measure Power Pre
-                val p1 = getPowerStatus(multiplier)
-                
-                // Run Load - Cache-Intensive Workload (CPU + Memory subsystem)
+                // Run Load - MAXIMUM INTENSITY Multi-threaded Workload
+                // Designed to push CPU to thermal/power limits (7W target)
+                // Uses matrix multiplication + prime generation + hash computation + FPU stress
                 val startTime = System.nanoTime()
                 
-                // Spawn threads equal to core count, each with independent workload
+                // Power sampling during workload (multiple samples for accuracy)
+                val powerSamples = mutableListOf<Float>()
+                var keepSampling = true
+                
+                // Launch power monitoring coroutine
+                val powerMonitorJob = launch(Dispatchers.IO) {
+                    while (keepSampling) {
+                        val sample = getPowerStatus(multiplier)
+                        powerSamples.add(sample.calibratedPowerW)
+                        delay(200) // Sample every 200ms
+                    }
+                }
+                
+                // Spawn threads equal to core count, each with HEAVY workload
                 coroutineScope {
                     repeat(totalCores) { threadId ->
                         launch(Dispatchers.Default) {
-                            // Each thread gets its own large array for cache thrashing
-                            val arraySize = 50_000
-                            val data = DoubleArray(arraySize) { (it + threadId).toDouble() }
-                            val temp = DoubleArray(arraySize)
+                            var checksum = 0L // Prevent optimization
                             
-                            // Perform intensive operations
-                            repeat(100) { iteration ->
-                                // 1. Array traversal and computation
-                                for (i in data.indices) {
-                                    temp[i] = data[i] * 1.5 + iteration
+                            // PHASE 1: Large Matrix Multiplication (10x more intensive)
+                            val matrixSize = 256  // Increased from 128
+                            val matrixA = Array(matrixSize) { DoubleArray(matrixSize) { (it + threadId).toDouble() } }
+                            val matrixB = Array(matrixSize) { DoubleArray(matrixSize) { (it * 2 + threadId).toDouble() } }
+                            val result = Array(matrixSize) { DoubleArray(matrixSize) }
+                            
+                            // 10 iterations instead of 3
+                            repeat(10) { iteration ->
+                                for (i in 0 until matrixSize) {
+                                    for (j in 0 until matrixSize) {
+                                        var sum = 0.0
+                                        for (k in 0 until matrixSize) {
+                                            sum += matrixA[i][k] * matrixB[k][j]
+                                        }
+                                        result[i][j] = sum + iteration
+                                    }
                                 }
-                                
-                                // 2. Reverse traversal (cache miss pattern)
-                                for (i in data.indices.reversed()) {
-                                    data[i] = temp[i] * 0.8 - iteration
+                                checksum += result[0][0].toLong()
+                            }
+                            
+                            // PHASE 2: Larger Prime Generation (5x more intensive)
+                            val primeLimit = 500_000  // Increased from 100K
+                            val isPrime = BooleanArray(primeLimit + 1) { true }
+                            isPrime[0] = false
+                            isPrime[1] = false
+                            
+                            for (p in 2..sqrt(primeLimit.toDouble()).toInt()) {
+                                if (isPrime[p]) {
+                                    var multiple = p * p
+                                    while (multiple <= primeLimit) {
+                                        isPrime[multiple] = false
+                                        multiple += p
+                                    }
                                 }
+                            }
+                            
+                            var primeCount = 0
+                            for (i in 2..primeLimit) {
+                                if (isPrime[i]) primeCount++
+                            }
+                            checksum += primeCount
+                            
+                            // PHASE 3: Intensive Hash + Trigonometric Operations (4x more)
+                            var hash = threadId.toLong()
+                            val goldenRatio = 0x9e3779b9L
+                            repeat(200_000) { iteration ->  // Increased from 50K
+                                // SHA-like mixing
+                                hash = hash xor (hash shl 13)
+                                hash = hash xor (hash ushr 17)
+                                hash = hash xor (hash shl 5)
+                                hash += (iteration * goldenRatio)
                                 
-                                // 3. Strided access (more cache misses)
-                                var sum = 0.0
-                                for (i in 0 until arraySize step 7) {
-                                    sum += data[i]
-                                }
-                                
-                                // 4. Write back result to prevent optimization
-                                data[0] = sum / arraySize
+                                // Heavy FPU operations (CPU intensive)
+                                val temp = (hash and 0xFFFF).toDouble()
+                                val fpuResult = sin(temp / 1000.0) * cos(temp / 2000.0) * sqrt(temp)
+                                hash += (fpuResult * 1000000).toLong()
+                            }
+                            checksum += hash
+                            
+                            // PHASE 4: Aggressive Memory Thrashing (5x more)
+                            val arraySize = 65_536  // Increased to 512KB per thread
+                            val data = LongArray(arraySize) { (it + threadId).toLong() }
+                            val temp = LongArray(arraySize)
+                            
+                            repeat(50_000) { iteration ->  // Increased from 10K
+                                val idx = (iteration * 1597 + 51749) % arraySize
+                                // Heavy memory operations
+                                data[idx] = data[idx] xor (iteration.toLong() + checksum)
+                                temp[idx] = data[(idx + 1) % arraySize] + data[(idx + arraySize - 1) % arraySize]
+                                checksum += temp[idx] and 0xFF
+                            }
+                            
+                            // PHASE 5: Sustained FPU Load (NEW - push thermal limits)
+                            var fpuSum = threadId.toDouble()
+                            repeat(100_000) { iteration ->
+                                fpuSum = sqrt(abs(fpuSum) + iteration) * sin(fpuSum / 1000.0) * cos(fpuSum / 2000.0)
+                                fpuSum += sqrt(iteration.toDouble()) * sin(iteration / 100.0)
+                                if (iteration % 1000 == 0) checksum += fpuSum.toLong()
                             }
                             
                             // Prevent dead code elimination
-                            if (data[0] < -999999.0) print(data[0])
+                            if (checksum == -999999999L || fpuSum < -999999999.0) {
+                                print("$checksum $fpuSum")
+                            }
                         }
                     }
                 }
                 
                 val endTime = System.nanoTime()
                 val durationSec = (endTime - startTime) / 1_000_000_000f
+                
+                // Stop power monitoring
+                keepSampling = false
+                powerMonitorJob.join()
+                
                 sb.appendLine("Duration: $durationSec s")
                 sb.appendLine("Cluster Freqs: ${stepClusterFreqs.values.joinToString("|") { "${it/1000}" }}")
                 
-                // Measure Power Post
-                val p2 = getPowerStatus(multiplier)
+                // Calculate average power from all samples
+                val avgPowerW = if (powerSamples.isNotEmpty()) {
+                    powerSamples.average().toFloat()
+                } else {
+                    // Fallback to single measurement if no samples
+                    getPowerStatus(multiplier).calibratedPowerW
+                }
                 
-                // Calculate
-                val avgPowerW = (p1.calibratedPowerW + p2.calibratedPowerW) / 2f
+                sb.appendLine("Power samples: ${powerSamples.size}, Avg: $avgPowerW W")
                 
-                // Score Calculation - based on array operations
-                // Each core: 100 iterations * 50K array * 3 passes = 15M operations
-                val totalOps = totalCores * 100L * 50_000L * 3L
+                // Score Calculation - based on MAXIMUM INTENSITY workload
+                // Each thread performs:
+                // - 10 matrix multiplications (256³ operations each) = ~168M ops
+                // - 1 prime sieve up to 500K = ~500K ops
+                // - 200K hash iterations with FPU mixing = ~800K ops
+                // - 50K memory access operations = ~50K ops
+                // - 100K FPU stress operations = ~300K ops
+                // Total per thread: ~169.7M operations
+                val opsPerThread = 169_650_000L
+                val totalOps = totalCores * opsPerThread
                 val score = (totalOps / durationSec) / 1_000_000f  // Ops per second in millions
                 
                 val efficiency = if (avgPowerW > 0) score / avgPowerW else 0f

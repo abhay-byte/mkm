@@ -28,20 +28,62 @@ get_power() {
     echo "0 0"
 }
 
-# Simple benchmark: Calculate prime numbers or simple math loop
+# MAXIMUM INTENSITY multi-phase benchmark to push CPU to 7W+ power draw
+# Matrix ops, prime generation, hash computation, FPU stress
+# Much heavier workload to fully utilize CPU capabilities
 run_benchmark() {
     start_time=$(date +%s.%N)
     
-    # Payload: ~10000 iterations of math. Adjust to take ~0.5s-1s at max freq.
-    # Using awk for heavy lifting to ensure CPU usage
+    # Multi-phase MAXIMUM LOAD workload using awk
     awk 'BEGIN {
-        for (i=0; i<300000; i++) {
-            x = sqrt(i) * sin(i) * cos(i)
+        # PHASE 1: Large Matrix-like operations (intensive nested loops, FPU)
+        sum = 0
+        for (i=0; i<300; i++) {
+            for (j=0; j<300; j++) {
+                for (k=0; k<300; k++) {
+                    sum += sqrt(i*j+k+1) * sin(k/10.0) * cos(j/10.0)
+                }
+            }
         }
+        
+        # PHASE 2: Extended Prime number generation (heavy integer ops)
+        limit = 250000
+        for (p=2; p*p<=limit; p++) {
+            for (m=p*p; m<=limit; m+=p) {
+                sum += m
+            }
+        }
+        
+        # PHASE 3: Intensive Hash-like bit operations and mixing
+        hash = 12345
+        for (i=0; i<150000; i++) {
+            hash = xor(hash, lshift(hash, 5))
+            hash = xor(hash, rshift(hash, 3))
+            hash += i * 2654435761  # Golden ratio prime
+            sum += hash % 1000
+            # Extra FPU stress
+            sum += sqrt(hash % 10000) * sin(i/1000.0)
+        }
+        
+        # PHASE 4: Aggressive Memory-intensive patterns
+        for (i=0; i<100000; i++) {
+            idx = (i * 1597 + 51749) % 50000
+            sum += sqrt(idx+1) * sin(idx/100.0) * cos(idx/200.0)
+        }
+        
+        # PHASE 5: Sustained FPU stress (NEW - push thermal)
+        fpusum = 123.456
+        for (i=0; i<80000; i++) {
+            fpusum = sqrt(fpusum + i) * sin(fpusum/1000.0)
+            fpusum += sqrt(i) * cos(i/100.0)
+            if (i % 1000 == 0) sum += fpusum
+        }
+        
+        # Prevent optimization
+        if (sum < -999999999 || fpusum < -999999999) print sum, fpusum
     }'
     
     end_time=$(date +%s.%N)
-    # Use awk for float subtraction
     duration=$(awk "BEGIN {print $end_time - $start_time}")
     echo $duration
 }

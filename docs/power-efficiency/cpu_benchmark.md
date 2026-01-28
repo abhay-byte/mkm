@@ -9,7 +9,7 @@ The script performs the following steps for **each CPU cluster** (Policy):
 3. For each frequency step:
    - Locks the CPU frequency.
    - Measures Baseline Power (optional/implicit).
-   - Runs a specific mathematical workload (calculating trigonometric functions and square roots on ~300k iterations).
+   - Runs a multi-phase intensive workload (matrix operations, prime generation, hash computation, and memory access patterns) designed to scale well with burst loads and utilize CPU resources efficiently across multiple threads.
    - Measures **Power Consumption** (Amperes $\times$ Volts) during the run.
    - Calculates a **Score** based on $1000 / \text{Duration}$.
    - Calculates **Efficiency** (Score / Watts).
