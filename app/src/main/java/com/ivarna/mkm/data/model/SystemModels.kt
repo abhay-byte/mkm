@@ -47,7 +47,8 @@ data class CpuStatus(
     val cpuName: String = "Unknown",
     val overallUsage: Float = 0f,
     val clusters: List<CpuCluster> = emptyList(),
-    val totalCores: Int = 0
+    val totalCores: Int = 0,
+    val avgFreq: String = "0 MHz"
 )
 
 data class GpuStatus(

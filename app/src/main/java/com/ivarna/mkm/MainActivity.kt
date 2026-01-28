@@ -51,6 +51,7 @@ import com.ivarna.mkm.ui.screens.GpuScreen
 import com.ivarna.mkm.ui.screens.HomeScreen
 import com.ivarna.mkm.ui.screens.PowerScreen
 import com.ivarna.mkm.ui.screens.RamScreen
+import com.ivarna.mkm.ui.screens.OverlayScreen
 import com.ivarna.mkm.ui.screens.StorageScreen
 import com.ivarna.mkm.ui.screens.SettingsScreen
 import com.ivarna.mkm.ui.theme.MKMTheme
@@ -111,7 +112,7 @@ fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewMode
                 HorizontalDivider(modifier = Modifier.padding(bottom = 8.dp))
                 navItems.forEach { screen ->
                     val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
-                    val isEnabled = isAccessGranted || screen == Screen.Home || screen == Screen.Settings
+                    val isEnabled = isAccessGranted || screen == Screen.Home || screen == Screen.Settings || screen == Screen.Overlay
                     
                     NavigationDrawerItem(
                         label = { Text(screen.label) },
@@ -158,6 +159,7 @@ fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewMode
             composable(Screen.GPU.route) { GpuScreen(onOpenDrawer = openDrawer) }
             composable(Screen.Storage.route) { StorageScreen(onOpenDrawer = openDrawer) }
             composable(Screen.Power.route) { PowerScreen(onOpenDrawer = openDrawer) }
+            composable(Screen.Overlay.route) { OverlayScreen(onOpenDrawer = openDrawer) }
             composable(Screen.Settings.route) { 
                 SettingsScreen(
                     viewModel = settingsViewModel, 

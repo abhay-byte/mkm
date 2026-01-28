@@ -110,14 +110,22 @@ object CpuProvider {
         } else {
             0f
         }
+
+        // Calculate average frequency across all clusters
+        val avgFreqKhz = if (clusters.isNotEmpty()) {
+            clusters.map { it.currentFreq.split(" ")[0].replace(",", ".").toDouble() * (if (it.currentFreq.contains("GHz")) 1000000 else 1000) }.average().toLong()
+        } else {
+            0L
+        }
         
-        Log.d("CpuProvider", "Overall usage: $overallUsage (from ${allCores.size} cores)")
+        Log.d("CpuProvider", "Overall usage: $overallUsage (from ${allCores.size} cores), Avg Freq: $avgFreqKhz")
 
         return CpuStatus(
             cpuName = getCpuName(),
             overallUsage = if (overallUsage.isNaN() || overallUsage < 0) 0f else overallUsage.coerceAtMost(1f),
             clusters = clusters,
-            totalCores = coreCount
+            totalCores = coreCount,
+            avgFreq = ShellUtils.formatFreq(avgFreqKhz)
         )
     }
     

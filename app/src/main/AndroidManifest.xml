@@ -4,6 +4,9 @@
     <!-- Shizuku permission disabled - uncomment when dependencies are available
     <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
     -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
         android:name=".MkmApplication"
@@ -22,6 +25,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".service.OverlayService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Floating performance monitor overlay for real-time system metrics visibility." />
+        </service>
 
         <!-- Shizuku provider disabled - uncomment when dependencies are available
         <provider
