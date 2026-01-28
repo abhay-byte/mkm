@@ -6,13 +6,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class SystemRepository {
-    suspend fun getHomeData(): HomeData = withContext(Dispatchers.IO) {
+    private val powerProvider = PowerProvider()
+
+    suspend fun getHomeData(powerMultiplier: Float = 1.0f): HomeData = withContext(Dispatchers.IO) {
         HomeData(
             overview = DeviceInfoProvider.getOverview(),
             memory = MemoryProvider.getMemoryStatus(),
             cpu = CpuProvider.getCpuStatus(),
             gpu = GpuProvider.getGpuStatus(),
-            swap = MemoryProvider.getSwapStatus()
+            swap = MemoryProvider.getSwapStatus(),
+            power = powerProvider.getPowerStatus(powerMultiplier)
         )
     }
 
@@ -35,7 +38,8 @@ data class HomeData(
     val memory: MemoryStatus,
     val cpu: CpuStatus,
     val gpu: GpuStatus,
-    val swap: SwapStatus
+    val swap: SwapStatus,
+    val power: PowerStatus = PowerStatus()
 )
 
 data class RamData(

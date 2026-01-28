@@ -33,6 +33,7 @@ import androidx.savedstate.*
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.ivarna.mkm.data.SystemRepository
 import com.ivarna.mkm.data.HomeData
+import com.ivarna.mkm.data.provider.PowerCalibrationManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.math.roundToInt
@@ -54,6 +55,7 @@ class OverlayService : Service() {
     private var showGpuUsageState by mutableStateOf(true)
     private var showRamUsageState by mutableStateOf(true)
     private var showSwapUsageState by mutableStateOf(true)
+    private var showPowerUsageState by mutableStateOf(true)
 
     private val CHANNEL_ID = "overlay_service"
     private val NOTIFICATION_ID = 1001
@@ -108,6 +110,7 @@ class OverlayService : Service() {
         showGpuUsageState = prefs.getBoolean("show_gpu_usage", true)
         showRamUsageState = prefs.getBoolean("show_ram_usage", true)
         showSwapUsageState = prefs.getBoolean("show_swap_usage", true)
+        showPowerUsageState = prefs.getBoolean("show_power", true)
         isMovableState = prefs.getBoolean("movable", true)
         attachPositionState = prefs.getString("attach_position", "top_center") ?: "top_center"
     }
@@ -183,9 +186,10 @@ class OverlayService : Service() {
     }
 
     private fun startMonitoring() {
+        val calibrationManager = PowerCalibrationManager(this)
         serviceScope.launch {
             while (isActive) {
-                val data = repository.getHomeData()
+                val data = repository.getHomeData(calibrationManager.getMultiplier())
                 android.util.Log.d("MKM_Overlay", "Update: CPU ${data.cpu.overallUsage}, RAM ${data.memory.usagePercent}")
                 uiState.value = data
                 delay(2000)
@@ -288,6 +292,10 @@ class OverlayService : Service() {
                                 }
                                 if (showSwapUsageState && homeData.swap.isActive) {
                                     CompactMetric("SWAP", "${(homeData.swap.usagePercent * 100).toInt()}%", homeData.swap.usagePercent)
+                                }
+                                if (showPowerUsageState) {
+                                    val powerStr = String.format("%.2f W", homeData.power.calibratedPowerW)
+                                    CompactMetric("PWR", powerStr, 0f, false)
                                 }
                             } ?: Text("Loading...", style = MaterialTheme.typography.labelSmall)
                         }

@@ -116,6 +116,7 @@ fun OverlayScreen(onOpenDrawer: () -> Unit = {}) {
         var showGpuUsage by remember { mutableStateOf(prefs.getBoolean("show_gpu_usage", true)) }
         var showRamUsage by remember { mutableStateOf(prefs.getBoolean("show_ram_usage", true)) }
         var showSwapUsage by remember { mutableStateOf(prefs.getBoolean("show_swap_usage", true)) }
+        var showPower by remember { mutableStateOf(prefs.getBoolean("show_power", true)) }
         var showCpuFreq by remember { mutableStateOf(prefs.getBoolean("show_cpu_freq", true)) }
         var isMovable by remember { mutableStateOf(prefs.getBoolean("movable", true)) }
         var attachPosition by remember { 
@@ -190,6 +191,16 @@ fun OverlayScreen(onOpenDrawer: () -> Unit = {}) {
                         onCheckedChange = { 
                             showSwapUsage = it
                             prefs.edit().putBoolean("show_swap_usage", it).apply()
+                            notifyService()
+                        }
+                    )
+                    OverlayToggleItem(
+                        icon = Icons.Default.FlashOn,
+                        title = "Power Usage",
+                        checked = showPower,
+                        onCheckedChange = { 
+                            showPower = it
+                            prefs.edit().putBoolean("show_power", it).apply()
                             notifyService()
                         }
                     )
