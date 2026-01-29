@@ -45,7 +45,7 @@ fun StatCard(
 ) {
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
-        animationSpec = spring(stiffness = 50f),
+        animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
         label = "progress"
     )
 
@@ -140,6 +140,12 @@ fun CoreMiniCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val animatedProgress by animateFloatAsState(
+        targetValue = core.usagePercent,
+        animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
+        label = "progress"
+    )
+
     ElevatedCard(
         onClick = onClick,
         modifier = modifier,
@@ -163,9 +169,9 @@ fun CoreMiniCard(
             Spacer(modifier = Modifier.height(12.dp))
             @OptIn(ExperimentalMaterial3ExpressiveApi::class)
             LinearWavyProgressIndicator(
-                progress = { core.usagePercent },
+                progress = { animatedProgress },
                 modifier = Modifier.fillMaxWidth().height(10.dp),
-                color = if (core.usagePercent > 0.8f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
+                color = if (animatedProgress > 0.8f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
                 trackColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
             )
         }
@@ -249,6 +255,12 @@ fun HeroUsageCard(
     onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val animatedProgress by animateFloatAsState(
+        targetValue = usage,
+        animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
+        label = "progress"
+    )
+
     Card(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
@@ -283,7 +295,7 @@ fun HeroUsageCard(
             Spacer(modifier = Modifier.height(24.dp))
             @OptIn(ExperimentalMaterial3ExpressiveApi::class)
             LinearWavyProgressIndicator(
-                progress = { usage },
+                progress = { animatedProgress },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(10.dp),

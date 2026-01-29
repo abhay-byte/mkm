@@ -13,6 +13,7 @@ import android.view.Gravity
 import android.view.WindowManager
 import android.content.pm.ServiceInfo
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
@@ -315,6 +316,12 @@ class OverlayService : Service() {
         progress: Float,
         showProgress: Boolean = true
     ) {
+        val animatedProgress by animateFloatAsState(
+            targetValue = progress,
+            animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
+            label = "progress"
+        )
+
         Row(
             modifier = Modifier.padding(horizontal = 2.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -331,9 +338,9 @@ class OverlayService : Service() {
             if (showProgress) {
                 Box(modifier = Modifier.width(68.dp), contentAlignment = Alignment.Center) {
                     LinearWavyProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier.fillMaxWidth().height(6.dp),
-                        color = if (progress > 0.8f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                        progress = { animatedProgress },
+                        modifier = Modifier.fillMaxWidth().height(10.dp),
+                        color = if (animatedProgress > 0.8f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                         trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                     )
                 }

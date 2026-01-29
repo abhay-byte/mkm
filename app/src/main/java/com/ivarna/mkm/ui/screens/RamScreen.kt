@@ -178,7 +178,7 @@ fun RamScreen(viewModel: RamViewModel = viewModel(), onOpenDrawer: () -> Unit = 
 fun MemoryOverviewCard(memory: MemoryStatus) {
     val animatedProgress by animateFloatAsState(
         targetValue = memory.usagePercent,
-        animationSpec = spring(stiffness = 50f),
+        animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
         label = "progress"
     )
 
