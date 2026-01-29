@@ -1,0 +1,11 @@
+// F-Droid reproducible builds workaround
+// See: https://gitlab.com/fdroid/fdroiddata/-/issues/2618
+// Disables ArtProfile and StartupProfile compilation tasks to prevent non-deterministic baseline.prof{,m} files
+project.afterEvaluate {
+    tasks.each { task ->
+        if (task.name.contains("ArtProfile") || task.name.contains("StartupProfile")) {
+            task.enabled = false
+            println "Disabled baseline profile task: ${task.name}"
+        }
+    }
+}
