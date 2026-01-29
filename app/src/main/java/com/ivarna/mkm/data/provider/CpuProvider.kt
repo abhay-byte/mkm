@@ -11,6 +11,8 @@ import java.io.File
 
 object CpuProvider {
     fun getCpuStatus(): CpuStatus {
+        // Get CPU usage using the new modular CpuUtilizationProvider
+        val perCoreUsage = CpuUtilizationProvider.getPerCoreCpuUsage(useFrequencyFallback = true)
         val cpuDir = File("/sys/devices/system/cpu")
         val cpuFiles = cpuDir.listFiles { _, name -> name.startsWith("cpu") && name.substring(3).all { it.isDigit() } }
         val coreCount = cpuFiles?.size ?: 0
@@ -60,14 +62,17 @@ object CpuProvider {
                     readSystemFile(coreCurFreqFile.absolutePath).toLongOrNull() ?: curFreq
                 } else curFreq
                 
-                // Calculate usage based on frequency: (current - hwMin) / (hwMax - hwMin)
-                val usage = if (hwMaxFreq > hwMinFreq && coreCurFreq >= hwMinFreq) {
-                    ((coreCurFreq - hwMinFreq).toFloat() / (hwMaxFreq - hwMinFreq)).coerceIn(0f, 1f)
-                } else if (coreCurFreq > 0 && hwMaxFreq > 0) {
-                    // Fallback: simple ratio if hw min/max not available
-                    (coreCurFreq.toFloat() / hwMaxFreq).coerceIn(0f, 1f)
-                } else {
-                    0f
+                // Get CPU usage from CpuUtilizationProvider (primary method)
+                // If not available, fallback to frequency-based calculation (already handled by the provider)
+                val usage = perCoreUsage[coreId] ?: run {
+                    // Additional fallback if core not in map: calculate from frequency
+                    if (hwMaxFreq > hwMinFreq && coreCurFreq >= hwMinFreq) {
+                        ((coreCurFreq - hwMinFreq).toFloat() / (hwMaxFreq - hwMinFreq)).coerceIn(0f, 1f)
+                    } else if (coreCurFreq > 0 && hwMaxFreq > 0) {
+                        (coreCurFreq.toFloat() / hwMaxFreq).coerceIn(0f, 1f)
+                    } else {
+                        0f
+                    }
                 }
                 
                 Log.d("CpuProvider", "Core $coreId: freq=$coreCurFreq, usage=$usage (hwMin=$hwMinFreq, hwMax=$hwMaxFreq)")
@@ -103,13 +108,9 @@ object CpuProvider {
             ))
         }
 
-        // Calculate overall usage
-        val allCores = clusters.flatMap { it.cores }
-        val overallUsage = if (allCores.isNotEmpty()) {
-            allCores.map { it.usagePercent }.average().toFloat()
-        } else {
-            0f
-        }
+        // Calculate overall usage using CpuUtilizationProvider
+        // This will use /proc/stat if available (more accurate), or frequency-based as fallback
+        val overallUsage = CpuUtilizationProvider.getOverallCpuUsage(useFrequencyFallback = true)
 
         // Calculate average frequency across all clusters
         val avgFreqKhz = if (clusters.isNotEmpty()) {
@@ -118,7 +119,7 @@ object CpuProvider {
             0L
         }
         
-        Log.d("CpuProvider", "Overall usage: $overallUsage (from ${allCores.size} cores), Avg Freq: $avgFreqKhz")
+        Log.d("CpuProvider", "Overall usage: $overallUsage (from $coreCount cores), Avg Freq: $avgFreqKhz")
 
         return CpuStatus(
             cpuName = getCpuName(),
