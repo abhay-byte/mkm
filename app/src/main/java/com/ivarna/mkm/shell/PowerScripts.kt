@@ -4,15 +4,20 @@ object PowerScripts {
     // Reads current and voltage from the first valid power supply
     fun getPowerAndVoltage(): String {
         return """
+            current=0
+            voltage=0
+            capacity=0
             for ps in /sys/class/power_supply/*; do
-                if [ -e "${"$"}ps/current_now" ] && [ -e "${"$"}ps/voltage_now" ]; then
+                if [ ${"$"}current -eq 0 ] && [ -e "${"$"}ps/current_now" ] && [ -e "${"$"}ps/voltage_now" ]; then
                     current=${"$"}(cat "${"$"}ps/current_now")
                     voltage=${"$"}(cat "${"$"}ps/voltage_now")
                     current=${"$"}{current#-}
-                    echo "${"$"}current ${"$"}voltage"
-                    break
+                fi
+                if [ ${"$"}capacity -eq 0 ] && [ -e "${"$"}ps/capacity" ]; then
+                    capacity=${"$"}(cat "${"$"}ps/capacity")
                 fi
             done
+            echo "${"$"}current ${"$"}voltage ${"$"}capacity"
         """.trimIndent()
     }
 

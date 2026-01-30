@@ -6,6 +6,7 @@ data class PowerStatus(
     val powerUw: Long = 0,   // Microwatts
     val powerW: Float = 0f,  // Raw Watts
     val calibratedPowerW: Float = 0f, // Calibrated Watts
+    val batteryPercent: Int = 0,
     val multiplier: Float = 1.0f      // Current multiplier
 )
 

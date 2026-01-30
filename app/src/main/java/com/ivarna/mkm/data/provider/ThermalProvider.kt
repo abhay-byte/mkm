@@ -14,6 +14,8 @@ data class ThermalZone(
 data class ThermalStatus(
     val zones: List<ThermalZone>,
     val maxTemp: Float,
+    val cpuTemp: Float = 0f,
+    val batteryTemp: Float = 0f,
     val currentLimit: Int = 0
 )
 
@@ -42,7 +44,13 @@ object ThermalProvider {
                         if (filename == "type") {
                             current = current.copy(first = value)
                         } else if (filename == "temp") {
-                            val temp = (value.toFloatOrNull() ?: 0f) / 1000f
+                            val rawTemp = value.toFloatOrNull() ?: 0f
+                            val temp = when {
+                                rawTemp > 10000 -> rawTemp / 1000f
+                                rawTemp > 1000 -> rawTemp / 100f
+                                rawTemp > 150 -> rawTemp / 10f
+                                else -> rawTemp
+                            }
                             current = current.copy(second = temp)
                         }
                         zoneMap[zoneId] = current
@@ -50,17 +58,53 @@ object ThermalProvider {
                 } catch (e: Exception) { }
             }
             
+            var cpuTemp = 0f
+            var batteryTemp = 0f
+            
             zoneMap.forEach { (id, data) ->
                 val (type, temp) = data
+                val lowerType = type.lowercase()
+                
+                if (lowerType.contains("battery")) {
+                    batteryTemp = temp
+                } else if (lowerType.contains("cpu") || lowerType.contains("soc") || lowerType.contains("tsens_tz_sensor")) {
+                    if (temp > cpuTemp) cpuTemp = temp
+                }
+
                 if (type.isNotEmpty() && temp > 0 && !type.contains("battery", ignoreCase = true)) {
                     zones.add(ThermalZone(id, type, temp))
                 }
             }
+            
+            // If batteryTemp still 0 or suspicious, try alternative common path
+            if (batteryTemp <= 0f || batteryTemp > 100f) {
+                val battOutput = ShellManager.exec("cat /sys/class/power_supply/battery/temp 2>/dev/null").stdout.trim()
+                val rawBattTemp = battOutput.toFloatOrNull() ?: 0f
+                batteryTemp = when {
+                    rawBattTemp > 10000 -> rawBattTemp / 1000f
+                    rawBattTemp > 1000 -> rawBattTemp / 100f
+                    rawBattTemp > 100 -> rawBattTemp / 10f
+                    else -> rawBattTemp
+                }
+            }
+
+            // Fallback for cpuTemp if not found by type
+            if (cpuTemp <= 0f) {
+                cpuTemp = zones.maxOfOrNull { it.temp } ?: 0f
+            }
+            
+            return ThermalStatus(
+                zones = zones.sortedByDescending { it.temp },
+                maxTemp = zones.maxOfOrNull { it.temp } ?: 0f,
+                cpuTemp = cpuTemp,
+                batteryTemp = batteryTemp,
+                currentLimit = if (fetchLimit) parseThermalLimit() else 0
+            )
         }
         
         return ThermalStatus(
-            zones = zones.sortedByDescending { it.temp },
-            maxTemp = zones.maxOfOrNull { it.temp } ?: 0f,
+            zones = emptyList(),
+            maxTemp = 0f,
             currentLimit = if (fetchLimit) parseThermalLimit() else 0
         )
     }

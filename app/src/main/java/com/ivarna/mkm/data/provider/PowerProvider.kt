@@ -23,6 +23,7 @@ class PowerProvider {
             if (parts.size >= 2) {
                 val currentRaw = parts[0].toLongOrNull() ?: 0L
                 val voltageRaw = parts[1].toLongOrNull() ?: 0L
+                val batteryPercent = if (parts.size >= 3) parts[2].toIntOrNull() ?: 0 else 0
                 
                 // Current is often negative (discharging), take absolute
                 val currentUa = abs(currentRaw)
@@ -38,6 +39,7 @@ class PowerProvider {
                     powerUw = powerUw, 
                     powerW = powerW,
                     calibratedPowerW = calibratedPowerW,
+                    batteryPercent = batteryPercent,
                     multiplier = multiplier
                 )
             }

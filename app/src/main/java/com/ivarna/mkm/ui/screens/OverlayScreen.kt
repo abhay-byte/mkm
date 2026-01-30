@@ -118,6 +118,15 @@ fun OverlayScreen(onOpenDrawer: () -> Unit = {}) {
         var showSwapUsage by remember { mutableStateOf(prefs.getBoolean("show_swap_usage", true)) }
         var showPower by remember { mutableStateOf(prefs.getBoolean("show_power", true)) }
         var showCpuFreq by remember { mutableStateOf(prefs.getBoolean("show_cpu_freq", true)) }
+        var showCpuTemp by remember { mutableStateOf(prefs.getBoolean("show_cpu_temp", false)) }
+        var showBatteryTemp by remember { mutableStateOf(prefs.getBoolean("show_battery_temp", false)) }
+        var showBatteryPercent by remember { mutableStateOf(prefs.getBoolean("show_battery_percent", false)) }
+        var showProgressBars by remember { mutableStateOf(prefs.getBoolean("show_progress_bars", true)) }
+        var showIconsOnly by remember { mutableStateOf(prefs.getBoolean("show_icons_only", false)) }
+        var isGridView by remember { mutableStateOf(prefs.getBoolean("is_grid_view", false)) }
+        var isHorizontal by remember { mutableStateOf(prefs.getBoolean("is_horizontal", false)) }
+        var gridColumns by remember { mutableStateOf(prefs.getInt("grid_columns", 2)) }
+        var updateInterval by remember { mutableStateOf(prefs.getLong("update_interval", 2000L)) }
         var isMovable by remember { mutableStateOf(prefs.getBoolean("movable", true)) }
         var attachPosition by remember { 
             mutableStateOf(prefs.getString("attach_position", "top_center") ?: "top_center") 
@@ -204,11 +213,134 @@ fun OverlayScreen(onOpenDrawer: () -> Unit = {}) {
                             notifyService()
                         }
                     )
+                    OverlayToggleItem(
+                        icon = Icons.Default.Thermostat,
+                        title = "CPU Temperature",
+                        checked = showCpuTemp,
+                        onCheckedChange = { 
+                            showCpuTemp = it
+                            prefs.edit().putBoolean("show_cpu_temp", it).apply()
+                            notifyService()
+                        }
+                    )
+                    OverlayToggleItem(
+                        icon = Icons.Default.BatteryChargingFull,
+                        title = "Battery Temperature",
+                        checked = showBatteryTemp,
+                        onCheckedChange = { 
+                            showBatteryTemp = it
+                            prefs.edit().putBoolean("show_battery_temp", it).apply()
+                            notifyService()
+                        }
+                    )
+                    OverlayToggleItem(
+                        icon = Icons.Default.BatteryStd,
+                        title = "Battery Percentage",
+                        checked = showBatteryPercent,
+                        onCheckedChange = { 
+                            showBatteryPercent = it
+                            prefs.edit().putBoolean("show_battery_percent", it).apply()
+                            notifyService()
+                        }
+                    )
+                }
+            }
+
+            item {
+                SettingsSection(title = "Appearance") {
+                    OverlayToggleItem(
+                        icon = Icons.Default.LinearScale,
+                        title = "Show Progress Bars",
+                        checked = showProgressBars,
+                        onCheckedChange = { 
+                            showProgressBars = it
+                            prefs.edit().putBoolean("show_progress_bars", it).apply()
+                            notifyService()
+                        }
+                    )
+                    OverlayToggleItem(
+                        icon = Icons.Default.EmojiSymbols,
+                        title = "Use Icons Only",
+                        checked = showIconsOnly,
+                        onCheckedChange = { 
+                            showIconsOnly = it
+                            prefs.edit().putBoolean("show_icons_only", it).apply()
+                            notifyService()
+                        }
+                    )
+                    OverlayToggleItem(
+                        icon = Icons.Default.GridView,
+                        title = "Grid Layout",
+                        checked = isGridView,
+                        onCheckedChange = { 
+                            isGridView = it
+                            if (it) isHorizontal = false
+                            prefs.edit().putBoolean("is_grid_view", it)
+                                .putBoolean("is_horizontal", isHorizontal).apply()
+                            notifyService()
+                        }
+                    )
+                    
+                    OverlayToggleItem(
+                        icon = Icons.Default.ViewArray,
+                        title = "Horizontal Layout",
+                        checked = isHorizontal,
+                        onCheckedChange = { 
+                            isHorizontal = it
+                            if (it) isGridView = false
+                            prefs.edit().putBoolean("is_horizontal", it)
+                                .putBoolean("is_grid_view", isGridView).apply()
+                            notifyService()
+                        }
+                    )
+                    
+                    if (isGridView) {
+                        SettingsItem(
+                            icon = Icons.Default.ViewColumn,
+                            title = "Grid Columns",
+                            subtitle = "Columns: $gridColumns",
+                            onClick = { }
+                        ) {
+                            Slider(
+                                value = gridColumns.toFloat(),
+                                onValueChange = { 
+                                    gridColumns = it.toInt().coerceIn(1, 4)
+                                },
+                                onValueChangeFinished = {
+                                    prefs.edit().putInt("grid_columns", gridColumns).apply()
+                                    notifyService()
+                                },
+                                valueRange = 1f..4f,
+                                steps = 2,
+                                modifier = Modifier.width(120.dp)
+                            )
+                        }
+                    }
                 }
             }
 
             item {
                 SettingsSection(title = "Overlay Behavior") {
+                    SettingsItem(
+                        icon = Icons.Default.Speed,
+                        title = "Update Frequency",
+                        subtitle = "Interval: ${updateInterval}ms",
+                        onClick = { }
+                    ) {
+                        Slider(
+                            value = updateInterval.toFloat(),
+                            onValueChange = { 
+                                updateInterval = it.toLong().coerceIn(100L, 5000L)
+                            },
+                            onValueChangeFinished = {
+                                prefs.edit().putLong("update_interval", updateInterval).apply()
+                                notifyService()
+                            },
+                            valueRange = 100f..5000f,
+                            modifier = Modifier.width(120.dp)
+                        )
+                    }
+
                     OverlayToggleItem(
                         icon = Icons.Default.OpenWith,
                         title = "Movable Overlay",

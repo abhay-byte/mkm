@@ -9,13 +9,16 @@ class SystemRepository {
     private val powerProvider = PowerProvider()
 
     suspend fun getHomeData(powerMultiplier: Float = 1.0f): HomeData = withContext(Dispatchers.IO) {
+        val thermalStatus = ThermalProvider.getThermalStatus()
         HomeData(
             overview = DeviceInfoProvider.getOverview(),
             memory = MemoryProvider.getMemoryStatus(),
             cpu = CpuProvider.getCpuStatus(),
             gpu = GpuProvider.getGpuStatus(),
             swap = MemoryProvider.getSwapStatus(),
-            power = powerProvider.getPowerStatus(powerMultiplier)
+            power = powerProvider.getPowerStatus(powerMultiplier),
+            cpuTemp = thermalStatus.cpuTemp,
+            batteryTemp = thermalStatus.batteryTemp
         )
     }
 
@@ -39,7 +42,9 @@ data class HomeData(
     val cpu: CpuStatus,
     val gpu: GpuStatus,
     val swap: SwapStatus,
-    val power: PowerStatus = PowerStatus()
+    val power: PowerStatus = PowerStatus(),
+    val cpuTemp: Float = 0f,
+    val batteryTemp: Float = 0f
 )
 
 data class RamData(

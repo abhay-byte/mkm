@@ -19,6 +19,8 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +59,15 @@ class OverlayService : Service() {
     private var showRamUsageState by mutableStateOf(true)
     private var showSwapUsageState by mutableStateOf(true)
     private var showPowerUsageState by mutableStateOf(true)
+    private var showCpuTempState by mutableStateOf(false)
+    private var showBatteryTempState by mutableStateOf(false)
+    private var showProgressBarsState by mutableStateOf(true)
+    private var showBatteryPercentState by mutableStateOf(false)
+    private var updateIntervalState by mutableStateOf(2000L)
+    private var showIconsOnlyState by mutableStateOf(false)
+    private var isGridViewState by mutableStateOf(false)
+    private var gridColumnsState by mutableStateOf(2)
+    private var isHorizontalState by mutableStateOf(false)
 
     private val CHANNEL_ID = "overlay_service"
     private val NOTIFICATION_ID = 1001
@@ -112,6 +123,15 @@ class OverlayService : Service() {
         showRamUsageState = prefs.getBoolean("show_ram_usage", true)
         showSwapUsageState = prefs.getBoolean("show_swap_usage", true)
         showPowerUsageState = prefs.getBoolean("show_power", true)
+        showCpuTempState = prefs.getBoolean("show_cpu_temp", false)
+        showBatteryTempState = prefs.getBoolean("show_battery_temp", false)
+        showProgressBarsState = prefs.getBoolean("show_progress_bars", true)
+        showBatteryPercentState = prefs.getBoolean("show_battery_percent", false)
+        updateIntervalState = prefs.getLong("update_interval", 2000L)
+        showIconsOnlyState = prefs.getBoolean("show_icons_only", false)
+        isGridViewState = prefs.getBoolean("is_grid_view", false)
+        gridColumnsState = prefs.getInt("grid_columns", 2)
+        isHorizontalState = prefs.getBoolean("is_horizontal", false)
         isMovableState = prefs.getBoolean("movable", true)
         attachPositionState = prefs.getString("attach_position", "top_center") ?: "top_center"
     }
@@ -193,7 +213,7 @@ class OverlayService : Service() {
                 val data = repository.getHomeData(calibrationManager.getMultiplier())
                 android.util.Log.d("MKM_Overlay", "Update: CPU ${data.cpu.overallUsage}, RAM ${data.memory.usagePercent}")
                 uiState.value = data
-                delay(2000)
+                delay(updateIntervalState)
             }
         }
     }
@@ -269,37 +289,74 @@ class OverlayService : Service() {
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.padding(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            data?.let { homeData ->
-                                if (showCpuUsageState) {
-                                    CompactMetric("CPU", "${(homeData.cpu.overallUsage * 100).toInt()}%", homeData.cpu.overallUsage)
+                        data?.let { homeData ->
+                            val metrics = mutableListOf<@Composable () -> Unit>()
+                            
+                            if (showCpuUsageState) metrics.add {
+                                CompactMetric("CPU", "${(homeData.cpu.overallUsage * 100).toInt()}%", homeData.cpu.overallUsage, showProgressBarsState, Icons.Default.DeveloperBoard, showIconsOnlyState)
+                            }
+                            if (showCpuFreqState) metrics.add {
+                                val clusterFreqs = homeData.cpu.clusters.sortedBy { it.id }.joinToString(" ") { cluster ->
+                                    cluster.currentFreq.replace(" GHz", "G").replace(" MHz", "M")
                                 }
-                                if (showCpuFreqState) {
-                                    val clusterFreqs = homeData.cpu.clusters.sortedBy { it.id }.joinToString(" ") { cluster ->
-                                        cluster.currentFreq
-                                            .replace(" GHz", "G")
-                                            .replace(" MHz", "M")
+                                CompactMetric("FREQ", clusterFreqs, 0f, false, Icons.Default.Speed, showIconsOnlyState)
+                            }
+                            if (showGpuUsageState) metrics.add {
+                                CompactMetric("GPU", "${(homeData.gpu.loadPercent * 100).toInt()}%", homeData.gpu.loadPercent, showProgressBarsState, Icons.Default.VideogameAsset, showIconsOnlyState)
+                            }
+                            if (showRamUsageState) metrics.add {
+                                CompactMetric("RAM", "${(homeData.memory.usagePercent * 100).toInt()}%", homeData.memory.usagePercent, showProgressBarsState, Icons.Default.Memory, showIconsOnlyState)
+                            }
+                            if (showSwapUsageState && homeData.swap.isActive) metrics.add {
+                                CompactMetric("SWAP", "${(homeData.swap.usagePercent * 100).toInt()}%", homeData.swap.usagePercent, showProgressBarsState, Icons.Default.SwapCalls, showIconsOnlyState)
+                            }
+                            if (showPowerUsageState) metrics.add {
+                                val powerStr = String.format("%.2f W", homeData.power.calibratedPowerW)
+                                CompactMetric("PWR", powerStr, 0f, false, Icons.Default.FlashOn, showIconsOnlyState)
+                            }
+                            if (showCpuTempState) metrics.add {
+                                CompactMetric("CTMP", String.format("%.1f°C", homeData.cpuTemp), homeData.cpuTemp / 100f, showProgressBarsState, Icons.Default.Thermostat, showIconsOnlyState)
+                            }
+                            if (showBatteryTempState) metrics.add {
+                                CompactMetric("BTMP", String.format("%.1f°C", homeData.batteryTemp), homeData.batteryTemp / 100f, showProgressBarsState, Icons.Default.BatteryChargingFull, showIconsOnlyState)
+                            }
+                            if (showBatteryPercentState) metrics.add {
+                                CompactMetric("BAT", "${homeData.power.batteryPercent}%", homeData.power.batteryPercent / 100f, showProgressBarsState, Icons.Default.BatteryStd, showIconsOnlyState)
+                            }
+
+                            if (isHorizontalState) {
+                                Row(
+                                    modifier = Modifier.padding(8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    metrics.forEach { it() }
+                                }
+                            } else if (isGridViewState) {
+                                Row(
+                                    modifier = Modifier.padding(8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    for (i in 0 until gridColumnsState) {
+                                        val colMetrics = metrics.filterIndexed { index, _ -> index % gridColumnsState == i }
+                                        if (colMetrics.isNotEmpty()) {
+                                            Column(
+                                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                colMetrics.forEach { it() }
+                                            }
+                                        }
                                     }
-                                    CompactMetric("FREQ", clusterFreqs, 0f, false)
                                 }
-                                if (showGpuUsageState) {
-                                    CompactMetric("GPU", "${(homeData.gpu.loadPercent * 100).toInt()}%", homeData.gpu.loadPercent)
+                            } else {
+                                Column(
+                                    modifier = Modifier.padding(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    metrics.forEach { it() }
                                 }
-                                if (showRamUsageState) {
-                                    CompactMetric("RAM", "${(homeData.memory.usagePercent * 100).toInt()}%", homeData.memory.usagePercent)
-                                }
-                                if (showSwapUsageState && homeData.swap.isActive) {
-                                    CompactMetric("SWAP", "${(homeData.swap.usagePercent * 100).toInt()}%", homeData.swap.usagePercent)
-                                }
-                                if (showPowerUsageState) {
-                                    val powerStr = String.format("%.2f W", homeData.power.calibratedPowerW)
-                                    CompactMetric("PWR", powerStr, 0f, false)
-                                }
-                            } ?: Text("Loading...", style = MaterialTheme.typography.labelSmall)
-                        }
+                            }
+                        } ?: Text("Loading...", modifier = Modifier.padding(8.dp), style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -314,7 +371,9 @@ class OverlayService : Service() {
         label: String,
         value: String,
         progress: Float,
-        showProgress: Boolean = true
+        showProgress: Boolean = true,
+        icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+        showIconsOnly: Boolean = false
     ) {
         val animatedProgress by animateFloatAsState(
             targetValue = progress,
@@ -324,16 +383,25 @@ class OverlayService : Service() {
 
         Row(
             modifier = Modifier.padding(horizontal = 2.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (showProgress) 4.dp else 2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.width(36.dp)
-            )
+            if (showIconsOnly && icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+            } else {
+                Text(
+                    text = "${label}:",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.widthIn(min = 32.dp)
+                )
+            }
             
             if (showProgress) {
                 Box(modifier = Modifier.width(68.dp), contentAlignment = Alignment.Center) {
@@ -358,11 +426,10 @@ class OverlayService : Service() {
             } else {
                 Text(
                     text = value,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.width(114.dp), // 68 + 42 + 4 = 114
-                    textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Start,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
