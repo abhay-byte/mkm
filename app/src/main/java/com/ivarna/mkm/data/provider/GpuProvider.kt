@@ -94,12 +94,14 @@ object GpuProvider {
         val sysfsName = if (path.isNotEmpty()) File(path).name else "Unknown"
         val renderer = getGpuModel()
 
+        // GPU frequencies from devfreq are in Hz, but formatFreq expects kHz
+        // Convert Hz to kHz by dividing by 1000
         return GpuStatus(
             loadPercent = load,
-            currentFreq = ShellUtils.formatFreq(curFreq),
-            minFreq = ShellUtils.formatFreq(minFreq),
-            maxFreq = ShellUtils.formatFreq(maxFreq),
-            targetFreq = ShellUtils.formatFreq(targetFreq),
+            currentFreq = ShellUtils.formatFreq(curFreq / 1000),
+            minFreq = ShellUtils.formatFreq(minFreq / 1000),
+            maxFreq = ShellUtils.formatFreq(maxFreq / 1000),
+            targetFreq = ShellUtils.formatFreq(targetFreq / 1000),
             rawMinFreq = rawMinFreq,
             rawMaxFreq = rawMaxFreq,
             rawTargetFreq = rawTargetFreq,
