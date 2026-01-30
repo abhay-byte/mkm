@@ -7,6 +7,10 @@ import com.ivarna.mkm.shell.DevfreqScripts
 object DevfreqProvider {
     private var cachedPath: String? = null
 
+    fun clearCache() {
+        cachedPath = null
+    }
+
     fun getDevfreqStatus(): DevfreqStatus {
         val pathResult = getPath()
         val path = pathResult.first
@@ -37,7 +41,13 @@ object DevfreqProvider {
         output.lines().forEach { line ->
             when {
                 line.startsWith("GOV=") -> gov = line.removePrefix("GOV=")
-                line.startsWith("AVAIL=") -> avail = line.removePrefix("AVAIL=").split("\\s+".toRegex()).filter { it.isNotEmpty() }
+                line.startsWith("AVAIL=") -> {
+                    val allGovs = line.removePrefix("AVAIL=").split("\\s+".toRegex()).filter { it.isNotEmpty() }
+                    // Filter out APU-specific governors that should not be manually set
+                    // These are MediaTek-specific and can cause crashes when set manually
+                    val unsafeGovernors = setOf("apupassive-pe", "apupassive", "apuconstrain", "apuuser")
+                    avail = allGovs.filter { it !in unsafeGovernors }
+                }
                 line.startsWith("FREQ=") -> freq = line.removePrefix("FREQ=")
                 line.startsWith("AVAIL_FREQ=") -> availFreq = line.removePrefix("AVAIL_FREQ=").split("\\s+".toRegex()).filter { it.isNotEmpty() }
             }

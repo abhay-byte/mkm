@@ -43,6 +43,7 @@ class StorageViewModel(private val repository: SystemRepository = SystemReposito
     fun refresh() {
         viewModelScope.launch {
             _isRefreshing.value = true
+            com.ivarna.mkm.data.provider.UfsProvider.clearCache()
             _uiState.value = repository.getStorageStatus()
             delay(500)
             _isRefreshing.value = false

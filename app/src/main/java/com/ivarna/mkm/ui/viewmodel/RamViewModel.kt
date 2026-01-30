@@ -70,6 +70,7 @@ class RamViewModel(private val repository: SystemRepository = SystemRepository()
     fun refresh() {
         viewModelScope.launch {
             _isRefreshing.value = true
+            com.ivarna.mkm.data.provider.DevfreqProvider.clearCache()
             _uiState.value = repository.getRamData()
             delay(500) // Artificial delay for visual feedback if operation is too fast
             _isRefreshing.value = false

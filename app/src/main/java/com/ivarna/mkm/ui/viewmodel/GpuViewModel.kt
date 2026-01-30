@@ -72,6 +72,7 @@ class GpuViewModel : ViewModel() {
     fun refresh() {
         viewModelScope.launch {
             _isRefreshing.value = true
+            GpuProvider.clearCache()
             _gpuStatus.value = GpuProvider.getGpuStatus().copy(
                 setOnBoot = setOnBoot,
                 freezeValues = freezeValues

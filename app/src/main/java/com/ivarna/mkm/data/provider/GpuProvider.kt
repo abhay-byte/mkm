@@ -12,6 +12,10 @@ object GpuProvider {
     private var cachedPath: String? = null
     private var cachedGpuModel: String? = null
 
+    fun clearCache() {
+        cachedPath = null
+    }
+
     fun getGpuStatus(): GpuStatus {
         val pathResult = getPath()
         val path = pathResult.first
@@ -35,7 +39,13 @@ object GpuProvider {
                  result.stdout.lines().forEach { line ->
                      when {
                          line.startsWith("GOV=") -> governor = line.removePrefix("GOV=").takeIf { it.isNotEmpty() } ?: "unknown"
-                         line.startsWith("AVAIL=") -> availableGovernors = line.removePrefix("AVAIL=").split("\\s+".toRegex()).filter { it.isNotBlank() }
+                         line.startsWith("AVAIL=") -> {
+                             val allGovs = line.removePrefix("AVAIL=").split("\\s+".toRegex()).filter { it.isNotBlank() }
+                             // Filter out APU-specific governors that should not be manually set
+                             // These are MediaTek-specific and can cause crashes when set manually
+                             val unsafeGovernors = setOf("apupassive-pe", "apupassive", "apuconstrain", "apuuser")
+                             availableGovernors = allGovs.filter { it !in unsafeGovernors }
+                         }
                          line.startsWith("CUR_FREQ=") -> curFreq = line.removePrefix("CUR_FREQ=").toLongOrNull() ?: 0L
                          line.startsWith("MIN_FREQ=") -> {
                              rawMinFreq = line.removePrefix("MIN_FREQ=")
@@ -71,7 +81,14 @@ object GpuProvider {
         }
         
         // Fallback for defaults if empty from script
-        if (availableGovernors.isEmpty()) availableGovernors = listOf("dummy", "performance", "powersave")
+        // Also ensure APU governors are filtered from the fallback
+        if (availableGovernors.isEmpty()) {
+            availableGovernors = listOf("dummy", "performance", "powersave")
+        } else {
+            // Extra safety: filter again in case any APU governors slipped through
+            val unsafeGovernors = setOf("apupassive-pe", "apupassive", "apuconstrain", "apuuser")
+            availableGovernors = availableGovernors.filter { it !in unsafeGovernors }
+        }
         if (availableFrequencies.isEmpty()) availableFrequencies = listOf("265000000", "500000000", "1400000000")
 
         val sysfsName = if (path.isNotEmpty()) File(path).name else "Unknown"
