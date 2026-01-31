@@ -28,6 +28,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ComposeView
@@ -512,6 +514,14 @@ class OverlayService : Service() {
             val width = size.width
             val height = size.height
             val step = width / (MAX_HISTORY - 1).coerceAtLeast(1)
+            
+            // Draw border
+            drawRect(
+                color = color.copy(alpha = 0.3f),
+                topLeft = Offset(0f, 0f),
+                size = Size(width, height),
+                style = Stroke(width = 1.dp.toPx())
+            )
             
             val path = Path().apply {
                 history.forEachIndexed { index, value ->
