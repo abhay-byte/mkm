@@ -25,6 +25,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.font.FontWeight
@@ -68,6 +71,14 @@ class OverlayService : Service() {
     private var isGridViewState by mutableStateOf(false)
     private var gridColumnsState by mutableStateOf(2)
     private var isHorizontalState by mutableStateOf(false)
+    private var componentOrderState by mutableStateOf(listOf<String>())
+    private var overlayOpacityState by mutableStateOf(0.9f)
+    private var accentColorIndexState by mutableStateOf(0)
+    private var showSparklinesState by mutableStateOf(false)
+
+    // History for Sparklines: Map of metric key to list of values
+    private val metricHistory = mutableStateMapOf<String, List<Float>>()
+    private val MAX_HISTORY = 15
 
     private val CHANNEL_ID = "overlay_service"
     private val NOTIFICATION_ID = 1001
@@ -132,8 +143,13 @@ class OverlayService : Service() {
         isGridViewState = prefs.getBoolean("is_grid_view", false)
         gridColumnsState = prefs.getInt("grid_columns", 2)
         isHorizontalState = prefs.getBoolean("is_horizontal", false)
+        val defaultOrder = "cpu_usage,cpu_freq,gpu_usage,ram_usage,swap_usage,power_usage,cpu_temp,battery_temp,battery_percent"
+        componentOrderState = (prefs.getString("component_order", defaultOrder) ?: defaultOrder).split(",")
         isMovableState = prefs.getBoolean("movable", true)
         attachPositionState = prefs.getString("attach_position", "top_center") ?: "top_center"
+        overlayOpacityState = prefs.getFloat("overlay_opacity", 0.9f)
+        accentColorIndexState = prefs.getInt("accent_color_index", 0)
+        showSparklinesState = prefs.getBoolean("show_sparklines", false)
     }
 
     private fun updateSettings() {
@@ -211,11 +227,30 @@ class OverlayService : Service() {
         serviceScope.launch {
             while (isActive) {
                 val data = repository.getHomeData(calibrationManager.getMultiplier())
-                android.util.Log.d("MKM_Overlay", "Update: CPU ${data.cpu.overallUsage}, RAM ${data.memory.usagePercent}")
                 uiState.value = data
+                
+                // Update History for Sparklines
+                data?.let { h ->
+                    updateHistory("cpu_usage", h.cpu.overallUsage)
+                    updateHistory("cpu_freq", h.cpu.overallUsage) 
+                    updateHistory("gpu_usage", h.gpu.loadPercent)
+                    updateHistory("ram_usage", h.memory.usagePercent)
+                    updateHistory("swap_usage", h.swap.usagePercent)
+                    updateHistory("power_usage", (h.power.calibratedPowerW / 5f).coerceIn(0f, 1f))
+                    updateHistory("cpu_temp", (h.cpuTemp / 100f).coerceIn(0f, 1f))
+                    updateHistory("battery_temp", (h.batteryTemp / 100f).coerceIn(0f, 1f))
+                    updateHistory("battery_percent", h.power.batteryPercent / 100f)
+                }
+                
                 delay(updateIntervalState)
             }
         }
+    }
+
+    private fun updateHistory(key: String, value: Float) {
+        val current = metricHistory[key] ?: emptyList()
+        val next = (current + value).takeLast(MAX_HISTORY)
+        metricHistory[key] = next
     }
 
     @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -265,7 +300,19 @@ class OverlayService : Service() {
             setViewTreeSavedStateRegistryOwner(this@OverlayService.savedStateRegistryOwner)
             
             setContent {
-                MaterialTheme(colorScheme = darkColorScheme()) {
+                val accentColors = listOf(
+                    Color(0xFFD0BCFF),
+                    Color(0xFF4CAF50),
+                    Color(0xFF2196F3),
+                    Color(0xFFF44336),
+                    Color(0xFFFFEB3B),
+                    Color(0xFFE91E63),
+                    Color(0xFF9C27B0),
+                    Color(0xFF00BCD4)
+                )
+                val selectedColor = accentColors.getOrElse(accentColorIndexState) { accentColors[0] }
+
+                MaterialTheme(colorScheme = darkColorScheme(primary = selectedColor)) {
                     val data by uiState.collectAsState()
                     
                     Card(
@@ -285,44 +332,46 @@ class OverlayService : Service() {
                             .padding(2.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = overlayOpacityState)
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                     ) {
                         data?.let { homeData ->
-                            val metrics = mutableListOf<@Composable () -> Unit>()
+                            val metricsMap = mutableMapOf<String, @Composable () -> Unit>()
                             
-                            if (showCpuUsageState) metrics.add {
-                                CompactMetric("CPU", "${(homeData.cpu.overallUsage * 100).toInt()}%", homeData.cpu.overallUsage, showProgressBarsState, Icons.Default.DeveloperBoard, showIconsOnlyState)
+                            if (showCpuUsageState) metricsMap["cpu_usage"] = {
+                                CompactMetric("CPU", "${(homeData.cpu.overallUsage * 100).toInt()}%", homeData.cpu.overallUsage, showProgressBarsState, Icons.Default.DeveloperBoard, showIconsOnlyState, metricHistory["cpu_usage"])
                             }
-                            if (showCpuFreqState) metrics.add {
+                            if (showCpuFreqState) metricsMap["cpu_freq"] = {
                                 val clusterFreqs = homeData.cpu.clusters.sortedBy { it.id }.joinToString(" ") { cluster ->
                                     cluster.currentFreq.replace(" GHz", "G").replace(" MHz", "M")
                                 }
-                                CompactMetric("FREQ", clusterFreqs, 0f, false, Icons.Default.Speed, showIconsOnlyState)
+                                CompactMetric("FREQ", clusterFreqs, 0f, false, Icons.Default.Speed, showIconsOnlyState, metricHistory["cpu_freq"])
                             }
-                            if (showGpuUsageState) metrics.add {
-                                CompactMetric("GPU", "${(homeData.gpu.loadPercent * 100).toInt()}%", homeData.gpu.loadPercent, showProgressBarsState, Icons.Default.VideogameAsset, showIconsOnlyState)
+                            if (showGpuUsageState) metricsMap["gpu_usage"] = {
+                                CompactMetric("GPU", "${(homeData.gpu.loadPercent * 100).toInt()}%", homeData.gpu.loadPercent, showProgressBarsState, Icons.Default.VideogameAsset, showIconsOnlyState, metricHistory["gpu_usage"])
                             }
-                            if (showRamUsageState) metrics.add {
-                                CompactMetric("RAM", "${(homeData.memory.usagePercent * 100).toInt()}%", homeData.memory.usagePercent, showProgressBarsState, Icons.Default.Memory, showIconsOnlyState)
+                            if (showRamUsageState) metricsMap["ram_usage"] = {
+                                CompactMetric("RAM", "${(homeData.memory.usagePercent * 100).toInt()}%", homeData.memory.usagePercent, showProgressBarsState, Icons.Default.Memory, showIconsOnlyState, metricHistory["ram_usage"])
                             }
-                            if (showSwapUsageState && homeData.swap.isActive) metrics.add {
-                                CompactMetric("SWAP", "${(homeData.swap.usagePercent * 100).toInt()}%", homeData.swap.usagePercent, showProgressBarsState, Icons.Default.SwapCalls, showIconsOnlyState)
+                            if (showSwapUsageState && homeData.swap.isActive) metricsMap["swap_usage"] = {
+                                CompactMetric("SWAP", "${(homeData.swap.usagePercent * 100).toInt()}%", homeData.swap.usagePercent, showProgressBarsState, Icons.Default.SwapCalls, showIconsOnlyState, metricHistory["swap_usage"])
                             }
-                            if (showPowerUsageState) metrics.add {
+                            if (showPowerUsageState) metricsMap["power_usage"] = {
                                 val powerStr = String.format("%.2f W", homeData.power.calibratedPowerW)
-                                CompactMetric("PWR", powerStr, 0f, false, Icons.Default.FlashOn, showIconsOnlyState)
+                                CompactMetric("PWR", powerStr, 0f, false, Icons.Default.FlashOn, showIconsOnlyState, metricHistory["power_usage"])
                             }
-                            if (showCpuTempState) metrics.add {
-                                CompactMetric("CTMP", String.format("%.1f°C", homeData.cpuTemp), homeData.cpuTemp / 100f, showProgressBarsState, Icons.Default.Thermostat, showIconsOnlyState)
+                            if (showCpuTempState) metricsMap["cpu_temp"] = {
+                                CompactMetric("CTMP", String.format("%.1f°C", homeData.cpuTemp), homeData.cpuTemp / 100f, showProgressBarsState, Icons.Default.Thermostat, showIconsOnlyState, metricHistory["cpu_temp"])
                             }
-                            if (showBatteryTempState) metrics.add {
-                                CompactMetric("BTMP", String.format("%.1f°C", homeData.batteryTemp), homeData.batteryTemp / 100f, showProgressBarsState, Icons.Default.BatteryChargingFull, showIconsOnlyState)
+                            if (showBatteryTempState) metricsMap["battery_temp"] = {
+                                CompactMetric("BTMP", String.format("%.1f°C", homeData.batteryTemp), homeData.batteryTemp / 100f, showProgressBarsState, Icons.Default.BatteryChargingFull, showIconsOnlyState, metricHistory["battery_temp"])
                             }
-                            if (showBatteryPercentState) metrics.add {
-                                CompactMetric("BAT", "${homeData.power.batteryPercent}%", homeData.power.batteryPercent / 100f, showProgressBarsState, Icons.Default.BatteryStd, showIconsOnlyState)
+                            if (showBatteryPercentState) metricsMap["battery_percent"] = {
+                                CompactMetric("BAT", "${homeData.power.batteryPercent}%", homeData.power.batteryPercent / 100f, showProgressBarsState, Icons.Default.BatteryStd, showIconsOnlyState, metricHistory["battery_percent"])
                             }
+
+                            val metrics = componentOrderState.mapNotNull { metricsMap[it] }
 
                             if (isHorizontalState) {
                                 Row(
@@ -373,13 +422,20 @@ class OverlayService : Service() {
         progress: Float,
         showProgress: Boolean = true,
         icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
-        showIconsOnly: Boolean = false
+        showIconsOnly: Boolean = false,
+        history: List<Float>? = null
     ) {
         val animatedProgress by animateFloatAsState(
             targetValue = progress,
             animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
             label = "progress"
         )
+
+        val metricColor = when {
+            animatedProgress > 0.9f -> MaterialTheme.colorScheme.error
+            animatedProgress > 0.7f -> Color(0xFFFFA000) // Warning Amber
+            else -> MaterialTheme.colorScheme.primary
+        }
 
         Row(
             modifier = Modifier.padding(horizontal = 2.dp),
@@ -390,7 +446,7 @@ class OverlayService : Service() {
                 Icon(
                     imageVector = icon,
                     contentDescription = label,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = metricColor,
                     modifier = Modifier.size(18.dp)
                 )
             } else {
@@ -398,19 +454,27 @@ class OverlayService : Service() {
                     text = "${label}:",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = metricColor,
                     modifier = Modifier.widthIn(min = 32.dp)
                 )
             }
             
             if (showProgress) {
-                Box(modifier = Modifier.width(68.dp), contentAlignment = Alignment.Center) {
-                    LinearWavyProgressIndicator(
-                        progress = { animatedProgress },
-                        modifier = Modifier.fillMaxWidth().height(10.dp),
-                        color = if (animatedProgress > 0.8f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                if (showSparklinesState && history != null) {
+                    Sparkline(
+                        history = history,
+                        color = metricColor,
+                        modifier = Modifier.width(68.dp).height(16.dp).padding(horizontal = 4.dp)
                     )
+                } else {
+                    Box(modifier = Modifier.width(68.dp), contentAlignment = Alignment.Center) {
+                        LinearWavyProgressIndicator(
+                            progress = { animatedProgress },
+                            modifier = Modifier.fillMaxWidth().height(10.dp),
+                            color = metricColor,
+                            trackColor = metricColor.copy(alpha = 0.15f)
+                        )
+                    }
                 }
                 
                 Text(
@@ -434,6 +498,25 @@ class OverlayService : Service() {
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
+        }
+    }
+
+    @Composable
+    private fun Sparkline(history: List<Float>, color: Color, modifier: Modifier = Modifier) {
+        Canvas(modifier = modifier) {
+            if (history.isEmpty()) return@Canvas
+            val width = size.width
+            val height = size.height
+            val step = width / (MAX_HISTORY - 1).coerceAtLeast(1)
+            
+            val path = Path().apply {
+                history.forEachIndexed { index, value ->
+                    val x = index * step
+                    val y = height - (value.coerceIn(0f, 1f) * height)
+                    if (index == 0) moveTo(x, y) else lineTo(x, y)
+                }
+            }
+            drawPath(path, color, style = Stroke(width = 1.5.dp.toPx()))
         }
     }
 

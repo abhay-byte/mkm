@@ -7,8 +7,11 @@ import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -18,14 +21,21 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.zIndex
 import com.ivarna.mkm.ui.components.*
 import com.ivarna.mkm.service.OverlayService
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -125,19 +135,45 @@ fun OverlayScreen(onOpenDrawer: () -> Unit = {}) {
         var showIconsOnly by remember { mutableStateOf(prefs.getBoolean("show_icons_only", false)) }
         var isGridView by remember { mutableStateOf(prefs.getBoolean("is_grid_view", false)) }
         var isHorizontal by remember { mutableStateOf(prefs.getBoolean("is_horizontal", false)) }
+        var showSparklines by remember { mutableStateOf(prefs.getBoolean("show_sparklines", false)) }
+        val defaultOrder = "cpu_usage,cpu_freq,gpu_usage,ram_usage,swap_usage,power_usage,cpu_temp,battery_temp,battery_percent"
+        var componentOrder by remember { 
+            mutableStateOf((prefs.getString("component_order", defaultOrder) ?: defaultOrder).split(",")) 
+        }
         var gridColumns by remember { mutableStateOf(prefs.getInt("grid_columns", 2)) }
         var updateInterval by remember { mutableStateOf(prefs.getLong("update_interval", 2000L)) }
         var isMovable by remember { mutableStateOf(prefs.getBoolean("movable", true)) }
+        var overlayOpacity by remember { mutableStateOf(prefs.getFloat("overlay_opacity", 0.9f)) }
+        var accentColorIndex by remember { mutableStateOf(prefs.getInt("accent_color_index", 0)) }
         var attachPosition by remember { 
             mutableStateOf(prefs.getString("attach_position", "top_center") ?: "top_center") 
         }
 
+        val accentColors = listOf(
+            MaterialTheme.colorScheme.primary,
+            Color(0xFF4CAF50), // Green
+            Color(0xFF2196F3), // Blue
+            Color(0xFFF44336), // Red
+            Color(0xFFFFEB3B), // Yellow
+            Color(0xFFE91E63), // Pink
+            Color(0xFF9C27B0), // Purple
+            Color(0xFF00BCD4)  // Cyan
+        )
+
+        val haptic = LocalHapticFeedback.current
+        val lazyListState = rememberLazyListState()
+        
+        var draggedItemKey by remember { mutableStateOf<String?>(null) }
+        var draggingOffset by remember { mutableStateOf(0f) }
+        var lastSwappedIndex by remember { mutableStateOf<Int?>(null) }
+
         LazyColumn(
+            state = lazyListState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(16.dp)
         ) {
             item {
@@ -247,6 +283,129 @@ fun OverlayScreen(onOpenDrawer: () -> Unit = {}) {
             }
 
             item {
+                Text(
+                    "Component Order",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            val metricLabels = mapOf(
+                "cpu_usage" to ("CPU Utilization" to Icons.Default.DeveloperBoard),
+                "cpu_freq" to ("CPU Frequency" to Icons.Default.Timeline),
+                "gpu_usage" to ("GPU Utilization" to Icons.Default.VideogameAsset),
+                "ram_usage" to ("RAM Usage" to Icons.Default.Memory),
+                "swap_usage" to ("Swap Usage" to Icons.Default.SwapCalls),
+                "power_usage" to ("Power Usage" to Icons.Default.FlashOn),
+                "cpu_temp" to ("CPU Temperature" to Icons.Default.Thermostat),
+                "battery_temp" to ("Battery Temperature" to Icons.Default.BatteryChargingFull),
+                "battery_percent" to ("Battery Percentage" to Icons.Default.BatteryStd)
+            )
+
+            itemsIndexed(componentOrder, key = { _, key -> key }) { index, key ->
+                val labelInfo = metricLabels[key] ?: ("Unknown" to Icons.Default.Help)
+                val isDragging = draggedItemKey == key
+                
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                        .animateItem() 
+                        .graphicsLayer {
+                            if (isDragging) {
+                                translationY = draggingOffset
+                                scaleX = 1.04f
+                                scaleY = 1.04f
+                                shadowElevation = 16.dp.toPx()
+                            }
+                        }
+                        .zIndex(if (isDragging) 1f else 0f),
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isDragging) MaterialTheme.colorScheme.surfaceColorAtElevation(12.dp) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    tonalElevation = if (isDragging) 8.dp else 0.dp
+                ) {
+                    ListItem(
+                        headlineContent = { Text(labelInfo.first) },
+                        leadingContent = { Icon(labelInfo.second, null, tint = MaterialTheme.colorScheme.primary) },
+                        trailingContent = {
+                            Icon(
+                                Icons.Default.Reorder,
+                                null,
+                                modifier = Modifier
+                                    .padding(8.dp)
+                                    .pointerInput(key) {
+                                        detectDragGesturesAfterLongPress(
+                                            onDragStart = {
+                                                draggedItemKey = key
+                                                lastSwappedIndex = componentOrder.indexOf(key)
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            },
+                                            onDrag = { change, dragAmount ->
+                                                change.consume()
+                                                draggingOffset += dragAmount.y
+                                                
+                                                val currentIndex = componentOrder.indexOf(key)
+                                                if (currentIndex != -1) {
+                                                    val itemView = lazyListState.layoutInfo.visibleItemsInfo.find { it.key == key }
+                                                    val itemHeight = itemView?.size ?: 0
+                                                    
+                                                    if (itemHeight > 0) {
+                                                        val threshold = itemHeight * 0.3f
+                                                        val targetIndex = if (draggingOffset > threshold) {
+                                                            if (currentIndex < componentOrder.size - 1) currentIndex + 1 else currentIndex
+                                                        } else if (draggingOffset < -threshold) {
+                                                            if (currentIndex > 0) currentIndex - 1 else currentIndex
+                                                        } else {
+                                                            currentIndex
+                                                        }
+
+                                                        if (targetIndex != currentIndex) {
+                                                            val newList = componentOrder.toMutableList()
+                                                            val item = newList.removeAt(currentIndex)
+                                                            newList.add(targetIndex, item)
+                                                            componentOrder = newList
+                                                            
+                                                            if (targetIndex > currentIndex) {
+                                                                draggingOffset -= itemHeight
+                                                            } else {
+                                                                draggingOffset += itemHeight
+                                                            }
+
+                                                            // Only vibrate if the actual index changed from the last vibration
+                                                            if (targetIndex != lastSwappedIndex) {
+                                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                                lastSwappedIndex = targetIndex
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            onDragEnd = {
+                                                draggedItemKey = null
+                                                draggingOffset = 0f
+                                                lastSwappedIndex = null
+                                                prefs.edit().putString("component_order", componentOrder.joinToString(",")).apply()
+                                                notifyService()
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            },
+                                            onDragCancel = {
+                                                draggedItemKey = null
+                                                draggingOffset = 0f
+                                                lastSwappedIndex = null
+                                            }
+                                        )
+                                    },
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                }
+            }
+
+            item {
                 SettingsSection(title = "Appearance") {
                     OverlayToggleItem(
                         icon = Icons.Default.LinearScale,
@@ -294,6 +453,17 @@ fun OverlayScreen(onOpenDrawer: () -> Unit = {}) {
                         }
                     )
                     
+                    OverlayToggleItem(
+                        icon = Icons.Default.ShowChart,
+                        title = "Show Sparklines",
+                        checked = showSparklines,
+                        onCheckedChange = { 
+                            showSparklines = it
+                            prefs.edit().putBoolean("show_sparklines", it).apply()
+                            notifyService()
+                        }
+                    )
+                    
                     if (isGridView) {
                         SettingsItem(
                             icon = Icons.Default.ViewColumn,
@@ -314,6 +484,59 @@ fun OverlayScreen(onOpenDrawer: () -> Unit = {}) {
                                 steps = 2,
                                 modifier = Modifier.width(120.dp)
                             )
+                        }
+                    }
+                }
+            }
+
+            item {
+                SettingsSection(title = "Styling") {
+                    SettingsItem(
+                        icon = Icons.Default.Opacity,
+                        title = "Background Opacity",
+                        subtitle = "${(overlayOpacity * 100).toInt()}%",
+                        onClick = { }
+                    ) {
+                        Slider(
+                            value = overlayOpacity,
+                            onValueChange = { 
+                                overlayOpacity = it
+                            },
+                            onValueChangeFinished = {
+                                prefs.edit().putFloat("overlay_opacity", overlayOpacity).apply()
+                                notifyService()
+                            },
+                            valueRange = 0.2f..1.0f,
+                            modifier = Modifier.width(120.dp)
+                        )
+                    }
+
+                    SettingsItem(
+                        icon = Icons.Default.Palette,
+                        title = "Accent Color",
+                        subtitle = "Select overlay theme",
+                        onClick = { }
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(start = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            accentColors.forEachIndexed { index, color ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .background(color, CircleShape)
+                                        .clickable {
+                                            accentColorIndex = index
+                                            prefs.edit().putInt("accent_color_index", index).apply()
+                                            notifyService()
+                                        }
+                                        .then(
+                                            if (accentColorIndex == index) Modifier.background(Color.White.copy(alpha = 0.5f), CircleShape).padding(4.dp)
+                                            else Modifier
+                                        )
+                                )
+                            }
                         }
                     }
                 }
