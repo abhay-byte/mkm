@@ -1,12 +1,13 @@
 package com.ivarna.mkm.data
 
+import android.content.Context
 import com.ivarna.mkm.data.model.*
 import com.ivarna.mkm.data.provider.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class SystemRepository {
-    private val powerProvider = PowerProvider()
+class SystemRepository(context: Context? = null) {
+    private val powerProvider = PowerProvider(context)
 
     suspend fun getHomeData(powerMultiplier: Float = 1.0f): HomeData = withContext(Dispatchers.IO) {
         val thermalStatus = ThermalProvider.getThermalStatus()

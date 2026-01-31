@@ -1,5 +1,7 @@
 package com.ivarna.mkm.data.provider
 
+import android.content.Context
+import android.os.BatteryManager
 import com.ivarna.mkm.data.model.CpuEfficiencyResult
 import com.ivarna.mkm.data.model.GpuEfficiencyResult
 import com.ivarna.mkm.data.model.PowerStatus
@@ -12,41 +14,88 @@ import kotlin.math.sin
 import kotlin.math.cos
 import kotlin.math.sqrt
 
-class PowerProvider {
+class PowerProvider(private val context: Context? = null) {
 
     suspend fun getPowerStatus(multiplier: Float = 1.0f): PowerStatus = withContext(Dispatchers.IO) {
+        // Try root-based reading first
         val output = ShellManager.exec(PowerScripts.getPowerAndVoltage()).stdout
-        if (output.isBlank()) return@withContext PowerStatus(multiplier = multiplier)
-
+        
         try {
-            val parts = output.trim().split(" ")
-            if (parts.size >= 2) {
-                val currentRaw = parts[0].toLongOrNull() ?: 0L
-                val voltageRaw = parts[1].toLongOrNull() ?: 0L
-                val batteryPercent = if (parts.size >= 3) parts[2].toIntOrNull() ?: 0 else 0
-                
-                // Current is often negative (discharging), take absolute
-                val currentUa = abs(currentRaw)
-                val voltageUv = voltageRaw
-                
-                val powerUw = (currentUa * voltageUv) / 1_000_000L
-                val powerW = powerUw / 1_000_000f
-                val calibratedPowerW = powerW * multiplier
-                
-                return@withContext PowerStatus(
-                    voltageUv = voltageUv, 
-                    currentUa = currentUa, 
-                    powerUw = powerUw, 
-                    powerW = powerW,
-                    calibratedPowerW = calibratedPowerW,
-                    batteryPercent = batteryPercent,
-                    multiplier = multiplier
-                )
+            if (output.isNotBlank()) {
+                val parts = output.trim().split(" ")
+                if (parts.size >= 2) {
+                    val currentRaw = parts[0].toLongOrNull() ?: 0L
+                    val voltageRaw = parts[1].toLongOrNull() ?: 0L
+                    val batteryPercent = if (parts.size >= 3) parts[2].toIntOrNull() ?: 0 else 0
+                    
+                    // If we got valid readings from root, use them
+                    if (currentRaw != 0L || voltageRaw != 0L) {
+                        // Current is often negative (discharging), take absolute
+                        val currentUa = abs(currentRaw)
+                        val voltageUv = voltageRaw
+                        
+                        val powerUw = (currentUa * voltageUv) / 1_000_000L
+                        val powerW = powerUw / 1_000_000f
+                        val calibratedPowerW = powerW * multiplier
+                        
+                        return@withContext PowerStatus(
+                            voltageUv = voltageUv, 
+                            currentUa = currentUa, 
+                            powerUw = powerUw, 
+                            powerW = powerW,
+                            calibratedPowerW = calibratedPowerW,
+                            batteryPercent = batteryPercent,
+                            multiplier = multiplier
+                        )
+                    }
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        return@withContext PowerStatus(multiplier = multiplier)
+        
+        // Fallback to BatteryManager if root failed or returned zero values
+        return@withContext getPowerStatusFromBatteryManager(multiplier)
+    }
+    
+    /**
+     * Fallback method for non-root devices using BatteryManager API.
+     * Uses approximate voltage (4.0V) since exact voltage requires BroadcastReceiver.
+     */
+    private fun getPowerStatusFromBatteryManager(multiplier: Float): PowerStatus {
+        if (context == null) {
+            return PowerStatus(multiplier = multiplier)
+        }
+        
+        try {
+            val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+                ?: return PowerStatus(multiplier = multiplier)
+            
+            // Get current in microamperes
+            val currentNow = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
+            val currentUa = abs(currentNow.toLong())
+            
+            // Use approximate voltage (4.0V typical for Li-ion batteries)
+            // For more accuracy, would need to register BroadcastReceiver for ACTION_BATTERY_CHANGED
+            val voltageUv = 4_000_000L // 4.0V in microvolts
+            
+            val powerUw = (currentUa * voltageUv) / 1_000_000L
+            val powerW = powerUw / 1_000_000f
+            val calibratedPowerW = powerW * multiplier
+            
+            return PowerStatus(
+                voltageUv = voltageUv,
+                currentUa = currentUa,
+                powerUw = powerUw,
+                powerW = powerW,
+                calibratedPowerW = calibratedPowerW,
+                batteryPercent = 0, // Would need BroadcastReceiver for accurate percentage
+                multiplier = multiplier
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return PowerStatus(multiplier = multiplier)
+        }
     }
 
     data class BenchmarkResult<T>(val data: List<T>, val logs: String)

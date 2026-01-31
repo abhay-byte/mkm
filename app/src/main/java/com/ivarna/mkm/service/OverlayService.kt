@@ -9,6 +9,7 @@ import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import android.view.Gravity
 import android.view.WindowManager
 import android.content.pm.ServiceInfo
@@ -51,7 +52,7 @@ class OverlayService : Service() {
     private lateinit var viewModelStore: ViewModelStore
     private lateinit var lifecycleOwner: LifecycleOwner
     private lateinit var savedStateRegistryOwner: SavedStateRegistryOwner
-    private val repository = SystemRepository()
+    private val repository = SystemRepository(this)
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val uiState = MutableStateFlow<HomeData?>(null)
     private var isMovableState by mutableStateOf(true)
@@ -138,13 +139,16 @@ class OverlayService : Service() {
         showBatteryTempState = prefs.getBoolean("show_battery_temp", false)
         showProgressBarsState = prefs.getBoolean("show_progress_bars", true)
         showBatteryPercentState = prefs.getBoolean("show_battery_percent", false)
-        updateIntervalState = prefs.getLong("update_interval", 2000L)
+        // Use PowerCalibrationManager for consistent update interval across app
+        val calibrationManager = PowerCalibrationManager(this)
+        updateIntervalState = calibrationManager.getUpdateInterval()
         showIconsOnlyState = prefs.getBoolean("show_icons_only", false)
         isGridViewState = prefs.getBoolean("is_grid_view", false)
         gridColumnsState = prefs.getInt("grid_columns", 2)
         isHorizontalState = prefs.getBoolean("is_horizontal", false)
         val defaultOrder = "cpu_usage,cpu_freq,gpu_usage,ram_usage,swap_usage,power_usage,cpu_temp,battery_temp,battery_percent"
         componentOrderState = (prefs.getString("component_order", defaultOrder) ?: defaultOrder).split(",")
+        Log.d("OverlayService", "Loaded component order: ${componentOrderState.joinToString(",")}")
         isMovableState = prefs.getBoolean("movable", true)
         attachPositionState = prefs.getString("attach_position", "top_center") ?: "top_center"
         overlayOpacityState = prefs.getFloat("overlay_opacity", 0.9f)

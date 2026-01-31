@@ -8,6 +8,8 @@ class PowerCalibrationManager(context: Context) {
 
     companion object {
         private const val KEY_MULTIPLIER = "power_multiplier"
+        private const val KEY_UPDATE_INTERVAL = "update_interval_ms"
+        private const val DEFAULT_UPDATE_INTERVAL = 1000L // 1 second
     }
 
     fun getMultiplier(): Float {
@@ -16,5 +18,13 @@ class PowerCalibrationManager(context: Context) {
 
     fun saveMultiplier(multiplier: Float) {
         prefs.edit().putFloat(KEY_MULTIPLIER, multiplier).apply()
+    }
+    
+    fun getUpdateInterval(): Long {
+        return prefs.getLong(KEY_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+    }
+    
+    fun saveUpdateInterval(intervalMs: Long) {
+        prefs.edit().putLong(KEY_UPDATE_INTERVAL, intervalMs).apply()
     }
 }

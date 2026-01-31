@@ -42,6 +42,7 @@ fun PowerScreen(
     onOpenDrawer: () -> Unit = {}
 ) {
     val powerStatus by viewModel.powerStatus.collectAsState()
+    val updateInterval by viewModel.updateInterval.collectAsState()
     val cpuResults by viewModel.cpuResults.collectAsState()
     val cpuStatus by viewModel.cpuBenchStatus.collectAsState()
     val gpuResults by viewModel.gpuResults.collectAsState()
@@ -140,7 +141,9 @@ fun PowerScreen(
             when (selectedTab) {
                 0 -> MonitorTab(
                     powerStatus = powerStatus,
-                    onSaveMultiplier = { viewModel.saveCalibrationMultiplier(it) }
+                    updateInterval = updateInterval,
+                    onSaveMultiplier = { viewModel.saveCalibrationMultiplier(it) },
+                    onUpdateIntervalChange = { viewModel.setUpdateInterval(it) }
                 )
                 1 -> CpuBenchTab(
                     cpuStatus, 
@@ -191,10 +194,61 @@ fun PowerScreen(
 @Composable
 fun MonitorTab(
     powerStatus: com.ivarna.mkm.data.model.PowerStatus,
-    onSaveMultiplier: (Float) -> Unit
+    updateInterval: Long,
+    onSaveMultiplier: (Float) -> Unit,
+    onUpdateIntervalChange: (Long) -> Unit
 ) {
     Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
         PowerMonitorCard(status = powerStatus)
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Update Frequency Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    text = "Update Frequency",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                val intervalOptions = listOf(
+                    500L to "Fast (0.5s)",
+                    1000L to "Normal (1s)",
+                    2000L to "Slow (2s)"
+                )
+                
+                val currentLabel = intervalOptions.find { it.first == updateInterval }?.second ?: "Custom"
+                
+                Text(
+                    text = "Current: $currentLabel",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    intervalOptions.forEach { (interval, label) ->
+                        FilterChip(
+                            selected = updateInterval == interval,
+                            onClick = { onUpdateIntervalChange(interval) },
+                            label = { Text(label) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+        }
+        
         Spacer(modifier = Modifier.height(16.dp))
         
         PowerCalibrationComponent(

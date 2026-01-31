@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.zIndex
 import com.ivarna.mkm.ui.components.*
 import com.ivarna.mkm.service.OverlayService
@@ -283,124 +284,33 @@ fun OverlayScreen(onOpenDrawer: () -> Unit = {}) {
             }
 
             item {
-                Text(
-                    "Component Order",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            val metricLabels = mapOf(
-                "cpu_usage" to ("CPU Utilization" to Icons.Default.DeveloperBoard),
-                "cpu_freq" to ("CPU Frequency" to Icons.Default.Timeline),
-                "gpu_usage" to ("GPU Utilization" to Icons.Default.VideogameAsset),
-                "ram_usage" to ("RAM Usage" to Icons.Default.Memory),
-                "swap_usage" to ("Swap Usage" to Icons.Default.SwapCalls),
-                "power_usage" to ("Power Usage" to Icons.Default.FlashOn),
-                "cpu_temp" to ("CPU Temperature" to Icons.Default.Thermostat),
-                "battery_temp" to ("Battery Temperature" to Icons.Default.BatteryChargingFull),
-                "battery_percent" to ("Battery Percentage" to Icons.Default.BatteryStd)
-            )
-
-            itemsIndexed(componentOrder, key = { _, key -> key }) { index, key ->
-                val labelInfo = metricLabels[key] ?: ("Unknown" to Icons.Default.Help)
-                val isDragging = draggedItemKey == key
+                var showReorderDialog by remember { mutableStateOf(false) }
                 
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp)
-                        .animateItem() 
-                        .graphicsLayer {
-                            if (isDragging) {
-                                translationY = draggingOffset
-                                scaleX = 1.04f
-                                scaleY = 1.04f
-                                shadowElevation = 16.dp.toPx()
-                            }
+                if (showReorderDialog) {
+                    ComponentOrderDialog(
+                        componentOrder = componentOrder,
+                        onDismiss = { showReorderDialog = false },
+                        onReorder = { newOrder ->
+                            componentOrder = newOrder
+                            prefs.edit().putString("component_order", newOrder.joinToString(",")).apply()
+                            notifyService()
                         }
-                        .zIndex(if (isDragging) 1f else 0f),
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (isDragging) MaterialTheme.colorScheme.surfaceColorAtElevation(12.dp) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                    tonalElevation = if (isDragging) 8.dp else 0.dp
-                ) {
-                    ListItem(
-                        headlineContent = { Text(labelInfo.first) },
-                        leadingContent = { Icon(labelInfo.second, null, tint = MaterialTheme.colorScheme.primary) },
-                        trailingContent = {
+                    )
+                }
+                
+                SettingsSection(title = "Component Order") {
+                    SettingsItem(
+                        icon = Icons.Default.Reorder,
+                        title = "Reorder Components",
+                        subtitle = "Customize overlay layout",
+                        onClick = { showReorderDialog = true },
+                        trailing = {
                             Icon(
-                                Icons.Default.Reorder,
-                                null,
-                                modifier = Modifier
-                                    .padding(8.dp)
-                                    .pointerInput(key) {
-                                        detectDragGesturesAfterLongPress(
-                                            onDragStart = {
-                                                draggedItemKey = key
-                                                lastSwappedIndex = componentOrder.indexOf(key)
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            },
-                                            onDrag = { change, dragAmount ->
-                                                change.consume()
-                                                draggingOffset += dragAmount.y
-                                                
-                                                val currentIndex = componentOrder.indexOf(key)
-                                                if (currentIndex != -1) {
-                                                    val itemView = lazyListState.layoutInfo.visibleItemsInfo.find { it.key == key }
-                                                    val itemHeight = itemView?.size ?: 0
-                                                    
-                                                    if (itemHeight > 0) {
-                                                        val threshold = itemHeight * 0.3f
-                                                        val targetIndex = if (draggingOffset > threshold) {
-                                                            if (currentIndex < componentOrder.size - 1) currentIndex + 1 else currentIndex
-                                                        } else if (draggingOffset < -threshold) {
-                                                            if (currentIndex > 0) currentIndex - 1 else currentIndex
-                                                        } else {
-                                                            currentIndex
-                                                        }
-
-                                                        if (targetIndex != currentIndex) {
-                                                            val newList = componentOrder.toMutableList()
-                                                            val item = newList.removeAt(currentIndex)
-                                                            newList.add(targetIndex, item)
-                                                            componentOrder = newList
-                                                            
-                                                            if (targetIndex > currentIndex) {
-                                                                draggingOffset -= itemHeight
-                                                            } else {
-                                                                draggingOffset += itemHeight
-                                                            }
-
-                                                            // Only vibrate if the actual index changed from the last vibration
-                                                            if (targetIndex != lastSwappedIndex) {
-                                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                                lastSwappedIndex = targetIndex
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            onDragEnd = {
-                                                draggedItemKey = null
-                                                draggingOffset = 0f
-                                                lastSwappedIndex = null
-                                                prefs.edit().putString("component_order", componentOrder.joinToString(",")).apply()
-                                                notifyService()
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            },
-                                            onDragCancel = {
-                                                draggedItemKey = null
-                                                draggingOffset = 0f
-                                                lastSwappedIndex = null
-                                            }
-                                        )
-                                    },
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        }
                     )
                 }
             }
@@ -511,30 +421,65 @@ fun OverlayScreen(onOpenDrawer: () -> Unit = {}) {
                         )
                     }
 
-                    SettingsItem(
-                        icon = Icons.Default.Palette,
-                        title = "Accent Color",
-                        subtitle = "Select overlay theme",
-                        onClick = { }
+
+                    // Accent Color Section - Custom layout to avoid ListItem constraints
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
                     ) {
                         Row(
-                            Modifier.fillMaxWidth().padding(start = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Palette,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Accent Color",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    "Select overlay theme",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        
+                        FlowRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 56.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             accentColors.forEachIndexed { index, color ->
                                 Box(
                                     modifier = Modifier
-                                        .size(24.dp)
+                                        .size(40.dp)
+                                        .background(
+                                            if (accentColorIndex == index) 
+                                                MaterialTheme.colorScheme.surfaceVariant 
+                                            else 
+                                                Color.Transparent,
+                                            CircleShape
+                                        )
+                                        .padding(4.dp)
                                         .background(color, CircleShape)
                                         .clickable {
                                             accentColorIndex = index
                                             prefs.edit().putInt("accent_color_index", index).apply()
                                             notifyService()
                                         }
-                                        .then(
-                                            if (accentColorIndex == index) Modifier.background(Color.White.copy(alpha = 0.5f), CircleShape).padding(4.dp)
-                                            else Modifier
-                                        )
                                 )
                             }
                         }
@@ -699,4 +644,201 @@ fun OverlayToggleItem(
             )
         }
     )
+}
+
+@Composable
+fun ComponentOrderDialog(
+    componentOrder: List<String>,
+    onDismiss: () -> Unit,
+    onReorder: (List<String>) -> Unit
+) {
+    var localOrder by remember { mutableStateOf(componentOrder) }
+    var draggedItemKey by remember { mutableStateOf<String?>(null) }
+    var draggingOffset by remember { mutableStateOf(0f) }
+    var lastSwappedIndex by remember { mutableStateOf<Int?>(null) }
+    val haptic = LocalHapticFeedback.current
+    val lazyListState = rememberLazyListState()
+    
+    val metricLabels = mapOf(
+        "cpu_usage" to ("CPU Utilization" to Icons.Default.DeveloperBoard),
+        "cpu_freq" to ("CPU Frequency" to Icons.Default.Timeline),
+        "gpu_usage" to ("GPU Utilization" to Icons.Default.VideogameAsset),
+        "ram_usage" to ("RAM Usage" to Icons.Default.Memory),
+        "swap_usage" to ("Swap Usage" to Icons.Default.SwapCalls),
+        "power_usage" to ("Power Usage" to Icons.Default.FlashOn),
+        "cpu_temp" to ("CPU Temperature" to Icons.Default.Thermostat),
+        "battery_temp" to ("Battery Temperature" to Icons.Default.BatteryChargingFull),
+        "battery_percent" to ("Battery Percentage" to Icons.Default.BatteryStd)
+    )
+    
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.8f),
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Reorder Components",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, "Close")
+                    }
+                }
+                
+                HorizontalDivider()
+                
+                // Drag instructions
+                Text(
+                    "Long press and drag to reorder",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+                )
+                
+                // Reorderable list
+                LazyColumn(
+                    state = lazyListState,
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    itemsIndexed(localOrder, key = { _, key -> key }) { index, key ->
+                        val labelInfo = metricLabels[key] ?: ("Unknown" to Icons.Default.Help)
+                        val isDragging = draggedItemKey == key
+                        
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .animateItem()
+                                .graphicsLayer {
+                                    if (isDragging) {
+                                        translationY = draggingOffset
+                                        scaleX = 1.02f
+                                        scaleY = 1.02f
+                                        shadowElevation = 8.dp.toPx()
+                                    }
+                                }
+                                .zIndex(if (isDragging) 1f else 0f),
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (isDragging) 
+                                MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp) 
+                            else 
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            tonalElevation = if (isDragging) 4.dp else 0.dp
+                        ) {
+                            ListItem(
+                                headlineContent = { Text(labelInfo.first) },
+                                leadingContent = { 
+                                    Icon(labelInfo.second, null, tint = MaterialTheme.colorScheme.primary) 
+                                },
+                                trailingContent = {
+                                    Icon(
+                                        Icons.Default.DragHandle,
+                                        null,
+                                        modifier = Modifier
+                                            .padding(8.dp)
+                                            .pointerInput(key) {
+                                                detectDragGesturesAfterLongPress(
+                                                    onDragStart = {
+                                                        draggedItemKey = key
+                                                        lastSwappedIndex = localOrder.indexOf(key)
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    },
+                                                    onDrag = { change, dragAmount ->
+                                                        change.consume()
+                                                        draggingOffset += dragAmount.y
+                                                        
+                                                        val currentIndex = localOrder.indexOf(key)
+                                                        if (currentIndex != -1) {
+                                                            val itemView = lazyListState.layoutInfo.visibleItemsInfo.find { it.key == key }
+                                                            val itemHeight = itemView?.size ?: 0
+                                                            
+                                                            if (itemHeight > 0) {
+                                                                // Increased threshold from 0.3f to 0.6f for less sensitivity
+                                                                val threshold = itemHeight * 0.6f
+                                                                val targetIndex = if (draggingOffset > threshold) {
+                                                                    if (currentIndex < localOrder.size - 1) currentIndex + 1 else currentIndex
+                                                                } else if (draggingOffset < -threshold) {
+                                                                    if (currentIndex > 0) currentIndex - 1 else currentIndex
+                                                                } else {
+                                                                    currentIndex
+                                                                }
+
+                                                                if (targetIndex != currentIndex && targetIndex != lastSwappedIndex) {
+                                                                    val newList = localOrder.toMutableList()
+                                                                    val item = newList.removeAt(currentIndex)
+                                                                    newList.add(targetIndex, item)
+                                                                    localOrder = newList
+                                                                    
+                                                                    if (targetIndex > currentIndex) {
+                                                                        draggingOffset -= itemHeight
+                                                                    } else {
+                                                                        draggingOffset += itemHeight
+                                                                    }
+
+                                                                    // Reduced haptic feedback - only vibrate once per swap
+                                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                                    lastSwappedIndex = targetIndex
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    onDragEnd = {
+                                                        draggedItemKey = null
+                                                        draggingOffset = 0f
+                                                        lastSwappedIndex = null
+                                                    },
+                                                    onDragCancel = {
+                                                        draggedItemKey = null
+                                                        draggingOffset = 0f
+                                                        lastSwappedIndex = null
+                                                    }
+                                                )
+                                            },
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                            )
+                        }
+                    }
+                }
+                
+                HorizontalDivider()
+                
+                // Action buttons
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                    Button(
+                        onClick = {
+                            onReorder(localOrder)
+                            onDismiss()
+                        }
+                    ) {
+                        Text("Save")
+                    }
+                }
+            }
+        }
+    }
 }

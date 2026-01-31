@@ -19,11 +19,14 @@ import kotlinx.coroutines.launch
 
 class PowerViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val powerProvider = PowerProvider()
+    private val powerProvider = PowerProvider(application)
     private val calibrationManager = PowerCalibrationManager(application)
 
     private val _powerStatus = MutableStateFlow(PowerStatus(multiplier = calibrationManager.getMultiplier()))
     val powerStatus: StateFlow<PowerStatus> = _powerStatus.asStateFlow()
+    
+    private val _updateInterval = MutableStateFlow(calibrationManager.getUpdateInterval())
+    val updateInterval: StateFlow<Long> = _updateInterval.asStateFlow()
     
     // CPU Bench
     private val _cpuResults = MutableStateFlow<List<CpuEfficiencyResult>>(emptyList())
@@ -50,14 +53,22 @@ class PowerViewModel(application: Application) : AndroidViewModel(application) {
         monitoringJob = viewModelScope.launch {
             while (true) {
                 val currentMultiplier = calibrationManager.getMultiplier()
+                val currentInterval = calibrationManager.getUpdateInterval()
                 _powerStatus.value = powerProvider.getPowerStatus(currentMultiplier)
-                delay(1000) // 1 second update rate
+                delay(currentInterval)
             }
         }
     }
 
     fun saveCalibrationMultiplier(multiplier: Float) {
         calibrationManager.saveMultiplier(multiplier)
+    }
+    
+    fun setUpdateInterval(intervalMs: Long) {
+        calibrationManager.saveUpdateInterval(intervalMs)
+        _updateInterval.value = intervalMs
+        // Restart monitoring with new interval
+        startMonitoring()
     }
     
     private val _realTimeLogs = MutableStateFlow("")
