@@ -1,0 +1,1 @@
+Initial release of Minimal Kernel Manager featuring real-time performance overlay, persistent swap management, CPU/GPU control, and Material Design 3 UI.

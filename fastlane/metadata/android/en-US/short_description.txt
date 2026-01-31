@@ -1,0 +1,1 @@
+Android kernel management and system monitoring application

@@ -1,0 +1,34 @@
+Categories:
+  - Development
+  - System
+License: GPL-3.0-or-later
+AuthorName: Abhay Raj
+AuthorWebSite: https://github.com/abhay-byte
+SourceCode: https://github.com/abhay-byte/mkm
+IssueTracker: https://github.com/abhay-byte/mkm/issues
+
+AutoName: Minimal Kernel Manager
+
+RepoType: git
+Repo: https://github.com/abhay-byte/mkm
+Binaries: https://github.com/abhay-byte/mkm/releases/download/v%v/app-release.apk
+
+Builds:
+  - versionName: '1.0'
+    versionCode: 1
+    commit: v1.0
+    subdir: app
+    sudo:
+      - apt-get update
+      - apt-get install -y cmake
+      - update-alternatives --auto java
+    gradle:
+      - yes
+    ndk: r29c
+
+AllowedAPKSigningKeys: 
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: '1.0'
+CurrentVersionCode: 1

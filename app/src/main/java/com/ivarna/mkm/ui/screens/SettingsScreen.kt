@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ivarna.mkm.ui.components.*
@@ -22,6 +23,7 @@ import com.ivarna.mkm.ui.viewmodel.SettingsViewModel
 fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onOpenDrawer: () -> Unit = {}) {
     val theme by viewModel.theme.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val uriHandler = LocalUriHandler.current
     
     var showThemeDialog by remember { mutableStateOf(false) }
 
@@ -91,28 +93,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onOpenDrawer: () 
                 }
             }
 
-            item {
-                SettingsSection(title = "Special Thanks") {
-                    SettingsItem(
-                        icon = Icons.Default.Favorite,
-                        title = "CPU Info",
-                        subtitle = "by kamgurgul",
-                        onClick = { /* Open link */ }
-                    )
-                    SettingsItem(
-                        icon = Icons.Default.Favorite,
-                        title = "SmartPack Kernel Manager",
-                        subtitle = "by SmartPack",
-                        onClick = { /* Open link */ }
-                    )
-                    SettingsItem(
-                        icon = Icons.Default.Favorite,
-                        title = "Wattz",
-                        subtitle = "by dubrowgn",
-                        onClick = { /* Open link */ }
-                    )
-                }
-            }
+
 
             item {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -129,31 +110,13 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onOpenDrawer: () 
                         icon = Icons.Default.Code,
                         label = "GitHub",
                         description = "View my repositories and projects",
-                        onClick = { /* Open GitHub */ }
+                        onClick = { uriHandler.openUri("https://github.com/abhay-byte") }
                     )
                     SocialItem(
                         icon = Icons.Default.Group,
                         label = "LinkedIn",
                         description = "Let's connect professionally",
-                        onClick = { /* Open LinkedIn */ }
-                    )
-                    SocialItem(
-                        icon = Icons.Default.Language,
-                        label = "Portfolio",
-                        description = "Check out my work",
-                        onClick = { /* Open Portfolio */ }
-                    )
-                    SocialItem(
-                        icon = Icons.Default.CameraAlt,
-                        label = "Instagram",
-                        description = "Follow my journey",
-                        onClick = { /* Open Instagram */ }
-                    )
-                    SocialItem(
-                        icon = Icons.Default.Public,
-                        label = "X (Twitter)",
-                        description = "Stay updated with me",
-                        onClick = { /* Open Twitter */ }
+                        onClick = { uriHandler.openUri("https://www.linkedin.com/in/abhay-byte") }
                     )
                 }
             }
@@ -161,6 +124,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onOpenDrawer: () 
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 Card(
+                    onClick = { uriHandler.openUri("https://github.com/abhay-byte/mkm") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(
