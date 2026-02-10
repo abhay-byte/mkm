@@ -31,8 +31,18 @@ android {
         includeInBundle = false
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getProperty("user.home") + "/repos/mkm-release.jks")
+            storePassword = "mkm2026release"
+            keyAlias = "mkm-key"
+            keyPassword = "mkm2026release"
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
