@@ -16,7 +16,7 @@ Binaries: https://github.com/abhay-byte/mkm/releases/download/v%v/app-release.ap
 Builds:
   - versionName: '1.0'
     versionCode: 1
-    commit: v1.0
+    commit: 28b33086f553fbdfd74e15a9b70aa8e8d4c74a87
     subdir: app
     sudo:
       - apt-get update
@@ -26,7 +26,7 @@ Builds:
       - yes
     ndk: r29c
 
-AllowedAPKSigningKeys: 
+AllowedAPKSigningKeys: C06A85BDCCBE82803DC3C43E19C5551AEAA2C599C966895858D4F0ACC4B2EF7C 
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
