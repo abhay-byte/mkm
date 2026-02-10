@@ -24,9 +24,9 @@ Builds:
       - update-alternatives --auto java
     gradle:
       - yes
-    ndk: r29c
+    ndk: r29
 
-AllowedAPKSigningKeys: C06A85BDCCBE82803DC3C43E19C5551AEAA2C599C966895858D4F0ACC4B2EF7C
+AllowedAPKSigningKeys: c06a85bdccbe82803dc3c43e19c5551aeaa2c599c966895858d4f0acc4b2ef7c
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
