@@ -7,6 +7,7 @@ AuthorWebSite: https://github.com/abhay-byte
 SourceCode: https://github.com/abhay-byte/mkm
 IssueTracker: https://github.com/abhay-byte/mkm/issues
 
+Name: Minimal Kernel Manager
 AutoName: MKM
 
 RepoType: git
