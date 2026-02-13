@@ -1,45 +1,55 @@
 package com.ivarna.mkm.shell
 
 import com.topjohnwu.superuser.Shell
-// Shizuku support disabled for v1.0 - This is a root-only release
-// Shizuku will be properly integrated in v1.1 with the correct API
-// import rikka.shizuku.Shizuku
-// import rikka.shizuku.ShizukuRemoteProcess
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.util.concurrent.TimeUnit
 
+/**
+ * Manages shell command execution with intelligent fallback.
+ * Uses libsu for root access, local shell for non-root operations.
+ * 
+ * Note: Shizuku integration is for permission detection only.
+ * Shizuku ADB mode cannot run su commands, so we rely on libsu for root access.
+ */
 object ShellManager {
 
-    enum class Mode {
-        SHIZUKU,
-        ROOT,
-        DEFAULT
+    /**
+     * Access method enum for identifying the current execution mode
+     */
+    enum class AccessMethod {
+        ROOT,       // Root via libsu
+        LOCAL       // Non-root local shell
     }
 
     /**
-     * Executes a command and returns the result.
-     * Prioritizes Shizuku, then Root, then local shell.
+     * Get the currently available access method
+     */
+    fun getAvailableMethod(): AccessMethod {
+        return if (Shell.getShell().isRoot) AccessMethod.ROOT else AccessMethod.LOCAL
+    }
+
+    /**
+     * Check if elevated access is available (Root)
+     */
+    fun hasElevatedAccess(): Boolean {
+        return Shell.getShell().isRoot
+    }
+
+    /**
+     * Execute command with automatic fallback
+     * Root → Local shell
      */
     fun exec(command: String): CommandResult {
-        return when {
-            ShizukuHelper.isAvailable() && ShizukuHelper.hasPermission() -> {
-                execShizuku(command)
-            }
-            Shell.getShell().isRoot -> {
-                execRoot(command)
-            }
-            else -> {
-                execLocal(command)
-            }
+        return when (getAvailableMethod()) {
+            AccessMethod.ROOT -> execRoot(command)
+            AccessMethod.LOCAL -> execLocal(command)
         }
     }
 
-    private fun execShizuku(command: String): CommandResult {
-        // Shizuku support disabled for v1.0 - This is a root-only release
-        return CommandResult(-1, "", "Shizuku not available in v1.0. Please use root access.")
-    }
-
+    /**
+     * Execute via root (libsu)
+     */
     private fun execRoot(command: String): CommandResult {
         val result = Shell.cmd(command).exec()
         return CommandResult(
@@ -49,22 +59,37 @@ object ShellManager {
         )
     }
 
+    /**
+     * Execute via local shell (non-root)
+     */
     private fun execLocal(command: String): CommandResult {
         return try {
             val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
             val output = StringBuilder()
+            val error = StringBuilder()
+            
             val outReader = BufferedReader(InputStreamReader(process.inputStream))
+            val errReader = BufferedReader(InputStreamReader(process.errorStream))
+            
             var line: String?
             while (outReader.readLine().also { line = it } != null) {
                 output.append(line).append("\n")
             }
-            process.waitFor(5, TimeUnit.SECONDS)
-            CommandResult(process.exitValue(), output.toString().trim(), "")
+            
+            while (errReader.readLine().also { line = it } != null) {
+                error.append(line).append("\n")
+            }
+            
+            process.waitFor(10, TimeUnit.SECONDS)
+            CommandResult(process.exitValue(), output.toString().trim(), error.toString().trim())
         } catch (e: Exception) {
             CommandResult(-1, "", e.message ?: "Unknown local error")
         }
     }
 
+    /**
+     * Command execution result
+     */
     data class CommandResult(
         val exitCode: Int,
         val stdout: String,
@@ -72,15 +97,15 @@ object ShellManager {
     ) {
         val isSuccess: Boolean get() = exitCode == 0
     }
+
     /**
      * Executes a command and streams output line by line.
      * @param onOutput Callback for each line of stdout/stderr
      */
     fun execStreaming(command: String, onOutput: (String) -> Unit): CommandResult {
-        return if (Shell.getShell().isRoot) {
-            execRootStreaming(command, onOutput)
-        } else {
-            execLocalStreaming(command, onOutput)
+        return when (getAvailableMethod()) {
+            AccessMethod.ROOT -> execRootStreaming(command, onOutput)
+            AccessMethod.LOCAL -> execLocalStreaming(command, onOutput)
         }
     }
 

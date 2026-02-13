@@ -1,0 +1,13 @@
+v1.1 - Shizuku Support
+
+NEW: Shizuku support - use MKM without root!
+NEW: Automatic Sui detection for rooted devices
+NEW: Intelligent fallback: Shizuku → Root
+NEW: Permission management UI
+NEW: Access method indicator in home screen
+
+IMPROVED: Better error messages for access failures
+IMPROVED: Improved status indicators
+IMPROVED: Settings screen shows current access method
+
+Non-root users can now use MKM via Shizuku with wireless debugging (Android 11+).

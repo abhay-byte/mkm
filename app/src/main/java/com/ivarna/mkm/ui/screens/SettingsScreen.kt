@@ -20,7 +20,11 @@ import com.ivarna.mkm.ui.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onOpenDrawer: () -> Unit = {}) {
+fun SettingsScreen(
+    viewModel: SettingsViewModel = viewModel(),
+    onOpenDrawer: () -> Unit = {},
+    onRequestShizukuPermission: () -> Unit = {}
+) {
     val theme by viewModel.theme.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val uriHandler = LocalUriHandler.current
@@ -61,8 +65,16 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onOpenDrawer: () 
             item {
                 AppInfoCard(
                     appName = "Minimal Kernel Manager",
-                    version = "v1.0.0",
-                    buildDate = "Jan 21, 2026"
+                    version = "v1.1.0",
+                    buildDate = "Feb 13, 2026"
+                )
+            }
+
+            // Access Method Card - NEW for v1.1
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                AccessMethodCard(
+                    onRequestShizukuPermission = onRequestShizukuPermission
                 )
             }
 

@@ -48,7 +48,7 @@
 ### 💾 Persistent Swap Management
 - **Swap File Creation**: Create persistent swap files with customizable sizes
 - **Boot Persistence**: Automatically activates swap on device boot
-- **Root Access**: Requires root access via libsu (Shizuku support planned for v1.1)
+- **Multiple Access Methods**: Works with Shizuku (non-root) or Root access
 - **Swap Monitoring**: Real-time swap usage tracking and visualization
 
 ### ⚙️ System Management
@@ -80,3 +80,26 @@
 3. Build the app: `./gradlew assembleDebug`.
 
 > Note: AGP 8.13.2 and SDK 36 may not be available in standard repos; if the build fails resolving them, adjust to available versions.
+
+---
+
+## 📱 Requirements
+
+MKM requires elevated system access via one of the following methods:
+
+| Method | Requirements | Notes |
+|--------|--------------|-------|
+| **Shizuku** | Android 11+ (wireless debugging) or Root | Recommended for non-root users |
+| **Root** | Magisk, KernelSU, or other root solution | Full access without additional apps |
+| **Sui** | Magisk module | Auto-detected with Shizuku API |
+
+### Setting Up Shizuku (Non-Root)
+1. Install [Shizuku](https://github.com/RikkaApps/Shizuku) from GitHub or Play Store
+2. Follow the in-app setup guide (wireless debugging on Android 11+)
+3. Grant MKM permission when prompted
+
+---
+
+## 📄 License
+
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.

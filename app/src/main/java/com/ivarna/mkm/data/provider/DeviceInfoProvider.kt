@@ -2,7 +2,7 @@ package com.ivarna.mkm.data.provider
 
 import android.os.Build
 import com.ivarna.mkm.data.model.SystemOverview
-import com.ivarna.mkm.shell.ShizukuHelper
+import com.ivarna.mkm.shell.ShizukuManager
 import com.ivarna.mkm.utils.ShellUtils
 import com.topjohnwu.superuser.Shell
 
@@ -16,11 +16,14 @@ object DeviceInfoProvider {
             System.getProperty("os.version")?.split("-")?.getOrNull(0) ?: "Unknown"
         }
 
+        val isRoot = Shell.getShell().isRoot
+        val isShizukuActive = ShizukuManager.isAvailable() && ShizukuManager.hasPermission()
+
         return SystemOverview(
             deviceName = "${Build.MANUFACTURER} ${Build.MODEL}",
             kernelVersion = kernelVersion,
-            isShizukuActive = ShizukuHelper.isAvailable() && ShizukuHelper.hasPermission(),
-            isRootActive = Shell.getShell().isRoot
+            isShizukuActive = isShizukuActive,
+            isRootActive = isRoot
         )
     }
 }
