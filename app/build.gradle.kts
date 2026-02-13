@@ -101,9 +101,10 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
 
-    // Shizuku API & Provider (Commented out - enable when Shizuku Maven repo is available)
-    // implementation("dev.rikka.shizuku:api:14.0.1")
-    // implementation("dev.rikka.shizuku:provider:14.0.1")
+    // Shizuku API & Provider - Disabled for v1.0, will be added in v1.1
+    // The Shizuku 13.x API requires significant refactoring
+    // implementation("dev.rikka.shizuku:api:13.1.5")
+    // implementation("dev.rikka.shizuku:provider:13.1.5")
     
     // libsu for robust Root access
     implementation("com.github.topjohnwu.libsu:core:6.0.0")

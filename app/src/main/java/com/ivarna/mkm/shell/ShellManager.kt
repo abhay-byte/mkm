@@ -1,7 +1,8 @@
 package com.ivarna.mkm.shell
 
 import com.topjohnwu.superuser.Shell
-// Shizuku support disabled - uncomment when dependencies are available
+// Shizuku support disabled for v1.0 - This is a root-only release
+// Shizuku will be properly integrated in v1.1 with the correct API
 // import rikka.shizuku.Shizuku
 // import rikka.shizuku.ShizukuRemoteProcess
 import java.io.BufferedReader
@@ -35,37 +36,8 @@ object ShellManager {
     }
 
     private fun execShizuku(command: String): CommandResult {
-        // Shizuku support disabled - uncomment when dependencies are available
-        return CommandResult(-1, "", "Shizuku not available")
-        /* return try {
-            // Use the public API through IShizukuService
-            val iRemoteProcess = Shizuku.getService().newProcess(
-                arrayOf("sh", "-c", command),
-                null,
-                null
-            )
-            
-            // Wrap in ShizukuRemoteProcess
-            val process = ShizukuRemoteProcess(iRemoteProcess)
-            val output = StringBuilder()
-            val error = StringBuilder()
-            
-            val outReader = BufferedReader(InputStreamReader(process.inputStream))
-            val errReader = BufferedReader(InputStreamReader(process.errorStream))
-            
-            var line: String?
-            while (outReader.readLine().also { line = it } != null) {
-                output.append(line).append("\n")
-            }
-            while (errReader.readLine().also { line = it } != null) {
-                error.append(line).append("\n")
-            }
-            
-            process.waitFor()
-            CommandResult(process.exitValue(), output.toString().trim(), error.toString().trim())
-        } catch (e: Exception) {
-            CommandResult(-1, "", e.message ?: "Unknown Shizuku error")
-        } */
+        // Shizuku support disabled for v1.0 - This is a root-only release
+        return CommandResult(-1, "", "Shizuku not available in v1.0. Please use root access.")
     }
 
     private fun execRoot(command: String): CommandResult {

@@ -48,7 +48,7 @@
 ### 💾 Persistent Swap Management
 - **Swap File Creation**: Create persistent swap files with customizable sizes
 - **Boot Persistence**: Automatically activates swap on device boot
-- **Dual Access Methods**: Supports both Shizuku (non-root) and root access
+- **Root Access**: Requires root access via libsu (Shizuku support planned for v1.1)
 - **Swap Monitoring**: Real-time swap usage tracking and visualization
 
 ### ⚙️ System Management

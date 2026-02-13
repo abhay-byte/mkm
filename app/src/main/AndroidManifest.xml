@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Shizuku permission disabled - uncomment when dependencies are available
+    <!-- Shizuku permission - disabled for v1.0 (root-only release)
     <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
     -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -36,7 +36,7 @@
                 android:value="Floating performance monitor overlay for real-time system metrics visibility." />
         </service>
 
-        <!-- Shizuku provider disabled - uncomment when dependencies are available
+        <!-- Shizuku provider - disabled for v1.0 (root-only release)
         <provider
             android:name="rikka.shizuku.ShizukuProvider"
             android:authorities="${applicationId}.shizuku"
