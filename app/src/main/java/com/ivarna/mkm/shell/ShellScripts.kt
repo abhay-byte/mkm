@@ -1,5 +1,22 @@
 package com.ivarna.mkm.shell
 
+/**
+ * Shell scripts for various system operations.
+ * 
+ * Shizuku Compatibility:
+ * These scripts are designed to work with both Root and Shizuku (ADB shell).
+ * 
+ * Working with Shizuku (uid=2000):
+ * - File operations in /data/local/tmp and /data directories
+ * - mkswap, swapon, swapoff, losetup commands
+ * - Reading /proc and /sys files
+ * - Most system information queries
+ * 
+ * Requires Root (uid=0):
+ * - Operations in /system partition
+ * - Some /sys write operations (device-dependent)
+ * - setenforce and other SELinux changes
+ */
 object ShellScripts {
 
     /**

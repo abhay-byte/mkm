@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import android.util.Log
 
@@ -35,29 +34,35 @@ class RamViewModel(private val repository: SystemRepository = SystemRepository()
 
     private fun startMonitoring() {
         viewModelScope.launch {
-             Log.d("RamViewModel", "Starting monitoring...")
-            // Check root status on startup
+            Log.d("RamViewModel", "Starting monitoring...")
+            
+            // Check elevated privileges on startup
             try {
-                 Log.e("RamViewModel", "Checking root status...")
-                 
-                 // Diagnostic: Check if su exists manually
-                 val suPaths = listOf("/system/bin/su", "/system/xbin/su", "/sbin/su", "/magisk/.core/bin/su")
-                 val existingSu = suPaths.find { java.io.File(it).exists() }
-                 Log.e("RamViewModel", "Manual SU Check: Found at $existingSu")
-                 
-                val isRoot = withContext(Dispatchers.IO) {
-                    val shell = com.topjohnwu.superuser.Shell.getShell()
-                    val idResult = com.topjohnwu.superuser.Shell.cmd("id").exec()
-                    Log.e("RamViewModel", "Shell ID output: ${idResult.out}")
-                    shell.isRoot
+                Log.d("RamViewModel", "Checking elevated access...")
+                
+                val hasElevatedAccess = withContext(Dispatchers.IO) {
+                    ShellManager.hasElevatedAccess()
                 }
-                Log.e("RamViewModel", "Root status: $isRoot")
-                if (!isRoot) {
-                    _errorMessage.value = "Root access denied. SU found at: $existingSu"
+                
+                val accessMethod = withContext(Dispatchers.IO) {
+                    ShellManager.getAvailableMethod()
+                }
+                
+                Log.d("RamViewModel", "Elevated access: $hasElevatedAccess, Method: $accessMethod")
+                
+                if (!hasElevatedAccess) {
+                    _errorMessage.value = "No elevated access. Please enable Shizuku or grant root access."
+                } else {
+                    val methodMsg = when (accessMethod) {
+                        ShellManager.AccessMethod.ROOT -> "Using Root access"
+                        ShellManager.AccessMethod.LOCAL -> "Local shell only (limited access)"
+                    }
+                    val shizukuStatus = if (ShellManager.hasShizuku()) " (Shizuku detected)" else ""
+                    Log.d("RamViewModel", methodMsg + shizukuStatus)
                 }
             } catch (e: Exception) {
-                Log.e("RamViewModel", "Failed to check root", e)
-                _errorMessage.value = "Root check failed: ${e.message}"
+                Log.e("RamViewModel", "Failed to check access", e)
+                _errorMessage.value = "Access check failed: ${e.message}"
             }
 
             while (true) {
@@ -81,18 +86,34 @@ class RamViewModel(private val repository: SystemRepository = SystemRepository()
         viewModelScope.launch {
             _isProcessing.value = true
             _errorMessage.value = null
+            
+            // Check if we have elevated access
+            if (!ShellManager.hasElevatedAccess()) {
+                _errorMessage.value = "Swap creation requires elevated access. Please enable Shizuku or grant root."
+                _isProcessing.value = false
+                return@launch
+            }
+            
             try {
                 val script = ShellScripts.createSwap(path, sizeMb)
                 val result = withContext(Dispatchers.IO) {
                     ShellManager.exec(script)
                 }
                 if (!result.isSuccess) {
-                    val errorMsg = result.stderr.ifEmpty { result.stdout.ifEmpty { "Failed to apply swap (exit ${result.exitCode})" } }
+                    val errorMsg = result.stderr.ifEmpty { 
+                        result.stdout.ifEmpty { 
+                            "Failed to apply swap (exit ${result.exitCode})" 
+                        } 
+                    }
                     _errorMessage.value = errorMsg
+                    Log.e("RamViewModel", "Swap creation failed: $errorMsg")
+                } else {
+                    Log.d("RamViewModel", "Swap created successfully")
                 }
                 _uiState.value = repository.getRamData()
             } catch (e: Exception) {
                 _errorMessage.value = e.message
+                Log.e("RamViewModel", "Swap creation exception", e)
             } finally {
                 _isProcessing.value = false
             }
@@ -102,18 +123,33 @@ class RamViewModel(private val repository: SystemRepository = SystemRepository()
     fun disableSwap(path: String) {
         viewModelScope.launch {
             _isProcessing.value = true
+            _errorMessage.value = null
+            
+            // Check if we have elevated access
+            if (!ShellManager.hasElevatedAccess()) {
+                _errorMessage.value = "Swap operations require elevated access. Please enable Shizuku or grant root."
+                _isProcessing.value = false
+                return@launch
+            }
+            
             try {
                 val script = ShellScripts.disableSwap(path)
                 val result = withContext(Dispatchers.IO) {
                     ShellManager.exec(script)
                 }
                 if (!result.isSuccess) {
-                    val errorMsg = result.stderr.ifEmpty { result.stdout.ifEmpty { "Failed to disable (exit ${result.exitCode})" } }
+                    val errorMsg = result.stderr.ifEmpty { 
+                        result.stdout.ifEmpty { 
+                            "Failed to disable (exit ${result.exitCode})" 
+                        } 
+                    }
                     _errorMessage.value = errorMsg
+                    Log.e("RamViewModel", "Swap disable failed: $errorMsg")
                 }
                 _uiState.value = repository.getRamData()
             } catch (e: Exception) {
                 _errorMessage.value = e.message
+                Log.e("RamViewModel", "Swap disable exception", e)
             } finally {
                 _isProcessing.value = false
             }
@@ -123,19 +159,34 @@ class RamViewModel(private val repository: SystemRepository = SystemRepository()
     fun removeSwap(path: String) {
         viewModelScope.launch {
             _isProcessing.value = true
+            _errorMessage.value = null
+            
+            // Check if we have elevated access
+            if (!ShellManager.hasElevatedAccess()) {
+                _errorMessage.value = "Swap removal requires elevated access. Please enable Shizuku or grant root."
+                _isProcessing.value = false
+                return@launch
+            }
+            
             try {
                 val script = ShellScripts.removeSwap(path)
                 val result = withContext(Dispatchers.IO) {
                     ShellManager.exec(script)
                 }
                 if (!result.isSuccess) {
-                    val errorMsg = result.stderr.ifEmpty { result.stdout.ifEmpty { "Failed to delete (exit ${result.exitCode})" } }
+                    val errorMsg = result.stderr.ifEmpty { 
+                        result.stdout.ifEmpty { 
+                            "Failed to delete (exit ${result.exitCode})" 
+                        } 
+                    }
                     _errorMessage.value = errorMsg
+                    Log.e("RamViewModel", "Swap removal failed: $errorMsg")
                 }
                 _uiState.value = repository.getRamData()
             } catch (e: Exception) {
                 e.printStackTrace()
                 _errorMessage.value = "Delete failed: ${e.message}"
+                Log.e("RamViewModel", "Swap removal exception", e)
             } finally {
                 _isProcessing.value = false
             }
