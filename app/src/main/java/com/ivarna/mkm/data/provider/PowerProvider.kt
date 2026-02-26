@@ -1,6 +1,8 @@
 package com.ivarna.mkm.data.provider
 
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.BatteryManager
 import com.ivarna.mkm.data.model.CpuEfficiencyResult
 import com.ivarna.mkm.data.model.GpuEfficiencyResult
@@ -30,7 +32,8 @@ class PowerProvider(private val context: Context? = null) {
                     
                     // If we got valid readings from root, use them
                     if (currentRaw != 0L || voltageRaw != 0L) {
-                        // Current is often negative (discharging), take absolute
+                        // Positive currentRaw = charging, negative = discharging (kernel convention)
+                        val isCharging = currentRaw > 0L
                         val currentUa = abs(currentRaw)
                         val voltageUv = voltageRaw
                         
@@ -45,7 +48,8 @@ class PowerProvider(private val context: Context? = null) {
                             powerW = powerW,
                             calibratedPowerW = calibratedPowerW,
                             batteryPercent = batteryPercent,
-                            multiplier = multiplier
+                            multiplier = multiplier,
+                            isCharging = isCharging
                         )
                     }
                 }
@@ -60,37 +64,67 @@ class PowerProvider(private val context: Context? = null) {
     
     /**
      * Fallback method for non-root devices using BatteryManager API.
-     * Uses approximate voltage (4.0V) since exact voltage requires BroadcastReceiver.
+     * Reads real voltage + percent from the sticky ACTION_BATTERY_CHANGED broadcast.
      */
     private fun getPowerStatusFromBatteryManager(multiplier: Float): PowerStatus {
         if (context == null) {
             return PowerStatus(multiplier = multiplier)
         }
-        
+
         try {
             val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
                 ?: return PowerStatus(multiplier = multiplier)
-            
-            // Get current in microamperes
+
+            // ── Current ────────────────────────────────────────────────────────
             val currentNow = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
             val currentUa = abs(currentNow.toLong())
-            
-            // Use approximate voltage (4.0V typical for Li-ion batteries)
-            // For more accuracy, would need to register BroadcastReceiver for ACTION_BATTERY_CHANGED
-            val voltageUv = 4_000_000L // 4.0V in microvolts
-            
+
+            // ── Charging flag ─────────────────────────────────────────────────
+            val isCharging = batteryManager.isCharging
+
+            // ── Battery % ─────────────────────────────────────────────────────
+            // BATTERY_PROPERTY_CAPACITY returns 0-100 directly; no BroadcastReceiver needed.
+            // If it returns -Int.MAX_VALUE the property is unsupported — fall back to sticky intent.
+            var batteryPercent = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+            if (batteryPercent == Int.MIN_VALUE || batteryPercent <= 0) {
+                // MediaTek and some OEM kernels don't expose BATTERY_PROPERTY_CAPACITY.
+                // The sticky ACTION_BATTERY_CHANGED broadcast is always available.
+                val stickyIntent = context.registerReceiver(
+                    null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+                )
+                val rawLevel = stickyIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+                val rawScale = stickyIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
+                if (rawLevel >= 0 && rawScale > 0) {
+                    batteryPercent = (rawLevel * 100 / rawScale)
+                }
+            }
+            batteryPercent = batteryPercent.coerceIn(0, 100)
+
+            // ── Voltage ───────────────────────────────────────────────────────
+            // Sticky broadcast gives real millivolt value; much more accurate than 4.0V constant.
+            val stickyIntent = context.registerReceiver(
+                null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+            )
+            val voltageMillivolts = stickyIntent?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0) ?: 0
+            val voltageUv = if (voltageMillivolts > 0) {
+                voltageMillivolts * 1000L      // mV → µV
+            } else {
+                4_000_000L                     // last-resort 4.0 V fallback
+            }
+
             val powerUw = (currentUa * voltageUv) / 1_000_000L
             val powerW = powerUw / 1_000_000f
             val calibratedPowerW = powerW * multiplier
-            
+
             return PowerStatus(
                 voltageUv = voltageUv,
                 currentUa = currentUa,
                 powerUw = powerUw,
                 powerW = powerW,
                 calibratedPowerW = calibratedPowerW,
-                batteryPercent = 0, // Would need BroadcastReceiver for accurate percentage
-                multiplier = multiplier
+                batteryPercent = batteryPercent,
+                multiplier = multiplier,
+                isCharging = isCharging
             )
         } catch (e: Exception) {
             e.printStackTrace()

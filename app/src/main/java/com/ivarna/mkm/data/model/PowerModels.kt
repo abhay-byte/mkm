@@ -2,12 +2,13 @@ package com.ivarna.mkm.data.model
 
 data class PowerStatus(
     val voltageUv: Long = 0, // Microvolts
-    val currentUa: Long = 0, // Microamperes
-    val powerUw: Long = 0,   // Microwatts
-    val powerW: Float = 0f,  // Raw Watts
-    val calibratedPowerW: Float = 0f, // Calibrated Watts
+    val currentUa: Long = 0, // Microamperes (always positive magnitude)
+    val powerUw: Long = 0,   // Microwatts (always positive magnitude)
+    val powerW: Float = 0f,  // Raw Watts (always positive magnitude)
+    val calibratedPowerW: Float = 0f, // Calibrated Watts (always positive magnitude)
     val batteryPercent: Int = 0,
-    val multiplier: Float = 1.0f      // Current multiplier
+    val multiplier: Float = 1.0f,     // Current multiplier
+    val isCharging: Boolean = false   // true = charging (+), false = discharging (-)
 )
 
 data class CpuEfficiencyResult(

@@ -1,12 +1,17 @@
 package com.ivarna.mkm.ui.components
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -25,24 +30,63 @@ fun PowerMonitorCard(
     status: PowerStatus,
     modifier: Modifier = Modifier
 ) {
+    val polaritySign = if (status.isCharging) "+" else "-"
+    val polarityColor by animateColorAsState(
+        targetValue = if (status.isCharging) Color(0xFF4CAF50) else Color(0xFFF44336),
+        label = "polarityColor"
+    )
+    val statusLabel = if (status.isCharging) "Charging" else "Discharging"
+    val statusIcon = if (status.isCharging) Icons.Default.BatteryChargingFull else Icons.Default.BatteryAlert
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(32.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f))
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
-            Text(
-                text = "SYSTEM POWER DRAW",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "SYSTEM POWER DRAW",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = statusIcon,
+                        contentDescription = statusLabel,
+                        tint = polarityColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = statusLabel,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = polarityColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(8.dp))
             
             // Big Watts Display
             Row(
                 verticalAlignment = Alignment.Bottom
             ) {
+                Text(
+                    text = polaritySign,
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        fontSize = 56.sp,
+                        fontWeight = FontWeight.Black
+                    ),
+                    color = polarityColor
+                )
                 Text(
                     text = "%.2f".format(status.calibratedPowerW),
                     style = MaterialTheme.typography.displayLarge.copy(
@@ -74,7 +118,7 @@ fun PowerMonitorCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 PowerDetailItem("Voltage", "${status.voltageUv / 1000} mV", isHero = true)
-                PowerDetailItem("Current", "${status.currentUa / 1000} mA", isHero = true)
+                PowerDetailItem("Current", "${polaritySign}${status.currentUa / 1000} mA", isHero = true)
             }
         }
     }

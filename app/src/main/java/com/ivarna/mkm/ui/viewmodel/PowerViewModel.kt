@@ -24,7 +24,11 @@ class PowerViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _powerStatus = MutableStateFlow(PowerStatus(multiplier = calibrationManager.getMultiplier()))
     val powerStatus: StateFlow<PowerStatus> = _powerStatus.asStateFlow()
-    
+
+    // Single source of truth for calibration multiplier — shared across all screens
+    private val _calibrationMultiplier = MutableStateFlow(calibrationManager.getMultiplier())
+    val calibrationMultiplier: StateFlow<Float> = _calibrationMultiplier.asStateFlow()
+
     private val _updateInterval = MutableStateFlow(calibrationManager.getUpdateInterval())
     val updateInterval: StateFlow<Long> = _updateInterval.asStateFlow()
     
@@ -62,6 +66,9 @@ class PowerViewModel(application: Application) : AndroidViewModel(application) {
 
     fun saveCalibrationMultiplier(multiplier: Float) {
         calibrationManager.saveMultiplier(multiplier)
+        _calibrationMultiplier.value = multiplier
+        // Kick off a poll immediately so the Power screen reflects the new value right away
+        startMonitoring()
     }
     
     fun setUpdateInterval(intervalMs: Long) {

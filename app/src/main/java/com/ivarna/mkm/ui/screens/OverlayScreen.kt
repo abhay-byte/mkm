@@ -33,19 +33,46 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.zIndex
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ivarna.mkm.ui.viewmodel.PowerViewModel
 import com.ivarna.mkm.ui.components.*
 import com.ivarna.mkm.service.OverlayService
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OverlayScreen(onOpenDrawer: () -> Unit = {}) {
+fun OverlayScreen(
+    powerViewModel: PowerViewModel = viewModel(),
+    onOpenDrawer: () -> Unit = {}
+) {
     val context = LocalContext.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    
+
+    // Single source of truth: PowerViewModel owns the multiplier
+    val savedMultiplier by powerViewModel.calibrationMultiplier.collectAsState()
+    val powerStatus by powerViewModel.powerStatus.collectAsState()
+
     val prefs = remember { context.getSharedPreferences("overlay_prefs", Context.MODE_PRIVATE) }
-    
+
+    // Text field state — NOT keyed on savedMultiplier to avoid resetting while user is typing.
+    // LaunchedEffect syncs it only when savedMultiplier changes externally (e.g. on screen entry
+    // where ViewModel was re-created from prefs), but only if the user hasn't changed the field.
+    var calibrationMultiplierText by remember { mutableStateOf(savedMultiplier.toString()) }
+    var userHasEdited by remember { mutableStateOf(false) }
+    LaunchedEffect(savedMultiplier) {
+        if (!userHasEdited) {
+            calibrationMultiplierText = savedMultiplier.toString()
+        }
+    }
+    var calibrationSaveError by remember { mutableStateOf(false) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+
     var isOverlayEnabled by remember { 
         mutableStateOf(prefs.getBoolean("enabled", false)) 
     }
@@ -67,6 +94,7 @@ fun OverlayScreen(onOpenDrawer: () -> Unit = {}) {
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             MediumTopAppBar(
                 navigationIcon = {
@@ -595,8 +623,126 @@ fun OverlayScreen(onOpenDrawer: () -> Unit = {}) {
                     }
                 }
             }
-            // ... truncated
-            
+            item {
+                SettingsSection(title = "Power Calibration") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Live power reading with multiplier applied
+                        val liveCalibrated = powerStatus.powerW * savedMultiplier
+                        val polaritySign = if (powerStatus.isCharging) "+" else "-"
+                        val polarityColor = if (powerStatus.isCharging)
+                            androidx.compose.ui.graphics.Color(0xFF4CAF50)
+                        else
+                            MaterialTheme.colorScheme.error
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Raw Power",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "${polaritySign}%.3f W".format(powerStatus.powerW),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = polarityColor
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "Calibrated (${savedMultiplier}×)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "${polaritySign}%.3f W".format(liveCalibrated),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        Text(
+                            text = "Calibration Multiplier",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = calibrationMultiplierText,
+                                onValueChange = {
+                                    calibrationMultiplierText = it
+                                    userHasEdited = true
+                                    calibrationSaveError = false
+                                },
+                                modifier = Modifier.weight(1f),
+                                label = { Text("Multiplier") },
+                                placeholder = { Text("e.g. 1.1") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                isError = calibrationSaveError,
+                                supportingText = if (calibrationSaveError) {
+                                    { Text("Invalid number", color = MaterialTheme.colorScheme.error) }
+                                } else null
+                            )
+                            FilledTonalIconButton(
+                                onClick = {
+                                    val normalised = calibrationMultiplierText.trim().replace(',', '.')
+                                    val v = normalised.toFloatOrNull()
+                                    if (v != null && v > 0f) {
+                                        powerViewModel.saveCalibrationMultiplier(v)
+                                        userHasEdited = false
+                                        calibrationSaveError = false
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("Multiplier saved: ${v}×")
+                                        }
+                                    } else {
+                                        calibrationSaveError = true
+                                    }
+                                }
+                            ) {
+                                Icon(Icons.Default.Save, contentDescription = "Save multiplier")
+                            }
+                            FilledTonalIconButton(
+                                onClick = {
+                                    powerViewModel.saveCalibrationMultiplier(1.0f)
+                                    userHasEdited = false
+                                    calibrationSaveError = false
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Reset to 1.0×")
+                                    }
+                                },
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            ) {
+                                Icon(Icons.Default.SettingsBackupRestore, contentDescription = "Reset to 1×")
+                            }
+                        }
+                        Text(
+                            text = "Saved: ${savedMultiplier}×  •  Match your external power meter.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+            }
+
             item {
                 ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),

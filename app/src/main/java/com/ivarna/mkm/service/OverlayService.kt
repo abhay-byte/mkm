@@ -364,7 +364,8 @@ class OverlayService : Service() {
                                 CompactMetric("SWAP", "${(homeData.swap.usagePercent * 100).toInt()}%", homeData.swap.usagePercent, showProgressBarsState, Icons.Default.SwapCalls, showIconsOnlyState, metricHistory["swap_usage"])
                             }
                             if (showPowerUsageState) metricsMap["power_usage"] = {
-                                val powerStr = String.format("%.2f W", homeData.power.calibratedPowerW)
+                                val sign = if (homeData.power.isCharging) "+" else "-"
+                                val powerStr = String.format("${sign}%.2f W", homeData.power.calibratedPowerW)
                                 CompactMetric("PWR", powerStr, 0f, false, Icons.Default.FlashOn, showIconsOnlyState, metricHistory["power_usage"])
                             }
                             if (showCpuTempState) metricsMap["cpu_temp"] = {

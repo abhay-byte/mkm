@@ -17,7 +17,7 @@ class PowerCalibrationManager(context: Context) {
     }
 
     fun saveMultiplier(multiplier: Float) {
-        prefs.edit().putFloat(KEY_MULTIPLIER, multiplier).apply()
+        prefs.edit().putFloat(KEY_MULTIPLIER, multiplier).commit()
     }
     
     fun getUpdateInterval(): Long {

@@ -43,6 +43,7 @@ fun PowerScreen(
 ) {
     val powerStatus by viewModel.powerStatus.collectAsState()
     val updateInterval by viewModel.updateInterval.collectAsState()
+    val savedMultiplier by viewModel.calibrationMultiplier.collectAsState()
     val cpuResults by viewModel.cpuResults.collectAsState()
     val cpuStatus by viewModel.cpuBenchStatus.collectAsState()
     val gpuResults by viewModel.gpuResults.collectAsState()
@@ -141,6 +142,7 @@ fun PowerScreen(
             when (selectedTab) {
                 0 -> MonitorTab(
                     powerStatus = powerStatus,
+                    savedMultiplier = savedMultiplier,
                     updateInterval = updateInterval,
                     onSaveMultiplier = { viewModel.saveCalibrationMultiplier(it) },
                     onUpdateIntervalChange = { viewModel.setUpdateInterval(it) }
@@ -194,6 +196,7 @@ fun PowerScreen(
 @Composable
 fun MonitorTab(
     powerStatus: com.ivarna.mkm.data.model.PowerStatus,
+    savedMultiplier: Float,
     updateInterval: Long,
     onSaveMultiplier: (Float) -> Unit,
     onUpdateIntervalChange: (Long) -> Unit
@@ -253,6 +256,7 @@ fun MonitorTab(
         
         PowerCalibrationComponent(
             status = powerStatus,
+            savedMultiplier = savedMultiplier,
             onSaveMultiplier = onSaveMultiplier
         )
 
