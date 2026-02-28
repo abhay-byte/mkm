@@ -15,8 +15,8 @@ android {
         applicationId = "com.ivarna.mkm"
         minSdk = 24
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
         ndkVersion = "29.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -33,10 +33,10 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file(System.getProperty("user.home") + "/repos/mkm-release.jks")
-            storePassword = "mkm2026release"
-            keyAlias = "mkm-key"
-            keyPassword = "mkm2026release"
+            storeFile = file("${System.getProperty("user.home")}/repos/keys/mkm-release.jks")
+            storePassword = "password"
+            keyAlias = "mkm"
+            keyPassword = "password"
         }
     }
 
