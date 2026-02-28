@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="../../app/src/main/res/drawable/ic_launcher_foreground.xml" width="128" alt="MKM Logo"/>
+  <img src="https://raw.githubusercontent.com/abhay-byte/mkm/main/fastlane/metadata/android/en-US/images/icon.png" width="128" alt="MKM Logo"/>
 </p>
 
 # Changelog - MKM v1.2
