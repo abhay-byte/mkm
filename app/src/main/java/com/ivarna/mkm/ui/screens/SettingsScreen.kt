@@ -65,8 +65,8 @@ fun SettingsScreen(
             item {
                 AppInfoCard(
                     appName = "Minimal Kernel Manager",
-                    version = "v1.1.0",
-                    buildDate = "Feb 13, 2026"
+                    version = "v1.2",
+                    buildDate = "Feb 28, 2026"
                 )
             }
 
