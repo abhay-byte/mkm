@@ -1,6 +1,7 @@
 package com.ivarna.mkm.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.DeveloperBoard
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Home
@@ -9,6 +10,7 @@ import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideogameAsset
+import androidx.compose.material.icons.outlined.BatteryFull
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.DeveloperBoard
 import androidx.compose.material.icons.outlined.Home
@@ -26,6 +28,7 @@ sealed class Screen(val route: String, val label: String, val selectedIcon: Imag
     object GPU : Screen("gpu", "GPU", Icons.Filled.VideogameAsset, Icons.Outlined.VideogameAsset)
     object Storage : Screen("storage", "Storage", Icons.Filled.SdStorage, Icons.Outlined.SdStorage)
     object Power : Screen("power", "Power", Icons.Filled.Bolt, Icons.Outlined.Bolt)
+    object Battery : Screen("battery", "Battery", Icons.Filled.BatteryFull, Icons.Outlined.BatteryFull)
     object Overlay : Screen("overlay", "Overlay", Icons.Filled.Layers, Icons.Outlined.Layers)
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
 }
@@ -37,6 +40,7 @@ val navItems = listOf(
     Screen.GPU,
     Screen.Storage,
     Screen.Power,
+    Screen.Battery,
     Screen.Overlay,
     Screen.Settings
 )

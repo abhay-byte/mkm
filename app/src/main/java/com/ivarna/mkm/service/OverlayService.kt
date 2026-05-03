@@ -13,6 +13,7 @@ import android.util.Log
 import android.view.Gravity
 import android.view.WindowManager
 import android.content.pm.ServiceInfo
+import com.ivarna.mkm.R
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -224,7 +225,7 @@ class OverlayService : Service() {
         return builder
             .setContentTitle("MKM Overlay Active")
             .setContentText("Status monitor is running")
-            .setSmallIcon(android.R.drawable.ic_menu_info_details)
+            .setSmallIcon(R.drawable.ic_stat_battery)
             .build()
     }
 

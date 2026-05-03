@@ -46,6 +46,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.ivarna.mkm.navigation.Screen
 import com.ivarna.mkm.navigation.navItems
+import com.ivarna.mkm.ui.screens.BatteryScreen
 import com.ivarna.mkm.ui.screens.CpuScreen
 import com.ivarna.mkm.ui.screens.GpuScreen
 import com.ivarna.mkm.ui.screens.HomeScreen
@@ -55,6 +56,7 @@ import com.ivarna.mkm.ui.screens.OverlayScreen
 import com.ivarna.mkm.ui.screens.StorageScreen
 import com.ivarna.mkm.ui.screens.SettingsScreen
 import com.ivarna.mkm.ui.theme.MKMTheme
+import com.ivarna.mkm.ui.viewmodel.BatteryViewModel
 import com.ivarna.mkm.ui.viewmodel.HomeViewModel
 import com.ivarna.mkm.ui.viewmodel.SettingsViewModel
 
@@ -112,7 +114,7 @@ fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewMode
                 HorizontalDivider(modifier = Modifier.padding(bottom = 8.dp))
                 navItems.forEach { screen ->
                     val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
-                    val isEnabled = isAccessGranted || screen == Screen.Home || screen == Screen.Settings || screen == Screen.Overlay
+                    val isEnabled = isAccessGranted || screen == Screen.Home || screen == Screen.Settings || screen == Screen.Overlay || screen == Screen.Battery
                     
                     NavigationDrawerItem(
                         label = { Text(screen.label) },
@@ -159,6 +161,7 @@ fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewMode
             composable(Screen.GPU.route) { GpuScreen(onOpenDrawer = openDrawer) }
             composable(Screen.Storage.route) { StorageScreen(onOpenDrawer = openDrawer) }
             composable(Screen.Power.route) { PowerScreen(onOpenDrawer = openDrawer) }
+            composable(Screen.Battery.route) { BatteryScreen(onOpenDrawer = openDrawer) }
             composable(Screen.Overlay.route) { OverlayScreen(onOpenDrawer = openDrawer) }
             composable(Screen.Settings.route) { 
                 SettingsScreen(
