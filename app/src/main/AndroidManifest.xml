@@ -27,6 +27,16 @@
         </activity>
 
         <service
+            android:name=".service.BatteryMonitorService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Persistent battery monitor notification that keeps session tracking alive when the app is closed." />
+        </service>
+
+        <service
             android:name=".service.OverlayService"
             android:enabled="true"
             android:exported="false"

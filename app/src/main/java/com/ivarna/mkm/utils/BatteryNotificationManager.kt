@@ -1,5 +1,6 @@
 package com.ivarna.mkm.utils
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -42,14 +43,15 @@ class BatteryNotificationManager(context: Context) {
     }
 
     /**
-     * Posts or updates the battery notification.
+     * Builds a [Notification] for the given stats without posting it.
+     * Useful for [android.app.Service.startForeground].
      */
-    fun show(stats: BatteryStats) {
+    fun buildNotification(stats: BatteryStats): Notification {
         val style = NotificationCompat.BigTextStyle()
             .bigText(buildContentText(stats))
             .setSummaryText(buildSubText(stats))
 
-        val builder = NotificationCompat.Builder(appContext, CHANNEL_ID)
+        return NotificationCompat.Builder(appContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_battery)
             .setContentTitle(buildTitle(stats))
             .setContentText(buildOneLine(stats))
@@ -60,8 +62,29 @@ class BatteryNotificationManager(context: Context) {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
+            .build()
+    }
 
-        notificationManager.notify(NOTIFICATION_ID, builder.build())
+    /**
+     * Builds a placeholder notification for use before the first stats are ready.
+     */
+    fun buildPlaceholderNotification(): Notification {
+        return NotificationCompat.Builder(appContext, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_battery)
+            .setContentTitle("Battery Monitor")
+            .setContentText("Initializing...")
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setShowWhen(false)
+            .build()
+    }
+
+    /**
+     * Posts or updates the battery notification.
+     */
+    fun show(stats: BatteryStats) {
+        notificationManager.notify(NOTIFICATION_ID, buildNotification(stats))
     }
 
     /**

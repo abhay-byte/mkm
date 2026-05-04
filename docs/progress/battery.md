@@ -40,6 +40,7 @@
 - [x] Persistent notification with rich stats
 - [x] Wattage shown in notification title
 - [x] **Fixed (2026-05-03)**: Added runtime `POST_NOTIFICATIONS` permission request on Android 13+
+- [x] **Fixed (2026-05-04)**: Moved notification logic to `BatteryMonitorService` (foreground service). Notification now survives app swipe-away and updates every second independently of UI lifecycle.
 
 #### Navigation
 - [x] `Screen.Battery` route registered in NavHost
