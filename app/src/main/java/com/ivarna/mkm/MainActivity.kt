@@ -58,6 +58,7 @@ import com.ivarna.mkm.ui.screens.SettingsScreen
 import com.ivarna.mkm.ui.theme.MKMTheme
 import com.ivarna.mkm.ui.viewmodel.BatteryViewModel
 import com.ivarna.mkm.ui.viewmodel.HomeViewModel
+import com.ivarna.mkm.ui.viewmodel.PowerViewModel
 import com.ivarna.mkm.ui.viewmodel.SettingsViewModel
 
 class MainActivity : ComponentActivity() {
@@ -163,11 +164,12 @@ fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewMode
             composable(Screen.Power.route) { PowerScreen(onOpenDrawer = openDrawer) }
             composable(Screen.Battery.route) { BatteryScreen(onOpenDrawer = openDrawer) }
             composable(Screen.Overlay.route) { OverlayScreen(onOpenDrawer = openDrawer) }
-            composable(Screen.Settings.route) { 
+            composable(Screen.Settings.route) {
                 SettingsScreen(
-                    viewModel = settingsViewModel, 
+                    viewModel = settingsViewModel,
+                    powerViewModel = viewModel(),
                     onOpenDrawer = openDrawer
-                ) 
+                )
             }
         }
     }
