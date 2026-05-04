@@ -96,7 +96,7 @@ class BatteryNotificationManager(context: Context) {
 
     private fun buildTitle(stats: BatteryStats): String {
         // Title must be short — it's the only text visible in the collapsed notification
-        val wattage = if (stats.wattageW > 0f) " · ${String.format("%.2f", stats.wattageW)} W" else ""
+        val wattage = if (stats.calibratedWattageW != 0f) " · ${String.format("%+.2f", stats.calibratedWattageW)} W" else ""
         return "${stats.percent}%$wattage"
     }
 

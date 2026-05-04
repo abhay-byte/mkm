@@ -126,7 +126,7 @@ fun BatteryScreen(
                     SectionHeader("WATTAGE HISTORY")
                     HistorySparklineCard(
                         history = data.wattageHistory,
-                        currentValue = "${String.format("%.2f", data.wattageW)} W",
+                        currentValue = "${String.format("%+.2f", data.calibratedWattageW)} W",
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -239,19 +239,18 @@ fun BatteryHeroCard(stats: BatteryStats) {
                 )
             }
 
-            if (stats.wattageW > 0f) {
+            if (stats.calibratedWattageW != 0f) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    val polaritySign = if (stats.isCharging) "+" else "-"
                     val wattageColor = if (stats.isCharging)
                         Color(0xFF4CAF50)
                     else
                         MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                     StatusBadge(
-                        label = "$polaritySign${String.format("%.2f", stats.wattageW)} W",
+                        label = "${String.format("%+.2f", stats.calibratedWattageW)} W",
                         color = wattageColor,
                         modifier = Modifier.weight(1f)
                     )

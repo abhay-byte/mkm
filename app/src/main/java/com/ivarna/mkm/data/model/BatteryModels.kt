@@ -46,6 +46,7 @@ data class BatteryStats(
     val isCharging: Boolean,
     val voltageMv: Int,
     val wattageW: Float = 0f,
+    val calibratedWattageW: Float = 0f,
     val ratedCapacityMah: Int = 0,
     val estimatedCapacityMah: Int = 0,
     val activeDrainPerHr: Float,

@@ -13,8 +13,14 @@ import com.ivarna.mkm.shell.ShellManager
  *
  * Priority for current/voltage: Root/sysfs shell → BatteryManager framework.
  * This gives more accurate instantaneous readings when elevated access is available.
+ *
+ * Wattage preserves polarity (negative = discharging, positive = charging)
+ * and is calibrated via [PowerCalibrationManager] so it matches the overlay / power page.
  */
-class BatteryProvider {
+class BatteryProvider(context: Context) {
+
+    private val appContext = context.applicationContext
+    private val calibrationManager = PowerCalibrationManager(appContext)
 
     /**
      * Reads the current battery state using the sticky [ACTION_BATTERY_CHANGED] broadcast
@@ -44,9 +50,13 @@ class BatteryProvider {
         val voltageMv = sysfs.voltageUv?.let { (it / 1000).toInt() }
             ?: intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0)
 
+        // Signed wattage: negative when discharging, positive when charging.
         val wattageW = if (currentMa != 0 && voltageMv != 0) {
-            kotlin.math.abs(currentMa).toFloat() * voltageMv.toFloat() / 1_000_000f
+            currentMa.toFloat() * voltageMv.toFloat() / 1_000_000f
         } else 0f
+
+        val multiplier = calibrationManager.getMultiplier()
+        val calibratedWattageW = wattageW * multiplier
 
         var ratedCapacityMah = sysfs.chargeFullDesignUa?.let { (it / 1000).toInt() } ?: 0
         var estimatedCapacityMah = sysfs.chargeFullUa?.let { (it / 1000).toInt() } ?: 0
@@ -67,6 +77,8 @@ class BatteryProvider {
             currentMa = currentMa,
             isCharging = isCharging,
             wattageW = wattageW,
+            calibratedWattageW = calibratedWattageW,
+            calibrationMultiplier = multiplier,
             ratedCapacityMah = ratedCapacityMah,
             estimatedCapacityMah = estimatedCapacityMah
         )

@@ -36,7 +36,7 @@ class BatterySessionTracker(context: Context) {
     }
 
     private val appContext = context.applicationContext
-    private val provider = BatteryProvider()
+    private val provider = BatteryProvider(appContext)
     private val powerManager = appContext.getSystemService(Context.POWER_SERVICE) as PowerManager
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -228,8 +228,8 @@ class BatterySessionTracker(context: Context) {
 
         val (activeDrain, idleDrain) = computeDrainRatesLocked()
 
-        // Update rolling history
-        lastWattageW = snap.wattageW.coerceAtLeast(0f)
+        // Update rolling history (use magnitude for sparkline)
+        lastWattageW = kotlin.math.abs(snap.calibratedWattageW)
         lastDrain = activeDrain.coerceAtLeast(0f)
         wattageHistory.add((lastWattageW / 10f).coerceIn(0f, 1f))
         drainHistory.add((lastDrain / 20f).coerceIn(0f, 1f))
@@ -243,6 +243,7 @@ class BatterySessionTracker(context: Context) {
             isCharging = snap.isCharging,
             voltageMv = snap.voltageMv,
             wattageW = snap.wattageW,
+            calibratedWattageW = snap.calibratedWattageW,
             ratedCapacityMah = snap.ratedCapacityMah,
             estimatedCapacityMah = snap.estimatedCapacityMah,
             activeDrainPerHr = activeDrain,
@@ -265,7 +266,7 @@ class BatterySessionTracker(context: Context) {
     }
 
     private fun emitFromSnapshotLocked(snap: BatterySnapshot) {
-        lastWattageW = snap.wattageW.coerceAtLeast(0f)
+        lastWattageW = kotlin.math.abs(snap.calibratedWattageW)
         wattageHistory.add((lastWattageW / 10f).coerceIn(0f, 1f))
         if (wattageHistory.size > MAX_HISTORY) wattageHistory.removeAt(0)
 
@@ -276,6 +277,7 @@ class BatterySessionTracker(context: Context) {
             isCharging = snap.isCharging,
             voltageMv = snap.voltageMv,
             wattageW = snap.wattageW,
+            calibratedWattageW = snap.calibratedWattageW,
             ratedCapacityMah = snap.ratedCapacityMah,
             estimatedCapacityMah = snap.estimatedCapacityMah,
             activeDrainPerHr = 0f,
