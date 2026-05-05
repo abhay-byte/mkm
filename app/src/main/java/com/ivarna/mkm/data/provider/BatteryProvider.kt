@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
 import com.ivarna.mkm.data.model.BatterySnapshot
+import com.ivarna.mkm.shell.PowerScripts
 import com.ivarna.mkm.shell.ShellManager
 
 /**
@@ -88,12 +89,27 @@ class BatteryProvider(context: Context) {
         val currentMa = rawCurrentMa
         val voltageMv = rawVoltageMv
 
-        // Signed wattage: negative when discharging, positive when charging.
-        val wattageW = if (currentMa != 0 && voltageMv != 0) {
-            currentMa.toFloat() * voltageMv.toFloat() / 1_000_000f
-        } else 0f
+        // --- Wattage: use the exact same script + parsing as PowerProvider /
+        // overlay so the value is stable and consistent across the app.
+        val powerResult = ShellManager.exec(PowerScripts.getPowerAndVoltage())
+        var powerW = 0f
+        if (powerResult.isSuccess) {
+            val powerParts = powerResult.stdout.trim().split(" ")
+            if (powerParts.size >= 2) {
+                val currentRaw = powerParts[0].toLongOrNull() ?: 0L
+                val voltageRaw = powerParts[1].toLongOrNull() ?: 0L
+                if (currentRaw != 0L && voltageRaw != 0L) {
+                    val currentUa = kotlin.math.abs(currentRaw)
+                    val voltageUv = voltageRaw
+                    val powerUw = (currentUa * voltageUv) / 1_000_000L
+                    powerW = powerUw / 1_000_000f
+                }
+            }
+        }
 
         val multiplier = calibrationManager.getMultiplier()
+        // Apply polarity based on charging state from the battery intent.
+        val wattageW = if (isCharging) powerW else -powerW
         val calibratedWattageW = wattageW * multiplier
 
         var ratedCapacityMah = sysfs.chargeFullDesignUa?.let { (it / 1000).toInt() } ?: 0
