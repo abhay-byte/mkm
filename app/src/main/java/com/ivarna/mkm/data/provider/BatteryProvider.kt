@@ -124,16 +124,22 @@ class BatteryProvider(context: Context) {
 
     /**
      * Reads current, voltage, and capacity from kernel power-supply sysfs via shell.
-     * ShellManager handles the access method (Root → Shizuku → Local).
+     * Uses the same first-valid-power-supply logic as PowerProvider for consistency.
      */
     private fun readSysfsPowerSupply(): SysfsReadings {
         val script = """
             current=0; voltage=0; charge_full=0; charge_full_design=0
             for ps in /sys/class/power_supply/*; do
-                [ -e "${'$'}ps/current_now" ] && current=${'$'}(cat "${'$'}ps/current_now")
-                [ -e "${'$'}ps/voltage_now" ] && voltage=${'$'}(cat "${'$'}ps/voltage_now")
-                [ -e "${'$'}ps/charge_full" ] && charge_full=${'$'}(cat "${'$'}ps/charge_full")
-                [ -e "${'$'}ps/charge_full_design" ] && charge_full_design=${'$'}(cat "${'$'}ps/charge_full_design")
+                if [ ${'$'}current -eq 0 ] && [ -e "${'$'}ps/current_now" ] && [ -e "${'$'}ps/voltage_now" ]; then
+                    current=${'$'}(cat "${'$'}ps/current_now")
+                    voltage=${'$'}(cat "${'$'}ps/voltage_now")
+                fi
+                if [ ${'$'}charge_full -eq 0 ] && [ -e "${'$'}ps/charge_full" ]; then
+                    charge_full=${'$'}(cat "${'$'}ps/charge_full")
+                fi
+                if [ ${'$'}charge_full_design -eq 0 ] && [ -e "${'$'}ps/charge_full_design" ]; then
+                    charge_full_design=${'$'}(cat "${'$'}ps/charge_full_design")
+                fi
             done
             echo "${'$'}current ${'$'}voltage ${'$'}charge_full ${'$'}charge_full_design"
         """.trimIndent()

@@ -101,13 +101,12 @@ class BatteryNotificationManager(context: Context) {
     }
 
     private fun buildOneLine(stats: BatteryStats): String {
-        val wattage = if (stats.calibratedWattageW != 0f) "${String.format("%+.2f", stats.calibratedWattageW)} W · " else ""
         val status = when {
             stats.isCharging -> "Charging ${kotlin.math.abs(stats.currentMa)} mA"
             stats.isSessionActive -> "Discharging ${kotlin.math.abs(stats.currentMa)} mA"
             else -> "On AC"
         }
-        return "${String.format("%.1f", stats.temperatureC)}°C · $wattage$status"
+        return "${String.format("%.1f", stats.temperatureC)}°C · $status"
     }
 
     private fun buildSubText(stats: BatteryStats): String {
