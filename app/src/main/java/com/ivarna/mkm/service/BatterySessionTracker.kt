@@ -226,7 +226,7 @@ class BatterySessionTracker(context: Context) {
         val currentDeepSleepMs = readDeepSleepLocked(now, currentScreenOff)
         val awakeMs = max(0L, totalSession - currentDeepSleepMs)
 
-        val (activeDrain, idleDrain) = computeDrainRatesLocked()
+        val (activeDrain, idleDrain, isDrainReliable) = computeDrainRatesLocked()
 
         // Update rolling history (use magnitude for sparkline)
         lastWattageW = kotlin.math.abs(snap.calibratedWattageW)
@@ -240,7 +240,9 @@ class BatterySessionTracker(context: Context) {
             snap = snap,
             activeDrain = activeDrain,
             idleDrain = idleDrain,
-            screenOnRatio = percentOf(currentScreenOn, totalSession) / 100f
+            screenOnRatio = percentOf(currentScreenOn, totalSession) / 100f,
+            totalSessionMs = totalSession,
+            isDrainReliable = isDrainReliable
         )
 
         _stats.value = BatteryStats(
@@ -277,23 +279,36 @@ class BatterySessionTracker(context: Context) {
         snap: BatterySnapshot,
         activeDrain: Float,
         idleDrain: Float,
-        screenOnRatio: Float
+        screenOnRatio: Float,
+        totalSessionMs: Long,
+        isDrainReliable: Boolean
     ): Long {
+        // Need at least 3 minutes of session data before trusting any estimate.
+        if (totalSessionMs < 180_000L) return 0L
+
         return if (snap.isCharging) {
             // Charging: estimate time to full from current and capacity.
-            if (snap.estimatedCapacityMah > 0 && snap.currentMa != 0) {
-                val remainingMah = (100 - snap.percent) * snap.estimatedCapacityMah / 100f
-                val chargeRateMa = kotlin.math.abs(snap.currentMa)
-                val hours = remainingMah / chargeRateMa
-                (hours * 60).toLong()
-            } else 0L
+            if (snap.estimatedCapacityMah <= 0 || snap.percent >= 100) return 0L
+            val chargeRateMa = kotlin.math.abs(snap.currentMa)
+            // Reject if charge current is too low (trickle or no real data).
+            if (chargeRateMa < 50) return 0L
+            val remainingMah = (100 - snap.percent) * snap.estimatedCapacityMah / 100f
+            val hours = remainingMah / chargeRateMa
+            val minutes = (hours * 60).toLong()
+            // Sanity cap: more than 24h is unrealistic.
+            if (minutes in 1..1440) minutes else 0L
         } else {
-            // Discharging: blended drain based on screen-on ratio.
-            val blended = if (activeDrain > 0f || idleDrain > 0f) {
-                activeDrain * screenOnRatio + idleDrain * (1f - screenOnRatio)
-            } else 0f
-            val effectiveDrain = blended.coerceAtLeast(0.1f)
-            ((snap.percent / effectiveDrain) * 60).toLong()
+            // Discharging: only trust estimate when active drain comes from
+            // real screen-on intervals, not the overall-session fallback.
+            if (!isDrainReliable || activeDrain <= 0f) return 0L
+
+            val blended = activeDrain * screenOnRatio + idleDrain * (1f - screenOnRatio)
+            // Reject if blended drain is unrealistically low.
+            if (blended < 0.1f) return 0L
+
+            val minutes = ((snap.percent / blended) * 60).toLong()
+            // Sanity cap: more than 7 days is unrealistic.
+            if (minutes in 1..10080) minutes else 0L
         }
     }
 
@@ -358,7 +373,7 @@ class BatterySessionTracker(context: Context) {
     // Drain-rate computation
     // ------------------------------------------------------------------
 
-    private fun computeDrainRatesLocked(): Pair<Float, Float> {
+    private fun computeDrainRatesLocked(): Triple<Float, Float, Boolean> {
         val onSamples = intervals.filter { it.isScreenOn && it.durationHours > 0.05f }
         val offSamples = intervals.filter { !it.isScreenOn && it.durationHours > 0.05f }
 
@@ -375,7 +390,9 @@ class BatterySessionTracker(context: Context) {
             0f
         }
 
-        return active.coerceAtLeast(0f) to idle.coerceAtLeast(0f)
+        // Reliable only when we have actual interval samples for screen-on time.
+        val reliable = onSamples.isNotEmpty()
+        return Triple(active.coerceAtLeast(0f), idle.coerceAtLeast(0f), reliable)
     }
 
     private fun overallDrainLocked(): Float {
