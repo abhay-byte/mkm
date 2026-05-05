@@ -118,6 +118,10 @@ fun BatteryScreen(
                 BatteryHeroCard(stats = data)
 
                 Spacer(modifier = Modifier.height(24.dp))
+                SectionHeader("BATTERY LIFE")
+                EstimatedTimeCard(stats = data)
+
+                Spacer(modifier = Modifier.height(24.dp))
                 SectionHeader("CAPACITY")
                 CapacityCard(stats = data)
 
@@ -255,6 +259,66 @@ fun BatteryHeroCard(stats: BatteryStats) {
                         modifier = Modifier.weight(1f)
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun EstimatedTimeCard(stats: BatteryStats) {
+    val label: String
+    val subLabel: String
+    val color: Color
+
+    if (stats.estimatedTimeRemainingMin > 0) {
+        val hours = stats.estimatedTimeRemainingMin / 60
+        val minutes = stats.estimatedTimeRemainingMin % 60
+        label = buildString {
+            if (hours > 0) append("${hours}h ")
+            append("${minutes}m")
+        }
+        subLabel = if (stats.isCharging) "until full" else "remaining"
+        color = if (stats.isCharging) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary
+    } else {
+        label = "—"
+        subLabel = if (stats.isCharging) "Calculating…" else "Need more data"
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Black,
+                color = color
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = subLabel,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (!stats.isCharging && stats.estimatedTimeRemainingMin > 0) {
+                Spacer(modifier = Modifier.height(8.dp))
+                val blendedDrain = stats.activeDrainPerHr * (stats.screenOnPercent / 100f) +
+                        stats.idleDrainPerHr * (stats.screenOffPercent / 100f)
+                Text(
+                    text = "Based on ${String.format("%.2f", blendedDrain)}%/hr blended drain",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
             }
         }
     }

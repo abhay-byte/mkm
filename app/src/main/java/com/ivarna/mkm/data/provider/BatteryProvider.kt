@@ -22,6 +22,13 @@ class BatteryProvider(context: Context) {
     private val appContext = context.applicationContext
     private val calibrationManager = PowerCalibrationManager(appContext)
 
+    // Cache last known good values to avoid flickering to 0 when a single
+    // sysfs / BatteryManager read returns 0.
+    private var lastCurrentMa = 0
+    private var lastVoltageMv = 0
+    private var lastZeroReadTime = 0L
+    private val ZERO_STALENESS_MS = 5_000L
+
     /**
      * Reads the current battery state using the sticky [ACTION_BATTERY_CHANGED] broadcast
      * plus supplemental sysfs readings for current, voltage, and capacity.
@@ -44,11 +51,42 @@ class BatteryProvider(context: Context) {
         // --- Root-first readings from sysfs ---
         val sysfs = readSysfsPowerSupply()
 
-        val currentMa = sysfs.currentUa?.let { (it / 1000).toInt() }
+        var rawCurrentMa = sysfs.currentUa?.let { (it / 1000).toInt() }
             ?: readCurrentFromBatteryManager(context)
 
-        val voltageMv = sysfs.voltageUv?.let { (it / 1000).toInt() }
+        var rawVoltageMv = sysfs.voltageUv?.let { (it / 1000).toInt() }
             ?: intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0)
+
+        // --- Sign correction: some OEMs (Samsung, MediaTek) always report
+        // positive current magnitude. Flip sign so it matches charging state.
+        if (rawCurrentMa != 0) {
+            val signMatchesState = (isCharging && rawCurrentMa > 0) || (!isCharging && rawCurrentMa < 0)
+            if (!signMatchesState) {
+                rawCurrentMa = -rawCurrentMa
+            }
+        }
+
+        // --- Zero-read smoothing: if current or voltage is 0, reuse the last
+        // known good value for up to 5 seconds to avoid UI flickering.
+        val now = System.currentTimeMillis()
+        if (rawCurrentMa == 0 && lastCurrentMa != 0 && (now - lastZeroReadTime) < ZERO_STALENESS_MS) {
+            rawCurrentMa = lastCurrentMa
+        }
+        if (rawVoltageMv == 0 && lastVoltageMv != 0 && (now - lastZeroReadTime) < ZERO_STALENESS_MS) {
+            rawVoltageMv = lastVoltageMv
+        }
+
+        // Update cache
+        if (rawCurrentMa != 0) lastCurrentMa = rawCurrentMa
+        if (rawVoltageMv != 0) lastVoltageMv = rawVoltageMv
+        if (rawCurrentMa == 0 || rawVoltageMv == 0) {
+            if (lastZeroReadTime == 0L) lastZeroReadTime = now
+        } else {
+            lastZeroReadTime = 0L
+        }
+
+        val currentMa = rawCurrentMa
+        val voltageMv = rawVoltageMv
 
         // Signed wattage: negative when discharging, positive when charging.
         val wattageW = if (currentMa != 0 && voltageMv != 0) {

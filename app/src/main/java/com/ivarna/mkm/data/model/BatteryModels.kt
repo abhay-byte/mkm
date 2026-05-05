@@ -64,5 +64,6 @@ data class BatteryStats(
     val isSessionActive: Boolean,
     val intervalCount: Int = 0,
     val wattageHistory: List<Float> = emptyList(),
-    val drainHistory: List<Float> = emptyList()
+    val drainHistory: List<Float> = emptyList(),
+    val estimatedTimeRemainingMin: Long = 0L
 )

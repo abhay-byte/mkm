@@ -101,17 +101,24 @@ class BatteryNotificationManager(context: Context) {
     }
 
     private fun buildOneLine(stats: BatteryStats): String {
+        val wattage = if (stats.calibratedWattageW != 0f) "${String.format("%+.2f", stats.calibratedWattageW)} W · " else ""
         val status = when {
-            stats.isCharging -> "Charging ${stats.currentMa} mA"
-            stats.isSessionActive -> "Discharging ${stats.currentMa} mA"
+            stats.isCharging -> "Charging ${kotlin.math.abs(stats.currentMa)} mA"
+            stats.isSessionActive -> "Discharging ${kotlin.math.abs(stats.currentMa)} mA"
             else -> "On AC"
         }
-        return "${String.format("%.1f", stats.temperatureC)}°C · $status"
+        return "${String.format("%.1f", stats.temperatureC)}°C · $wattage$status"
     }
 
     private fun buildSubText(stats: BatteryStats): String {
         return if (stats.isSessionActive) {
-            "Drain ${String.format("%.2f", stats.activeDrainPerHr)}%/hr"
+            val drain = String.format("%.2f", stats.activeDrainPerHr)
+            val time = if (stats.estimatedTimeRemainingMin > 0) {
+                val h = stats.estimatedTimeRemainingMin / 60
+                val m = stats.estimatedTimeRemainingMin % 60
+                " · ${h}h ${m}m left"
+            } else ""
+            "Drain ${drain}%/hr$time"
         } else {
             "On AC"
         }
@@ -120,7 +127,13 @@ class BatteryNotificationManager(context: Context) {
     private fun buildContentText(stats: BatteryStats): String {
         return buildString {
             if (stats.isSessionActive) {
+                appendLine("Power: ${String.format("%+.2f", stats.calibratedWattageW)} W")
                 appendLine("Active drain: ${String.format("%.2f", stats.activeDrainPerHr)}%/hr · Idle drain: ${String.format("%.2f", stats.idleDrainPerHr)}%/hr")
+                if (stats.estimatedTimeRemainingMin > 0) {
+                    val h = stats.estimatedTimeRemainingMin / 60
+                    val m = stats.estimatedTimeRemainingMin % 60
+                    appendLine("Est. time left: ${h}h ${m}m")
+                }
                 appendLine("Screen on: ${formatDuration(stats.screenOnTimeMs)} (${String.format("%.0f", stats.screenOnPercent)}%)")
                 appendLine("Screen off: ${formatDuration(stats.screenOffTimeMs)} (${String.format("%.0f", stats.screenOffPercent)}%)")
                 appendLine("Deep sleep: ${formatDuration(stats.deepSleepTimeMs)} (${String.format("%.2f", stats.deepSleepPercent)}%)")

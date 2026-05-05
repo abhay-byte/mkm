@@ -236,6 +236,13 @@ class BatterySessionTracker(context: Context) {
         if (wattageHistory.size > MAX_HISTORY) wattageHistory.removeAt(0)
         if (drainHistory.size > MAX_HISTORY) drainHistory.removeAt(0)
 
+        val estimatedMinutes = estimateTimeRemainingLocked(
+            snap = snap,
+            activeDrain = activeDrain,
+            idleDrain = idleDrain,
+            screenOnRatio = percentOf(currentScreenOn, totalSession) / 100f
+        )
+
         _stats.value = BatteryStats(
             percent = snap.percent,
             temperatureC = snap.temperatureC,
@@ -261,8 +268,33 @@ class BatterySessionTracker(context: Context) {
             isSessionActive = isSessionActive,
             intervalCount = intervals.size,
             wattageHistory = wattageHistory.toList(),
-            drainHistory = drainHistory.toList()
+            drainHistory = drainHistory.toList(),
+            estimatedTimeRemainingMin = estimatedMinutes
         )
+    }
+
+    private fun estimateTimeRemainingLocked(
+        snap: BatterySnapshot,
+        activeDrain: Float,
+        idleDrain: Float,
+        screenOnRatio: Float
+    ): Long {
+        return if (snap.isCharging) {
+            // Charging: estimate time to full from current and capacity.
+            if (snap.estimatedCapacityMah > 0 && snap.currentMa != 0) {
+                val remainingMah = (100 - snap.percent) * snap.estimatedCapacityMah / 100f
+                val chargeRateMa = kotlin.math.abs(snap.currentMa)
+                val hours = remainingMah / chargeRateMa
+                (hours * 60).toLong()
+            } else 0L
+        } else {
+            // Discharging: blended drain based on screen-on ratio.
+            val blended = if (activeDrain > 0f || idleDrain > 0f) {
+                activeDrain * screenOnRatio + idleDrain * (1f - screenOnRatio)
+            } else 0f
+            val effectiveDrain = blended.coerceAtLeast(0.1f)
+            ((snap.percent / effectiveDrain) * 60).toLong()
+        }
     }
 
     private fun emitFromSnapshotLocked(snap: BatterySnapshot) {
