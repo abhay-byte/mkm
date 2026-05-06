@@ -91,10 +91,14 @@ class BatteryProvider(context: Context) {
 
         // --- Wattage: use the exact same script + parsing as PowerProvider /
         // overlay so the value is stable and consistent across the app.
+        // Note: do NOT gate on isSuccess — PowerProvider doesn't either.
+        // The shell may exit non-zero for harmless reasons (stderr, glob)
+        // while still printing valid values to stdout.
         val powerResult = ShellManager.exec(PowerScripts.getPowerAndVoltage())
         var powerW = 0f
-        if (powerResult.isSuccess) {
-            val powerParts = powerResult.stdout.trim().split(" ")
+        val output = powerResult.stdout.trim()
+        if (output.isNotBlank()) {
+            val powerParts = output.split(" ")
             if (powerParts.size >= 2) {
                 val currentRaw = powerParts[0].toLongOrNull() ?: 0L
                 val voltageRaw = powerParts[1].toLongOrNull() ?: 0L
@@ -105,6 +109,13 @@ class BatteryProvider(context: Context) {
                     powerW = powerUw / 1_000_000f
                 }
             }
+        }
+
+        // Fallback: if the shell script returned 0, compute from the
+        // currentMa / voltageMv we already have (includes BatteryManager
+        // fallback and zero-read smoothing).
+        if (powerW == 0f && currentMa != 0 && voltageMv != 0) {
+            powerW = kotlin.math.abs(currentMa).toFloat() * voltageMv.toFloat() / 1_000_000f
         }
 
         val multiplier = calibrationManager.getMultiplier()
