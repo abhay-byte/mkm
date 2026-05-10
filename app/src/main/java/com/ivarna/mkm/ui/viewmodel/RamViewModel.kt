@@ -1,9 +1,12 @@
 package com.ivarna.mkm.ui.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.util.Log
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ivarna.mkm.data.RamData
 import com.ivarna.mkm.data.SystemRepository
+import com.ivarna.mkm.service.BootSettingsManager
 import com.ivarna.mkm.shell.ShellManager
 import com.ivarna.mkm.shell.ShellScripts
 import kotlinx.coroutines.Dispatchers
@@ -13,9 +16,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import android.util.Log
 
-class RamViewModel(private val repository: SystemRepository = SystemRepository()) : ViewModel() {
+class RamViewModel(application: Application) : AndroidViewModel(application) {
+    private val repository = SystemRepository()
     private val _uiState = MutableStateFlow<RamData?>(null)
     val uiState: StateFlow<RamData?> = _uiState.asStateFlow()
 
@@ -27,6 +30,9 @@ class RamViewModel(private val repository: SystemRepository = SystemRepository()
 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    private val _bootEnabled = MutableStateFlow(BootSettingsManager.isRamEnabled(application))
+    val bootEnabled: StateFlow<Boolean> = _bootEnabled.asStateFlow()
 
     init {
         startMonitoring()
@@ -206,6 +212,7 @@ class RamViewModel(private val repository: SystemRepository = SystemRepository()
                     _errorMessage.value = "Failed to set devfreq gov: " + result.stderr.ifEmpty { result.stdout }
                 }
                 _uiState.value = repository.getRamData()
+                if (_bootEnabled.value) saveCurrentRamSettings()
             } catch (e: Exception) {
                 _errorMessage.value = "Error setting devfreq gov: ${e.message}"
             } finally {
@@ -218,10 +225,6 @@ class RamViewModel(private val repository: SystemRepository = SystemRepository()
         viewModelScope.launch {
             _isProcessing.value = true
             try {
-                // To set a specific freq, we often need to be in userspace governor first.
-                // However, we'll let the user manually switch to userspace if needed, 
-                // OR we could force it. For now, we'll just try setting the freq.
-                // If it fails, the user might need to switch governor.
                 val script = com.ivarna.mkm.shell.DevfreqScripts.setFreq(path, freq)
                 val result = withContext(Dispatchers.IO) {
                     ShellManager.exec(script)
@@ -230,12 +233,32 @@ class RamViewModel(private val repository: SystemRepository = SystemRepository()
                      _errorMessage.value = "Failed to set devfreq freq: " + result.stderr.ifEmpty { result.stdout }
                 }
                 _uiState.value = repository.getRamData()
+                if (_bootEnabled.value) saveCurrentRamSettings()
             } catch (e: Exception) {
                 _errorMessage.value = "Error setting devfreq freq: ${e.message}"
             } finally {
                 _isProcessing.value = false
             }
         }
+    }
+
+    fun toggleBootEnabled(enabled: Boolean) {
+        BootSettingsManager.setRamEnabled(getApplication(), enabled)
+        _bootEnabled.value = enabled
+        if (enabled) {
+            saveCurrentRamSettings()
+        }
+    }
+
+    private fun saveCurrentRamSettings() {
+        val devfreq = _uiState.value?.devfreq ?: return
+        if (!devfreq.isSupported) return
+        BootSettingsManager.saveRamSettings(
+            getApplication(),
+            devfreq.controllerPath,
+            devfreq.currentGovernor,
+            devfreq.currentFreq
+        )
     }
 
     fun clearError() {

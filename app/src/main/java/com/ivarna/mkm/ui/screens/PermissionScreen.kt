@@ -28,6 +28,7 @@ import rikka.shizuku.Shizuku
 enum class PermissionStatus {
     Checking,
     NotInstalled,
+    Hidden,          // Not visible in PackageManager but binder is alive
     NotRunning,      // Installed but service not running
     NotGranted,
     Granted,
@@ -60,16 +61,20 @@ fun PermissionRequestScreen(
         
         // Check current status with granular states
         when {
+            ShizukuManager.hasPermission() -> {
+                permissionStatus.value = PermissionStatus.Granted
+                kotlinx.coroutines.delay(500)
+                onPermissionGranted()
+            }
+            ShizukuManager.isHidden() -> {
+                // Binder alive but package hidden (Issue #6)
+                permissionStatus.value = PermissionStatus.Hidden
+            }
             !ShizukuManager.isInstalled() -> {
                 permissionStatus.value = PermissionStatus.NotInstalled
             }
             !ShizukuManager.isRunning() -> {
                 permissionStatus.value = PermissionStatus.NotRunning
-            }
-            ShizukuManager.hasPermission() -> {
-                permissionStatus.value = PermissionStatus.Granted
-                kotlinx.coroutines.delay(500)
-                onPermissionGranted()
             }
             else -> {
                 permissionStatus.value = PermissionStatus.NotGranted
@@ -132,6 +137,32 @@ fun PermissionRequestScreen(
                         }
                     ) {
                         Text("Download Shizuku")
+                    }
+                }
+
+                PermissionStatus.Hidden -> {
+                    Icon(
+                        imageVector = Icons.Default.Security,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.tertiary
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        "Shizuku is Hidden",
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Shizuku appears to be hidden from the system but its service is running. You can still grant permission to MKM.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(
+                        onClick = { ShizukuManager.requestPermission() }
+                    ) {
+                        Text("Grant Permission")
                     }
                 }
                 
@@ -308,26 +339,31 @@ fun AccessMethodCard(
             Spacer(modifier = Modifier.height(16.dp))
             
             // Shizuku status
+            val shizukuHidden = ShizukuManager.isHidden()
             AccessMethodItem(
                 icon = Icons.Default.Security,
-                title = "Shizuku",
+                title = if (shizukuHidden) "Shizuku (Hidden)" else "Shizuku",
                 status = when {
+                    ShizukuManager.hasPermission() -> "Active"
+                    shizukuHidden -> "Hidden — tap to grant"
                     !ShizukuManager.isInstalled() -> "Not Installed"
                     !ShizukuManager.isRunning() -> "Not Running"
                     !ShizukuManager.hasPermission() -> "Not Permitted"
                     else -> "Active"
                 },
                 statusColor = when {
+                    ShizukuManager.hasPermission() -> MaterialTheme.colorScheme.primary
+                    shizukuHidden -> MaterialTheme.colorScheme.tertiary
                     !ShizukuManager.isInstalled() -> MaterialTheme.colorScheme.error
                     !ShizukuManager.isRunning() -> MaterialTheme.colorScheme.tertiary
-                    !ShizukuManager.hasPermission() -> MaterialTheme.colorScheme.tertiary
-                    else -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.tertiary
                 },
                 onClick = when {
-                    !ShizukuManager.isInstalled() -> null  // Can't do anything from here
-                    !ShizukuManager.isRunning() -> null    // User needs to open Shizuku app
-                    !ShizukuManager.hasPermission() -> onRequestShizukuPermission
-                    else -> null
+                    ShizukuManager.hasPermission() -> null
+                    shizukuHidden -> onRequestShizukuPermission
+                    !ShizukuManager.isInstalled() -> null
+                    !ShizukuManager.isRunning() -> null
+                    else -> onRequestShizukuPermission
                 }
             )
             

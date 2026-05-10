@@ -38,6 +38,7 @@ import com.ivarna.mkm.ui.components.InfoRow
 import com.ivarna.mkm.ui.components.SectionHeader
 import com.ivarna.mkm.ui.components.SwapConfigDialog
 import com.ivarna.mkm.ui.viewmodel.RamViewModel
+import com.ivarna.mkm.ui.components.BootToggleCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,6 +47,7 @@ fun RamScreen(viewModel: RamViewModel = viewModel(), onOpenDrawer: () -> Unit = 
     val isProcessing by viewModel.isProcessing.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val bootEnabled by viewModel.bootEnabled.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     
     var showSwapDialog by remember { mutableStateOf(false) }
@@ -112,7 +114,14 @@ fun RamScreen(viewModel: RamViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                         .padding(horizontal = 16.dp)
                 ) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
+                    BootToggleCard(
+                        enabled = bootEnabled,
+                        onToggle = { viewModel.toggleBootEnabled(it) }
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
                     // Removed top progress indicator in favor of LoadingOverlay
 
                     errorMessage?.let { msg ->

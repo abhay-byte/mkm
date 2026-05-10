@@ -1,11 +1,13 @@
 package com.ivarna.mkm.ui.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ivarna.mkm.data.model.CpuStatus
 import com.ivarna.mkm.data.provider.CpuProvider
 import com.ivarna.mkm.data.provider.ThermalProvider
 import com.ivarna.mkm.data.provider.ThermalStatus
+import com.ivarna.mkm.service.BootSettingsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class CpuViewModel : ViewModel() {
+class CpuViewModel(application: Application) : AndroidViewModel(application) {
     private val _cpuStatus = MutableStateFlow(CpuStatus())
     val cpuStatus: StateFlow<CpuStatus> = _cpuStatus.asStateFlow()
 
@@ -23,6 +25,9 @@ class CpuViewModel : ViewModel() {
 
     private val _thermalStatus = MutableStateFlow(ThermalStatus(emptyList(), 0f))
     val thermalStatus: StateFlow<ThermalStatus> = _thermalStatus.asStateFlow()
+
+    private val _bootEnabled = MutableStateFlow(BootSettingsManager.isCpuEnabled(application))
+    val bootEnabled: StateFlow<Boolean> = _bootEnabled.asStateFlow()
 
     private var cachedLimit = 0
 
@@ -121,6 +126,27 @@ class CpuViewModel : ViewModel() {
                 ThermalProvider.disableThrottling()
             }
             refresh()
+        }
+    }
+
+    fun toggleBootEnabled(enabled: Boolean) {
+        BootSettingsManager.setCpuEnabled(getApplication(), enabled)
+        _bootEnabled.value = enabled
+        if (enabled) {
+            saveCurrentCpuSettings()
+        }
+    }
+
+    private fun saveCurrentCpuSettings() {
+        val status = _cpuStatus.value
+        status.clusters.forEach { cluster ->
+            BootSettingsManager.saveCpuPolicy(
+                getApplication(),
+                cluster.id,
+                cluster.governor,
+                cluster.rawMaxFreq,
+                cluster.rawMinFreq
+            )
         }
     }
 

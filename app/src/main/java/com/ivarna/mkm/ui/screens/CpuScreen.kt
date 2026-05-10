@@ -29,12 +29,14 @@ import com.ivarna.mkm.ui.components.*
 import com.ivarna.mkm.ui.components.ThermalCard
 import com.ivarna.mkm.ui.viewmodel.CpuViewModel
 import com.ivarna.mkm.utils.ShellUtils
+import com.ivarna.mkm.ui.components.BootToggleCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = {}) {
     val cpuStatus by viewModel.cpuStatus.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val bootEnabled by viewModel.bootEnabled.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     var selectedClusterForGovernor by remember { mutableStateOf<CpuCluster?>(null) }
@@ -118,6 +120,14 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                 }
             }
 
+
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                BootToggleCard(
+                    enabled = bootEnabled,
+                    onToggle = { viewModel.toggleBootEnabled(it) }
+                )
+            }
 
             item {
                 SectionHeader("CPU Clusters")

@@ -23,12 +23,14 @@ import com.ivarna.mkm.data.model.GpuStatus
 import com.ivarna.mkm.ui.components.*
 import com.ivarna.mkm.ui.viewmodel.GpuViewModel
 import com.ivarna.mkm.utils.ShellUtils
+import com.ivarna.mkm.ui.components.BootToggleCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = {}) {
     val gpuStatus by viewModel.gpuStatus.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val bootEnabled by viewModel.bootEnabled.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     var showGovernorSheet by remember { mutableStateOf(false) }
@@ -88,8 +90,13 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                 subValue = gpuStatus.currentFreq
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            BootToggleCard(
+                enabled = bootEnabled,
+                onToggle = { viewModel.toggleBootEnabled(it) }
+            )
 
+            Spacer(modifier = Modifier.height(24.dp))
             SectionHeader("Graphics Information")
             ElevatedCard(
                 onClick = {},

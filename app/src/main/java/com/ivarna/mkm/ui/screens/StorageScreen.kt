@@ -23,12 +23,14 @@ import com.ivarna.mkm.ui.components.StatCard
 import com.ivarna.mkm.ui.components.HeroUsageCard
 import com.ivarna.mkm.ui.components.UfsTuningCard
 import com.ivarna.mkm.ui.viewmodel.StorageViewModel
+import com.ivarna.mkm.ui.components.BootToggleCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StorageScreen(viewModel: StorageViewModel = viewModel(), onOpenDrawer: () -> Unit = {}) {
     val uiState by viewModel.uiState.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val bootEnabled by viewModel.bootEnabled.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
@@ -65,6 +67,11 @@ fun StorageScreen(viewModel: StorageViewModel = viewModel(), onOpenDrawer: () ->
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 uiState?.let { state ->
+                    BootToggleCard(
+                        enabled = bootEnabled,
+                        onToggle = { viewModel.toggleBootEnabled(it) }
+                    )
+
                     val internalStorage = state.partitions.find { it.mountPoint == "/data" }
                     val systemStorage = state.partitions.find { it.mountPoint == "/system" }
 

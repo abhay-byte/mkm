@@ -47,6 +47,16 @@
                 android:value="Floating performance monitor overlay for real-time system metrics visibility." />
         </service>
 
+        <service
+            android:name=".service.BootApplyService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Applies saved kernel settings after device boot with a countdown notification." />
+        </service>
+
         <!-- Restarts battery notification service after reboot -->
         <receiver
             android:name=".receiver.BootReceiver"

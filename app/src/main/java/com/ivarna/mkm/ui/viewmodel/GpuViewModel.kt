@@ -1,23 +1,27 @@
 package com.ivarna.mkm.ui.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ivarna.mkm.data.model.GpuStatus
 import com.ivarna.mkm.data.provider.GpuProvider
+import com.ivarna.mkm.service.BootSettingsManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class GpuViewModel : ViewModel() {
+class GpuViewModel(application: Application) : AndroidViewModel(application) {
     private val _gpuStatus = MutableStateFlow(GpuStatus())
     val gpuStatus = _gpuStatus.asStateFlow()
 
-    private var setOnBoot = false
     private var freezeValues = false
 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing = _isRefreshing.asStateFlow()
+
+    private val _bootEnabled = MutableStateFlow(BootSettingsManager.isGpuEnabled(application))
+    val bootEnabled = _bootEnabled.asStateFlow()
 
     init {
         startMonitoring()
@@ -28,15 +32,9 @@ class GpuViewModel : ViewModel() {
             while (true) {
                 val status = GpuProvider.getGpuStatus()
                 _gpuStatus.value = status.copy(
-                    setOnBoot = setOnBoot,
+                    setOnBoot = _bootEnabled.value,
                     freezeValues = freezeValues
                 )
-                
-                if (freezeValues) {
-                    // Re-apply values if they changed
-                    // This is a simple simulation of "Freezing"
-                }
-                
                 delay(1000)
             }
         }
@@ -59,9 +57,24 @@ class GpuViewModel : ViewModel() {
         }
     }
 
-    fun toggleSetOnBoot(enabled: Boolean) {
-        setOnBoot = enabled
+    fun toggleBootEnabled(enabled: Boolean) {
+        BootSettingsManager.setGpuEnabled(getApplication(), enabled)
+        _bootEnabled.value = enabled
         _gpuStatus.value = _gpuStatus.value.copy(setOnBoot = enabled)
+        if (enabled) {
+            saveCurrentGpuSettings()
+        }
+    }
+
+    private fun saveCurrentGpuSettings() {
+        val status = _gpuStatus.value
+        BootSettingsManager.saveGpuSettings(
+            getApplication(),
+            status.governor,
+            status.rawMaxFreq,
+            status.rawMinFreq,
+            status.rawTargetFreq
+        )
     }
 
     fun toggleFreezeValues(enabled: Boolean) {
@@ -74,7 +87,7 @@ class GpuViewModel : ViewModel() {
             _isRefreshing.value = true
             GpuProvider.clearCache()
             _gpuStatus.value = GpuProvider.getGpuStatus().copy(
-                setOnBoot = setOnBoot,
+                setOnBoot = _bootEnabled.value,
                 freezeValues = freezeValues
             )
             delay(500)

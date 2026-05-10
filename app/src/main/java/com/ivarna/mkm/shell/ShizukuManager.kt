@@ -60,20 +60,26 @@ object ShizukuManager {
             false
         }
     }
-    
+
     /**
-     * Check if Shizuku is available (app installed and running)
-     * @deprecated Use isInstalled() and isRunning() for more granular checks
+     * Check if Shizuku is installed but hidden from PackageManager
+     * (e.g. via AppHider, Shelter, or similar tools).
+     * Returns true when the binder is alive but the package is not visible.
      */
-    fun isAvailable(): Boolean {
-        return isInstalled() && isRunning()
-    }
+    fun isHidden(): Boolean = isRunning() && !isInstalled()
+
+    /**
+     * Check if Shizuku is available — either normally installed+running,
+     * or hidden but with a live binder (Issue #6).
+     */
+    fun isAvailable(): Boolean = isRunning()
     
     /**
-     * Check if we have permission to use Shizuku
+     * Check if we have permission to use Shizuku.
+     * Works even when Shizuku is hidden (Issue #6).
      */
     fun hasPermission(): Boolean {
-        if (!isAvailable()) return false
+        if (!isRunning()) return false
         return try {
             if (Shizuku.isPreV11()) {
                 false // Don't support old versions
@@ -86,11 +92,12 @@ object ShizukuManager {
     }
     
     /**
-     * Request permission from user
-     * Result will be delivered to OnRequestPermissionResultListener
+     * Request permission from user.
+     * Works even when Shizuku is hidden (Issue #6).
+     * Result will be delivered to OnRequestPermissionResultListener.
      */
     fun requestPermission() {
-        if (!isAvailable()) return
+        if (!isRunning()) return
         Shizuku.requestPermission(SHIZUKU_REQUEST_CODE)
     }
     

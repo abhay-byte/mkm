@@ -1,9 +1,11 @@
 package com.ivarna.mkm.ui.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ivarna.mkm.data.SystemRepository
 import com.ivarna.mkm.data.model.StorageStatus
+import com.ivarna.mkm.service.BootSettingsManager
 import com.ivarna.mkm.shell.ShellManager
 import com.ivarna.mkm.shell.UfsScripts
 import kotlinx.coroutines.Dispatchers
@@ -14,7 +16,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class StorageViewModel(private val repository: SystemRepository = SystemRepository()) : ViewModel() {
+class StorageViewModel(application: Application) : AndroidViewModel(application) {
+    private val repository = SystemRepository()
     private val _uiState = MutableStateFlow<StorageStatus?>(null)
     val uiState: StateFlow<StorageStatus?> = _uiState.asStateFlow()
 
@@ -26,6 +29,9 @@ class StorageViewModel(private val repository: SystemRepository = SystemReposito
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    private val _bootEnabled = MutableStateFlow(BootSettingsManager.isStorageEnabled(application))
+    val bootEnabled: StateFlow<Boolean> = _bootEnabled.asStateFlow()
 
     init {
         startMonitoring()
@@ -50,6 +56,26 @@ class StorageViewModel(private val repository: SystemRepository = SystemReposito
         }
     }
 
+    fun toggleBootEnabled(enabled: Boolean) {
+        BootSettingsManager.setStorageEnabled(getApplication(), enabled)
+        _bootEnabled.value = enabled
+        if (enabled) {
+            saveCurrentStorageSettings()
+        }
+    }
+
+    private fun saveCurrentStorageSettings() {
+        val ufs = _uiState.value?.ufsStatus ?: return
+        if (!ufs.isSupported) return
+        BootSettingsManager.saveStorageSettings(
+            getApplication(),
+            ufs.controllerPath,
+            ufs.currentGovernor,
+            ufs.minFreq,
+            ufs.maxFreq
+        )
+    }
+
     fun setUfsGovernor(path: String, governor: String) {
         viewModelScope.launch {
             _isProcessing.value = true
@@ -62,6 +88,7 @@ class StorageViewModel(private val repository: SystemRepository = SystemReposito
                     _errorMessage.value = "Failed to set governor: " + result.stderr.ifEmpty { result.stdout }
                 }
                 _uiState.value = repository.getStorageStatus()
+                if (_bootEnabled.value) saveCurrentStorageSettings()
             } catch (e: Exception) {
                 _errorMessage.value = e.message
             } finally {
@@ -82,6 +109,7 @@ class StorageViewModel(private val repository: SystemRepository = SystemReposito
                     _errorMessage.value = "Failed to set min freq: " + result.stderr.ifEmpty { result.stdout }
                 }
                 _uiState.value = repository.getStorageStatus()
+                if (_bootEnabled.value) saveCurrentStorageSettings()
             } catch (e: Exception) {
                 _errorMessage.value = "Error setting min freq: ${e.message}"
             } finally {
@@ -102,6 +130,7 @@ class StorageViewModel(private val repository: SystemRepository = SystemReposito
                     _errorMessage.value = "Failed to set max freq: " + result.stderr.ifEmpty { result.stdout }
                 }
                 _uiState.value = repository.getStorageStatus()
+                if (_bootEnabled.value) saveCurrentStorageSettings()
             } catch (e: Exception) {
                 _errorMessage.value = "Error setting max freq: ${e.message}"
             } finally {
