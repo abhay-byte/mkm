@@ -1,0 +1,7 @@
+Added Battery Monitor screen with live graphs
+Added persistent battery wattage notification
+Added Apply on Boot with per-category toggles
+Added support for hidden Shizuku installations
+Fixed BootToggleCard text overlap issue
+Improved battery wattage reading stability
+Added wattage fallback for unsupported devices
