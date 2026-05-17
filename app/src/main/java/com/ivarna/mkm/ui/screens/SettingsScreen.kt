@@ -24,6 +24,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ivarna.mkm.service.BatteryMonitorService
+import com.ivarna.mkm.service.BatterySessionTracker
 import com.ivarna.mkm.ui.components.*
 import com.ivarna.mkm.ui.viewmodel.AppTheme
 import com.ivarna.mkm.ui.viewmodel.PowerViewModel
@@ -70,6 +71,21 @@ fun SettingsScreen(
             batteryNotificationEnabled = true
         }
     }
+
+    val updateIntervalOptions = remember {
+        listOf(
+            "5s" to 5_000L,
+            "10s" to 10_000L,
+            "30s" to 30_000L,
+            "1 min" to 60_000L,
+            "5 min" to 300_000L,
+            "10 min" to 600_000L
+        )
+    }
+    var selectedIntervalMs by remember {
+        mutableStateOf(batteryPrefs.getLong("battery_update_interval_ms", BatterySessionTracker.DEFAULT_UPDATE_INTERVAL_MS))
+    }
+    var showIntervalMenu by remember { mutableStateOf(false) }
 
     fun toggleBatteryNotification(enabled: Boolean) {
         if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -292,6 +308,62 @@ fun SettingsScreen(
                             )
                         }
                     )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                        Text(
+                            text = "Refresh Interval",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Box {
+                            val currentLabel = updateIntervalOptions.find { it.second == selectedIntervalMs }?.first ?: "30s"
+                            AssistChip(
+                                onClick = { showIntervalMenu = true },
+                                label = { Text(currentLabel) },
+                                trailingIcon = {
+                                    Icon(
+                                        Icons.Default.Timer,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            )
+                            DropdownMenu(
+                                expanded = showIntervalMenu,
+                                onDismissRequest = { showIntervalMenu = false }
+                            ) {
+                                updateIntervalOptions.forEach { (label, ms) ->
+                                    DropdownMenuItem(
+                                        text = { Text(label) },
+                                        onClick = {
+                                            selectedIntervalMs = ms
+                                            batteryPrefs.edit().putLong("battery_update_interval_ms", ms).apply()
+                                            showIntervalMenu = false
+                                        },
+                                        leadingIcon = {
+                                            if (ms == selectedIntervalMs) {
+                                                Icon(
+                                                    Icons.Default.Timer,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(18.dp),
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Longer intervals reduce battery usage. Default is 30s.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
                 }
             }
 

@@ -1,8 +1,15 @@
 # Battery System Progress
 
-> Last updated: 2026-05-03
+> Last updated: 2026-05-15
 
-## Status: Core Implemented
+## Status: Core Implemented, Improvements Done
+
+### Recently Added / Fixed (Issue #3)
+
+- [x] **Configurable update interval** — User can choose 5s / 10s / 30s / 1min / 5min / 10min. Default changed from 1s to 30s to drastically reduce MKM's own battery usage. Available in Battery screen (Monitoring section) and Settings → Notifications.
+- [x] **Drain-based screen on/off percentages** — Session breakdown now shows how much *battery* was used during screen-on vs screen-off (not just time). e.g. "36% of drain · 50% of time"
+- [x] **Temperature in notification expanded text** — Temperature now shown alongside wattage, drain rates, and times in the expanded notification.
+- [x] **Notification content customization** — User can choose what appears in the notification heading: Wattage, Temperature, Drain Rate, Time Left, Current (mA), Voltage (mV). Available in Battery screen under "NOTIFICATION CONTENT" when notification is enabled.
 
 ### Completed
 
@@ -53,6 +60,7 @@
 - [ ] Custom notification layout with progress bar for battery %
 - [ ] Verify drain rate calculations against real usage over longer sessions
 - [ ] Validate session time tracking across device sleep
+- [ ] Per-user customizable default interval (persist across app restarts)
 
 ### Files
 

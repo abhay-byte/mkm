@@ -31,8 +31,25 @@ class BatteryMonitorService : Service() {
     companion object {
         const val ACTION_START = "com.ivarna.mkm.action.START_BATTERY_MONITOR"
         const val ACTION_STOP = "com.ivarna.mkm.action.STOP_BATTERY_MONITOR"
+        const val ACTION_OPEN_BATTERY = "com.ivarna.mkm.action.OPEN_BATTERY"
         const val PREFS_NAME = "battery_prefs"
         const val PREF_NOTIFICATION_ENABLED = "notification_enabled"
+        // Notification content customization
+        const val PREF_NOTIF_SHOW_WATTAGE = "notif_show_wattage"
+        const val PREF_NOTIF_SHOW_TEMPERATURE = "notif_show_temperature"
+        const val PREF_NOTIF_SHOW_DRAIN = "notif_show_drain"
+        const val PREF_NOTIF_SHOW_TIME_LEFT = "notif_show_time_left"
+        const val PREF_NOTIF_SHOW_CURRENT = "notif_show_current"
+        const val PREF_NOTIF_SHOW_VOLTAGE = "notif_show_voltage"
+        // Expanded notification content customization
+        const val PREF_NOTIF_EXP_TEMP_VOLTAGE = "notif_exp_temp_voltage"
+        const val PREF_NOTIF_EXP_POWER = "notif_exp_power"
+        const val PREF_NOTIF_EXP_DRAIN = "notif_exp_drain"
+        const val PREF_NOTIF_EXP_TIME_LEFT = "notif_exp_time_left"
+        const val PREF_NOTIF_EXP_SCREEN_ON = "notif_exp_screen_on"
+        const val PREF_NOTIF_EXP_SCREEN_OFF = "notif_exp_screen_off"
+        const val PREF_NOTIF_EXP_DEEP_SLEEP = "notif_exp_deep_sleep"
+        const val PREF_NOTIF_EXP_AWAKE = "notif_exp_awake"
     }
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

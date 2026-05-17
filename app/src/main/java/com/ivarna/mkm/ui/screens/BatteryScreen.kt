@@ -1,9 +1,11 @@
 package com.ivarna.mkm.ui.screens
 
 import android.Manifest
+import android.content.Context
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,6 +21,7 @@ import androidx.compose.material.icons.filled.Power
 import androidx.compose.material.icons.filled.PowerOff
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Snooze
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -30,11 +33,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ivarna.mkm.data.model.BatteryStats
+import com.ivarna.mkm.service.BatteryMonitorService
+import com.ivarna.mkm.service.BatterySessionTracker
 import com.ivarna.mkm.ui.components.SectionHeader
 import com.ivarna.mkm.ui.viewmodel.BatteryViewModel
 
@@ -48,6 +54,56 @@ fun BatteryScreen(
     val showNotification by viewModel.showNotification.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val batteryPrefs = remember { context.getSharedPreferences(BatteryMonitorService.PREFS_NAME, Context.MODE_PRIVATE) }
+
+    val updateIntervalOptions = remember {
+        listOf(
+            "5s" to 5_000L,
+            "10s" to 10_000L,
+            "30s" to 30_000L,
+            "1 min" to 60_000L,
+            "5 min" to 300_000L,
+            "10 min" to 600_000L
+        )
+    }
+    var selectedIntervalMs by remember {
+        mutableStateOf(batteryPrefs.getLong("battery_update_interval_ms", BatterySessionTracker.DEFAULT_UPDATE_INTERVAL_MS))
+    }
+
+    val notifHeadingOptions = remember {
+        mapOf(
+            "Wattage" to (BatteryMonitorService.PREF_NOTIF_SHOW_WATTAGE to true),
+            "Temperature" to (BatteryMonitorService.PREF_NOTIF_SHOW_TEMPERATURE to false),
+            "Drain Rate" to (BatteryMonitorService.PREF_NOTIF_SHOW_DRAIN to false),
+            "Time Left" to (BatteryMonitorService.PREF_NOTIF_SHOW_TIME_LEFT to false),
+            "Current (mA)" to (BatteryMonitorService.PREF_NOTIF_SHOW_CURRENT to false),
+            "Voltage (mV)" to (BatteryMonitorService.PREF_NOTIF_SHOW_VOLTAGE to false)
+        )
+    }
+    var notifHeadingSelections by remember {
+        mutableStateOf(notifHeadingOptions.mapValues { (_, pair) ->
+            batteryPrefs.getBoolean(pair.first, pair.second)
+        })
+    }
+
+    val notifExpandedOptions = remember {
+        mapOf(
+            "Temperature & Voltage" to (BatteryMonitorService.PREF_NOTIF_EXP_TEMP_VOLTAGE to true),
+            "Power (Wattage)" to (BatteryMonitorService.PREF_NOTIF_EXP_POWER to true),
+            "Drain Rates" to (BatteryMonitorService.PREF_NOTIF_EXP_DRAIN to true),
+            "Time Left" to (BatteryMonitorService.PREF_NOTIF_EXP_TIME_LEFT to true),
+            "Screen On" to (BatteryMonitorService.PREF_NOTIF_EXP_SCREEN_ON to true),
+            "Screen Off" to (BatteryMonitorService.PREF_NOTIF_EXP_SCREEN_OFF to true),
+            "Deep Sleep" to (BatteryMonitorService.PREF_NOTIF_EXP_DEEP_SLEEP to true),
+            "Awake" to (BatteryMonitorService.PREF_NOTIF_EXP_AWAKE to true)
+        )
+    }
+    var notifExpandedSelections by remember {
+        mutableStateOf(notifExpandedOptions.mapValues { (_, pair) ->
+            batteryPrefs.getBoolean(pair.first, pair.second)
+        })
+    }
 
     var pendingToggle by remember { mutableStateOf(false) }
 
@@ -160,6 +216,33 @@ fun BatteryScreen(
                 NotificationToggleCard(
                     enabled = showNotification,
                     onToggle = { onToggleNotification(it) }
+                )
+
+                if (showNotification) {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    SectionHeader("NOTIFICATION CONTENT")
+                    NotificationContentCard(
+                        headingOptions = notifHeadingOptions,
+                        headingSelections = notifHeadingSelections,
+                        expandedOptions = notifExpandedOptions,
+                        expandedSelections = notifExpandedSelections,
+                        onToggle = { prefKey: String, enabled: Boolean ->
+                            notifHeadingSelections = notifHeadingSelections.toMutableMap().also { it[prefKey] = enabled }
+                            notifExpandedSelections = notifExpandedSelections.toMutableMap().also { it[prefKey] = enabled }
+                            batteryPrefs.edit().putBoolean(prefKey, enabled).apply()
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+                SectionHeader("MONITORING")
+                IntervalSelectorCard(
+                    currentMs = selectedIntervalMs,
+                    options = updateIntervalOptions,
+                    onSelect = { ms ->
+                        selectedIntervalMs = ms
+                        batteryPrefs.edit().putLong("battery_update_interval_ms", ms).apply()
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -514,6 +597,7 @@ fun TimeBreakdownCard(stats: BatteryStats) {
                 label = "Screen on",
                 duration = formatDuration(stats.screenOnTimeMs),
                 percent = stats.screenOnPercent,
+                drainPercent = stats.screenOnDrainPercent,
                 icon = Icons.Default.PhoneAndroid,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -523,6 +607,7 @@ fun TimeBreakdownCard(stats: BatteryStats) {
                 label = "Screen off",
                 duration = formatDuration(stats.screenOffTimeMs),
                 percent = stats.screenOffPercent,
+                drainPercent = stats.screenOffDrainPercent,
                 icon = Icons.Default.PowerOff,
                 color = MaterialTheme.colorScheme.secondary
             )
@@ -532,6 +617,7 @@ fun TimeBreakdownCard(stats: BatteryStats) {
                 label = "Deep sleep",
                 duration = formatDuration(stats.deepSleepTimeMs),
                 percent = stats.deepSleepPercent,
+                drainPercent = stats.deepSleepDrainPercent,
                 icon = Icons.Default.Snooze,
                 color = Color(0xFF4CAF50)
             )
@@ -541,6 +627,7 @@ fun TimeBreakdownCard(stats: BatteryStats) {
                 label = "Awake",
                 duration = formatDuration(stats.awakeTimeMs),
                 percent = stats.awakePercent,
+                drainPercent = stats.awakeDrainPercent,
                 icon = Icons.Default.Schedule,
                 color = MaterialTheme.colorScheme.tertiary
             )
@@ -562,6 +649,7 @@ fun TimeRow(
     label: String,
     duration: String,
     percent: Float,
+    drainPercent: Float = 0f,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     color: Color
 ) {
@@ -590,11 +678,19 @@ fun TimeRow(
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold
             )
-            Text(
-                text = "${String.format("%.2f", percent)}%",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (drainPercent > 0f) {
+                Text(
+                    text = "${String.format("%.1f", drainPercent)}% of drain · ${String.format("%.0f", percent)}% of time",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Text(
+                    text = "${String.format("%.2f", percent)}%",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
@@ -765,4 +861,162 @@ private fun formatDuration(ms: Long): String {
         if (minutes > 0 || hours > 0) append("${minutes}m ")
         append("${seconds}s")
     }.trim()
+}
+
+@Composable
+fun IntervalSelectorCard(
+    currentMs: Long,
+    options: List<Pair<String, Long>>,
+    onSelect: (Long) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val currentLabel = options.find { it.second == currentMs }?.first ?: "30s"
+
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Timer,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Refresh Interval",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "How often battery stats update",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Box {
+                    AssistChip(
+                        onClick = { expanded = true },
+                        label = { Text(currentLabel) },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Timer,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    )
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        options.forEach { (label, ms) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    onSelect(ms)
+                                    expanded = false
+                                },
+                                leadingIcon = {
+                                    if (ms == currentMs) {
+                                        Icon(
+                                            imageVector = Icons.Default.Timer,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Longer intervals reduce MKM's own battery usage (was every 1s, now default 30s).",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
+        }
+    }
+}
+
+@Composable
+fun NotificationContentCard(
+    headingOptions: Map<String, Pair<String, Boolean>>,
+    headingSelections: Map<String, Boolean>,
+    expandedOptions: Map<String, Pair<String, Boolean>>,
+    expandedSelections: Map<String, Boolean>,
+    onToggle: (prefKey: String, enabled: Boolean) -> Unit
+) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "Notification Heading",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            headingOptions.forEach { (label, pair) ->
+                val (prefKey, _) = pair
+                val checked = headingSelections[prefKey] ?: false
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onToggle(prefKey, !checked) }
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = label, style = MaterialTheme.typography.bodyLarge)
+                    Switch(checked = checked, onCheckedChange = { onToggle(prefKey, it) })
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+            Text(
+                text = "Expanded Content",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            expandedOptions.forEach { (label, pair) ->
+                val (prefKey, _) = pair
+                val checked = expandedSelections[prefKey] ?: false
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onToggle(prefKey, !checked) }
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = label, style = MaterialTheme.typography.bodyLarge)
+                    Switch(checked = checked, onCheckedChange = { onToggle(prefKey, it) })
+                }
+            }
+        }
+    }
 }

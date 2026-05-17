@@ -32,12 +32,16 @@ import kotlin.math.max
 class BatterySessionTracker(context: Context) {
 
     companion object {
-        const val MAX_HISTORY = 60 // 60 seconds of history at 1 sample/sec
+        const val MAX_HISTORY = 60
+        private const val PREFS_NAME = BatteryMonitorService.PREFS_NAME
+        private const val PREF_UPDATE_INTERVAL = "battery_update_interval_ms"
+        const val DEFAULT_UPDATE_INTERVAL_MS = 30_000L
     }
 
     private val appContext = context.applicationContext
     private val provider = BatteryProvider(appContext)
     private val powerManager = appContext.getSystemService(Context.POWER_SERVICE) as PowerManager
+    private val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var pollJob: Job? = null
@@ -114,9 +118,18 @@ class BatterySessionTracker(context: Context) {
         pollJob = scope.launch {
             while (isActive) {
                 tick()
-                delay(1_000)
+                delay(getUpdateInterval())
             }
         }
+    }
+
+    fun getUpdateInterval(): Long {
+        return prefs.getLong(PREF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL_MS)
+            .coerceIn(1_000L, 600_000L)
+    }
+
+    fun setUpdateInterval(intervalMs: Long) {
+        prefs.edit().putLong(PREF_UPDATE_INTERVAL, intervalMs).apply()
     }
 
     fun stop() {
@@ -228,6 +241,15 @@ class BatterySessionTracker(context: Context) {
 
         val (activeDrain, idleDrain, isDrainReliable) = computeDrainRatesLocked()
 
+        // Compute drain-based percentages: how much battery was used during screen-on vs screen-off
+        val (screenOnDrainPercent, screenOffDrainPercent) = computeDrainPercentagesLocked()
+
+        // Deep sleep is a subset of screen-off. Estimate its drain proportionally.
+        val deepSleepDrainPercent = if (currentScreenOff > 0 && screenOffDrainPercent > 0f) {
+            screenOffDrainPercent * (currentDeepSleepMs.toFloat() / currentScreenOff)
+        } else 0f
+        val awakeDrainPercent = (100f - deepSleepDrainPercent).coerceIn(0f, 100f)
+
         // Update rolling history (use magnitude for sparkline)
         lastWattageW = kotlin.math.abs(snap.calibratedWattageW)
         lastDrain = activeDrain.coerceAtLeast(0f)
@@ -267,6 +289,10 @@ class BatterySessionTracker(context: Context) {
             screenOffPercent = percentOf(currentScreenOff, totalSession),
             deepSleepPercent = percentOf(currentDeepSleepMs, totalSession),
             awakePercent = percentOf(awakeMs, totalSession),
+            screenOnDrainPercent = screenOnDrainPercent,
+            screenOffDrainPercent = screenOffDrainPercent,
+            deepSleepDrainPercent = deepSleepDrainPercent,
+            awakeDrainPercent = awakeDrainPercent,
             isSessionActive = isSessionActive,
             intervalCount = intervals.size,
             wattageHistory = wattageHistory.toList(),
@@ -399,6 +425,21 @@ class BatterySessionTracker(context: Context) {
         val totalHours = (System.currentTimeMillis() - sessionStartTimeMs) / 3_600_000f
         val drop = sessionStartPercent - (lastSnapshot?.percent ?: sessionStartPercent)
         return if (totalHours > 0 && drop > 0) drop / totalHours else 0f
+    }
+
+    /**
+     * Computes screen-on and screen-off percentages based on actual battery drain,
+     * not time. The user wants to know: "of the total battery used, how much was
+     * eaten by screen-on periods vs screen-off periods?"
+     */
+    private fun computeDrainPercentagesLocked(): Pair<Float, Float> {
+        val onDrain = intervals.filter { it.isScreenOn }.sumOf { it.percentDrop }
+        val offDrain = intervals.filter { !it.isScreenOn }.sumOf { it.percentDrop }
+        val totalDrain = onDrain + offDrain
+        if (totalDrain <= 0) return 0f to 0f
+        val onPct = (onDrain.toFloat() / totalDrain * 100f).coerceIn(0f, 100f)
+        val offPct = 100f - onPct
+        return onPct to offPct
     }
 
     // ------------------------------------------------------------------

@@ -1,5 +1,6 @@
 package com.ivarna.mkm
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -7,6 +8,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -65,27 +69,48 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val openBattery = intent?.action == com.ivarna.mkm.service.BatteryMonitorService.ACTION_OPEN_BATTERY
         setContent {
             val settingsViewModel: SettingsViewModel = viewModel()
             val homeViewModel: HomeViewModel = viewModel()
             val theme by settingsViewModel.theme.collectAsState()
-            
+
             MKMTheme(appTheme = theme) {
-                MainScreen(settingsViewModel, homeViewModel)
+                MainScreen(settingsViewModel, homeViewModel, navigateToBattery = openBattery)
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.action == com.ivarna.mkm.service.BatteryMonitorService.ACTION_OPEN_BATTERY) {
+            recreate()
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewModel) {
+fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewModel, navigateToBattery: Boolean = false) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val homeData by homeViewModel.uiState.collectAsState()
-    
+
     val isAccessGranted = homeData?.overview?.let { it.isShizukuActive || it.isRootActive } ?: false
+
+    LaunchedEffect(navigateToBattery) {
+        if (navigateToBattery) {
+            navController.navigate(Screen.Battery.route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
     
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()

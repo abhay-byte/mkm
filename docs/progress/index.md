@@ -1,6 +1,6 @@
 # MKM Project Progress
 
-> Last updated: 2026-05-03
+> Last updated: 2026-05-15
 
 ## Overview
 
@@ -16,7 +16,7 @@ MKM (Mobile Kernel Manager) is an Android system tuning and monitoring app built
 | GPU | | Basic GPU info |
 | Storage | | Storage usage display |
 | Power | | Power-related settings |
-| **Battery** | **In Progress** | Stats page done, notification system done |
+| **Battery** | **Implemented** | Stats page, notification, drain rates, configurable interval, drain-based percentages |
 | Overlay | | Floating system monitor overlay |
 | Settings | | App preferences |
 
@@ -25,10 +25,14 @@ MKM (Mobile Kernel Manager) is an Android system tuning and monitoring app built
 - Battery stats screen with hero card, drain rates, session breakdown
 - Battery notification toggle with persistent notification support
 - Navigation drawer with all screen destinations
+- **Configurable battery update interval** (2026-05-15): User can choose 5s–10min, default 30s (was 1s) to reduce battery usage. See [Issue #3](https://github.com/abhay-byte/mkm/issues/3).
+- **Drain-based screen on/off percentages** (2026-05-15): Session breakdown now shows battery drain attribution, not just time percentages.
+- **Temperature in notification** (2026-05-15): Added to expanded notification content.
 
 ## Recently Fixed
 
 - **Battery drawer navigation** (2026-05-03): Battery menu item was not clickable because it was gated behind `isAccessGranted` check. Added `Screen.Battery` to the always-enabled list in `MainActivity.kt`.
+- **Battery consumption** (2026-05-15): Default polling interval increased from 1s to 30s. App now uses much less battery while monitoring.
 
 ## In Progress / Planned
 
