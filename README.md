@@ -7,11 +7,29 @@
   
   Android kernel management and system monitoring application
 
-  [![Discord Users](https://img.shields.io/discord/1508147439729774802.svg?label=&labelColor=6A7EC2&color=7389D8&logo=discord&logoColor=FFFFFF)](https://discord.gg/tAj45MjRkU)
-  [![GitHub Downloads](https://img.shields.io/github/downloads/abhay-byte/mkm/total?label=downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/abhay-byte/mkm/releases)
-  [![GitHub Stars](https://img.shields.io/github/stars/abhay-byte/mkm?label=stars&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/abhay-byte/mkm/stargazers)
-  [![License: GPL v3](https://img.shields.io/github/license/abhay-byte/mkm?labelColor=27303D&color=818cf8)](LICENSE)
-  [![Languages](https://img.shields.io/github/languages/count/abhay-byte/mkm?label=Languages&logo=googleearth&labelColor=27303D&color=0D1117)](https://github.com/abhay-byte/mkm)
+  <p align="center">
+    <a href="https://discord.gg/tAj45MjRkU">
+      <img src="https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"/>
+    </a>
+    <a href="https://github.com/abhay-byte/mkm/releases">
+      <img src="https://img.shields.io/github/downloads/abhay-byte/mkm/total?style=for-the-badge&logo=github&color=0D1117&label=Downloads" alt="Downloads"/>
+    </a>
+    <a href="https://github.com/abhay-byte/mkm/stargazers">
+      <img src="https://img.shields.io/github/stars/abhay-byte/mkm?style=for-the-badge&logo=github&color=0D1117&label=Stars" alt="Stars"/>
+    </a>
+  </p>
+  
+  <p align="center">
+    <a href="LICENSE">
+      <img src="https://img.shields.io/badge/License-GPL%20v3-818cf8?style=for-the-badge" alt="License"/>
+    </a>
+    <a href="https://github.com/abhay-byte/mkm">
+      <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin"/>
+    </a>
+    <a href="https://github.com/abhay-byte/mkm/releases">
+      <img src="https://img.shields.io/github/v/release/abhay-byte/mkm?style=for-the-badge&logo=github&color=238636&label=Latest" alt="Latest Release"/>
+    </a>
+  </p>
 
   | | | | |
   | :---: | :---: | :---: | :---: |
@@ -114,8 +132,12 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 
 ## 💬 Join the Community
 
-[![Discord Users](https://img.shields.io/discord/1508147439729774802.svg?label=&labelColor=6A7EC2&color=7389D8&logo=discord&logoColor=FFFFFF)](https://discord.gg/tAj45MjRkU)
+<p align="center">
+  <a href="https://discord.gg/tAj45MjRkU">
+    <img src="https://img.shields.io/badge/Join%20Our%20Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white&labelColor=5865F2" alt="Join Discord" height="40"/>
+  </a>
+</p>
 
-Join our Discord server for support, feature requests, and discussions!
-
-**[Join the MKM Discord](https://discord.gg/tAj45MjRkU)**
+<p align="center">
+  Join our Discord server for support, feature requests, and discussions!
+</p>
