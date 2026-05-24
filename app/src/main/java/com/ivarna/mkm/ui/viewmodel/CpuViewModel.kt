@@ -8,6 +8,7 @@ import com.ivarna.mkm.data.provider.CpuProvider
 import com.ivarna.mkm.data.provider.ThermalProvider
 import com.ivarna.mkm.data.provider.ThermalStatus
 import com.ivarna.mkm.service.BootSettingsManager
+import com.ivarna.mkm.util.AppVisibilityMonitor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,18 +44,17 @@ class CpuViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             while (true) {
-                val status = withContext(Dispatchers.IO) {
-                    CpuProvider.getCpuStatus()
+                if (AppVisibilityMonitor.isForeground.value) {
+                    val status = withContext(Dispatchers.IO) {
+                        CpuProvider.getCpuStatus()
+                    }
+                    _cpuStatus.value = status
+                    
+                    val tStatus = withContext(Dispatchers.IO) {
+                        ThermalProvider.getThermalStatus(fetchLimit = false)
+                    }
+                    _thermalStatus.value = tStatus.copy(currentLimit = cachedLimit)
                 }
-                _cpuStatus.value = status
-                
-                val tStatus = withContext(Dispatchers.IO) {
-                    // Fast poll (no limit parsing)
-                    ThermalProvider.getThermalStatus(fetchLimit = false)
-                }
-                
-                _thermalStatus.value = tStatus.copy(currentLimit = cachedLimit)
-                
                 delay(2000)
             }
         }

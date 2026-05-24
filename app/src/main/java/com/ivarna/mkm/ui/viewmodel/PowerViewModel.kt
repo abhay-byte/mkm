@@ -10,6 +10,7 @@ import com.ivarna.mkm.data.model.PowerStatus
 import com.ivarna.mkm.data.provider.PowerCalibrationManager
 import com.ivarna.mkm.data.provider.PowerProvider
 import com.ivarna.mkm.shell.ShellManager
+import com.ivarna.mkm.util.AppVisibilityMonitor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,10 +57,14 @@ class PowerViewModel(application: Application) : AndroidViewModel(application) {
         monitoringJob?.cancel()
         monitoringJob = viewModelScope.launch {
             while (true) {
-                val currentMultiplier = calibrationManager.getMultiplier()
-                val currentInterval = calibrationManager.getUpdateInterval()
-                _powerStatus.value = powerProvider.getPowerStatus(currentMultiplier)
-                delay(currentInterval)
+                if (AppVisibilityMonitor.isForeground.value) {
+                    val currentMultiplier = calibrationManager.getMultiplier()
+                    val currentInterval = calibrationManager.getUpdateInterval()
+                    _powerStatus.value = powerProvider.getPowerStatus(currentMultiplier)
+                    delay(currentInterval)
+                } else {
+                    delay(5000)
+                }
             }
         }
     }

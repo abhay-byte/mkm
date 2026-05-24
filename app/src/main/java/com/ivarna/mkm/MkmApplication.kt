@@ -2,6 +2,7 @@ package com.ivarna.mkm
 
 import android.app.Application
 import com.ivarna.mkm.shell.ShizukuManager
+import com.ivarna.mkm.util.AppVisibilityMonitor
 import com.topjohnwu.superuser.Shell
 
 class MkmApplication : Application() {
@@ -20,7 +21,7 @@ class MkmApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         
-        // Initialize Shizuku for v1.1
         ShizukuManager.init(this)
+        AppVisibilityMonitor.init(this)
     }
 }

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.ivarna.mkm.data.model.GpuStatus
 import com.ivarna.mkm.data.provider.GpuProvider
 import com.ivarna.mkm.service.BootSettingsManager
+import com.ivarna.mkm.util.AppVisibilityMonitor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,11 +31,13 @@ class GpuViewModel(application: Application) : AndroidViewModel(application) {
     private fun startMonitoring() {
         viewModelScope.launch {
             while (true) {
-                val status = GpuProvider.getGpuStatus()
-                _gpuStatus.value = status.copy(
-                    setOnBoot = _bootEnabled.value,
-                    freezeValues = freezeValues
-                )
+                if (AppVisibilityMonitor.isForeground.value) {
+                    val status = GpuProvider.getGpuStatus()
+                    _gpuStatus.value = status.copy(
+                        setOnBoot = _bootEnabled.value,
+                        freezeValues = freezeValues
+                    )
+                }
                 delay(1000)
             }
         }

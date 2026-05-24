@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ivarna.mkm.data.HomeData
 import com.ivarna.mkm.data.SystemRepository
+import com.ivarna.mkm.util.AppVisibilityMonitor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,8 +25,12 @@ class HomeViewModel(private val repository: SystemRepository = SystemRepository(
     private fun startMonitoring() {
         viewModelScope.launch {
             while (true) {
-                _uiState.value = repository.getHomeData()
-                delay(2000) // Refresh every 2 seconds
+                if (AppVisibilityMonitor.isForeground.value) {
+                    _uiState.value = repository.getHomeData()
+                    delay(2000)
+                } else {
+                    delay(5000)
+                }
             }
         }
     }

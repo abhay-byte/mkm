@@ -9,7 +9,6 @@ import com.ivarna.mkm.data.model.BatteryInterval
 import com.ivarna.mkm.data.model.BatterySnapshot
 import com.ivarna.mkm.data.model.BatteryStats
 import com.ivarna.mkm.data.provider.BatteryProvider
-import com.ivarna.mkm.shell.ShellManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,6 +35,8 @@ class BatterySessionTracker(context: Context) {
         private const val PREFS_NAME = BatteryMonitorService.PREFS_NAME
         private const val PREF_UPDATE_INTERVAL = "battery_update_interval_ms"
         const val DEFAULT_UPDATE_INTERVAL_MS = 30_000L
+        const val SCREEN_OFF_INTERVAL_MS = 300_000L
+        private const val DEEP_SLEEP_CACHE_TTL_MS = 60_000L
     }
 
     private val appContext = context.applicationContext
@@ -59,6 +60,8 @@ class BatterySessionTracker(context: Context) {
     private var lastSnapshot: BatterySnapshot? = null
     private val intervals = mutableListOf<BatteryInterval>()
     private var isSessionActive = false
+    private var lastDeepSleepReadTimeMs = 0L
+    private var cachedDeepSleepMs = 0L
 
     // Interval bookkeeping
     private var pendingIntervalStartMs = 0L
@@ -80,7 +83,6 @@ class BatterySessionTracker(context: Context) {
                 Intent.ACTION_SCREEN_OFF -> onScreenOff()
                 Intent.ACTION_POWER_CONNECTED -> onPowerConnected()
                 Intent.ACTION_POWER_DISCONNECTED -> onPowerDisconnected()
-                Intent.ACTION_BATTERY_CHANGED -> onBatteryChanged()
             }
         }
     }
@@ -89,13 +91,12 @@ class BatterySessionTracker(context: Context) {
     // Public API
     // ------------------------------------------------------------------
 
-    fun start() {
+fun start() {
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_SCREEN_OFF)
             addAction(Intent.ACTION_POWER_CONNECTED)
             addAction(Intent.ACTION_POWER_DISCONNECTED)
-            addAction(Intent.ACTION_BATTERY_CHANGED)
         }
         appContext.registerReceiver(receiver, filter)
 
@@ -110,7 +111,6 @@ class BatterySessionTracker(context: Context) {
             if (isSessionActive) {
                 startNewSessionLocked(snap)
             } else {
-                // Still emit a reading so the UI isn't blank
                 emitFromSnapshotLocked(snap)
             }
         }
@@ -118,7 +118,12 @@ class BatterySessionTracker(context: Context) {
         pollJob = scope.launch {
             while (isActive) {
                 tick()
-                delay(getUpdateInterval())
+                val interval = if (isScreenOn) {
+                    getUpdateInterval()
+                } else {
+                    maxOf(getUpdateInterval(), SCREEN_OFF_INTERVAL_MS)
+                }
+                delay(interval)
             }
         }
     }
@@ -154,6 +159,9 @@ class BatterySessionTracker(context: Context) {
                 beginIntervalLocked(snap?.percent ?: sessionStartPercent, now)
             }
         }
+        scope.launch {
+            tick()
+        }
     }
 
     private fun onScreenOff() {
@@ -167,6 +175,9 @@ class BatterySessionTracker(context: Context) {
                 lastScreenChangeTimeMs = now
                 beginIntervalLocked(snap?.percent ?: sessionStartPercent, now)
             }
+        }
+        scope.launch {
+            tick()
         }
     }
 
@@ -194,16 +205,6 @@ class BatterySessionTracker(context: Context) {
             isScreenOn = powerManager.isInteractive
             lastScreenChangeTimeMs = now
             beginIntervalLocked(snap.percent, now)
-        }
-    }
-
-    private fun onBatteryChanged() {
-        synchronized(lock) {
-            val snap = provider.getSnapshot(appContext)
-            lastSnapshot = snap
-            if (!isSessionActive) {
-                emitFromSnapshotLocked(snap)
-            }
         }
     }
 
@@ -447,11 +448,11 @@ class BatterySessionTracker(context: Context) {
     // ------------------------------------------------------------------
 
     private fun readDeepSleepLocked(now: Long, screenOffMs: Long): Long {
-        // Try kernel suspend stats (unit: ms on most Android kernels)
-        val result = ShellManager.exec(
-            "cat /sys/power/suspend_stats/time 2>/dev/null || echo 0"
-        )
-        val kernelMs = result.stdout.trim().toLongOrNull() ?: 0L
+        if (now - lastDeepSleepReadTimeMs < DEEP_SLEEP_CACHE_TTL_MS && cachedDeepSleepMs > 0L) {
+            return cachedDeepSleepMs.coerceAtMost(screenOffMs)
+        }
+
+        val kernelMs = provider.getLastSuspendTimeMs()
 
         if (kernelMs > 0 && lastDeepSleepNs > 0) {
             val deltaMs = kernelMs - lastDeepSleepNs
@@ -459,17 +460,23 @@ class BatterySessionTracker(context: Context) {
                 accumulatedDeepSleepMs += deltaMs
             }
             lastDeepSleepNs = kernelMs
-            return accumulatedDeepSleepMs.coerceAtMost(screenOffMs)
+            cachedDeepSleepMs = accumulatedDeepSleepMs.coerceAtMost(screenOffMs)
+            lastDeepSleepReadTimeMs = now
+            return cachedDeepSleepMs
         }
 
         if (kernelMs > 0) {
             lastDeepSleepNs = kernelMs
             accumulatedDeepSleepMs = kernelMs
-            return accumulatedDeepSleepMs.coerceAtMost(screenOffMs)
+            cachedDeepSleepMs = accumulatedDeepSleepMs.coerceAtMost(screenOffMs)
+            lastDeepSleepReadTimeMs = now
+            return cachedDeepSleepMs
         }
 
-        // Fallback: estimate deep sleep as 85 % of screen-off time (typical).
-        return (screenOffMs * 0.85).toLong()
+        val estimated = (screenOffMs * 0.85).toLong()
+        cachedDeepSleepMs = estimated
+        lastDeepSleepReadTimeMs = now
+        return estimated
     }
 
     // ------------------------------------------------------------------
@@ -484,6 +491,8 @@ class BatterySessionTracker(context: Context) {
         accumulatedDeepSleepMs = 0L
         intervals.clear()
         lastDeepSleepNs = 0L
+        lastDeepSleepReadTimeMs = 0L
+        cachedDeepSleepMs = 0L
         pendingIntervalStartMs = sessionStartTimeMs
         pendingIntervalStartPercent = snap.percent
     }

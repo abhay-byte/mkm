@@ -34,6 +34,7 @@ class BatteryMonitorService : Service() {
         const val ACTION_OPEN_BATTERY = "com.ivarna.mkm.action.OPEN_BATTERY"
         const val PREFS_NAME = "battery_prefs"
         const val PREF_NOTIFICATION_ENABLED = "notification_enabled"
+        const val NOTIFICATION_THROTTLE_MS = 15_000L
         // Notification content customization
         const val PREF_NOTIF_SHOW_WATTAGE = "notif_show_wattage"
         const val PREF_NOTIF_SHOW_TEMPERATURE = "notif_show_temperature"
@@ -127,9 +128,14 @@ class BatteryMonitorService : Service() {
 
         notificationJob?.cancel()
         notificationJob = serviceScope.launch {
+            var lastNotificationTime = 0L
             tracker.stats.collect { stats ->
                 if (stats != null) {
-                    nm.show(stats)
+                    val now = System.currentTimeMillis()
+                    if (now - lastNotificationTime >= NOTIFICATION_THROTTLE_MS) {
+                        nm.show(stats)
+                        lastNotificationTime = now
+                    }
                 }
             }
         }

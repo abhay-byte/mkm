@@ -236,7 +236,6 @@ class OverlayService : Service() {
                 val data = repository.getHomeData(calibrationManager.getMultiplier())
                 uiState.value = data
                 
-                // Update History for Sparklines
                 data?.let { h ->
                     updateHistory("cpu_usage", h.cpu.overallUsage)
                     updateHistory("cpu_freq", h.cpu.overallUsage) 
@@ -249,7 +248,7 @@ class OverlayService : Service() {
                     updateHistory("battery_percent", h.power.batteryPercent / 100f)
                 }
                 
-                delay(updateIntervalState)
+                delay(maxOf(updateIntervalState, 3000L))
             }
         }
     }

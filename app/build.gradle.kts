@@ -100,6 +100,7 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.10.0")
     implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-process:2.8.7")
 
     // Shizuku API & Provider - Enabled for v1.1
     implementation("dev.rikka.shizuku:api:13.1.5")

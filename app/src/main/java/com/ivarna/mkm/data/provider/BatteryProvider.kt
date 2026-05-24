@@ -5,36 +5,38 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
 import com.ivarna.mkm.data.model.BatterySnapshot
-import com.ivarna.mkm.shell.PowerScripts
 import com.ivarna.mkm.shell.ShellManager
 
-/**
- * Provides raw battery readings from the Android framework and kernel sysfs.
- * Single-responsibility: read current battery state, no session logic.
- *
- * Priority for current/voltage: Root/sysfs shell → BatteryManager framework.
- * This gives more accurate instantaneous readings when elevated access is available.
- *
- * Wattage preserves polarity (negative = discharging, positive = charging)
- * and is calibrated via [PowerCalibrationManager] so it matches the overlay / power page.
- */
 class BatteryProvider(context: Context) {
 
     private val appContext = context.applicationContext
     private val calibrationManager = PowerCalibrationManager(appContext)
 
-    // Cache last known good values to avoid flickering to 0 when a single
-    // sysfs / BatteryManager read returns 0.
     private var lastCurrentMa = 0
     private var lastVoltageMv = 0
     private var lastZeroReadTime = 0L
     private val ZERO_STALENESS_MS = 5_000L
 
-    /**
-     * Reads the current battery state using the sticky [ACTION_BATTERY_CHANGED] broadcast
-     * plus supplemental sysfs readings for current, voltage, and capacity.
-     */
+    private var cachedSnapshot: BatterySnapshot? = null
+    private var cacheTimeMs = 0L
+    private val CACHE_TTL_MS = 5_000L
+
+    private var lastShellSnapshot: ShellBatteryReadings? = null
+    private var shellCacheTimeMs = 0L
+    private val SHELL_CACHE_TTL_MS = 2_000L
+
     fun getSnapshot(context: Context): BatterySnapshot {
+        val now = System.currentTimeMillis()
+        cachedSnapshot?.let {
+            if (now - cacheTimeMs < CACHE_TTL_MS) return it
+        }
+        val snap = computeSnapshot(context)
+        cachedSnapshot = snap
+        cacheTimeMs = now
+        return snap
+    }
+
+    private fun computeSnapshot(context: Context): BatterySnapshot {
         val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
             ?: return BatterySnapshot(0, 0f, 0, 0, false)
 
@@ -49,17 +51,14 @@ class BatteryProvider(context: Context) {
         val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0)
         val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || plugged != 0
 
-        // --- Root-first readings from sysfs ---
-        val sysfs = readSysfsPowerSupply()
+        val shellReadings = readShellBatteryData()
 
-        var rawCurrentMa = sysfs.currentUa?.let { (it / 1000).toInt() }
+        var rawCurrentMa = shellReadings.sysfsCurrentUa?.let { (it / 1000).toInt() }
             ?: readCurrentFromBatteryManager(context)
 
-        var rawVoltageMv = sysfs.voltageUv?.let { (it / 1000).toInt() }
+        var rawVoltageMv = shellReadings.sysfsVoltageUv?.let { (it / 1000).toInt() }
             ?: intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0)
 
-        // --- Sign correction: some OEMs (Samsung, MediaTek) always report
-        // positive current magnitude. Flip sign so it matches charging state.
         if (rawCurrentMa != 0) {
             val signMatchesState = (isCharging && rawCurrentMa > 0) || (!isCharging && rawCurrentMa < 0)
             if (!signMatchesState) {
@@ -67,8 +66,6 @@ class BatteryProvider(context: Context) {
             }
         }
 
-        // --- Zero-read smoothing: if current or voltage is 0, reuse the last
-        // known good value for up to 5 seconds to avoid UI flickering.
         val now = System.currentTimeMillis()
         if (rawCurrentMa == 0 && lastCurrentMa != 0 && (now - lastZeroReadTime) < ZERO_STALENESS_MS) {
             rawCurrentMa = lastCurrentMa
@@ -77,7 +74,6 @@ class BatteryProvider(context: Context) {
             rawVoltageMv = lastVoltageMv
         }
 
-        // Update cache
         if (rawCurrentMa != 0) lastCurrentMa = rawCurrentMa
         if (rawVoltageMv != 0) lastVoltageMv = rawVoltageMv
         if (rawCurrentMa == 0 || rawVoltageMv == 0) {
@@ -89,44 +85,19 @@ class BatteryProvider(context: Context) {
         val currentMa = rawCurrentMa
         val voltageMv = rawVoltageMv
 
-        // --- Wattage: use the exact same script + parsing as PowerProvider /
-        // overlay so the value is stable and consistent across the app.
-        // Note: do NOT gate on isSuccess — PowerProvider doesn't either.
-        // The shell may exit non-zero for harmless reasons (stderr, glob)
-        // while still printing valid values to stdout.
-        val powerResult = ShellManager.exec(PowerScripts.getPowerAndVoltage())
-        var powerW = 0f
-        val output = powerResult.stdout.trim()
-        if (output.isNotBlank()) {
-            val powerParts = output.split(" ")
-            if (powerParts.size >= 2) {
-                val currentRaw = powerParts[0].toLongOrNull() ?: 0L
-                val voltageRaw = powerParts[1].toLongOrNull() ?: 0L
-                if (currentRaw != 0L && voltageRaw != 0L) {
-                    val currentUa = kotlin.math.abs(currentRaw)
-                    val voltageUv = voltageRaw
-                    val powerUw = (currentUa * voltageUv) / 1_000_000L
-                    powerW = powerUw / 1_000_000f
-                }
-            }
-        }
+        var powerW = shellReadings.powerW ?: 0f
 
-        // Fallback: if the shell script returned 0, compute from the
-        // currentMa / voltageMv we already have (includes BatteryManager
-        // fallback and zero-read smoothing).
         if (powerW == 0f && currentMa != 0 && voltageMv != 0) {
             powerW = kotlin.math.abs(currentMa).toFloat() * voltageMv.toFloat() / 1_000_000f
         }
 
         val multiplier = calibrationManager.getMultiplier()
-        // Apply polarity based on charging state from the battery intent.
         val wattageW = if (isCharging) powerW else -powerW
         val calibratedWattageW = wattageW * multiplier
 
-        var ratedCapacityMah = sysfs.chargeFullDesignUa?.let { (it / 1000).toInt() } ?: 0
-        var estimatedCapacityMah = sysfs.chargeFullUa?.let { (it / 1000).toInt() } ?: 0
+        var ratedCapacityMah = shellReadings.sysfsChargeFullDesignUa?.let { (it / 1000).toInt() } ?: 0
+        var estimatedCapacityMah = shellReadings.sysfsChargeFullUa?.let { (it / 1000).toInt() } ?: 0
 
-        // Non-root fallback: estimate capacity from BatteryManager charge counter
         if (estimatedCapacityMah == 0) {
             val fallback = readCapacityFromBatteryManager(context, percent)
             estimatedCapacityMah = fallback.estimatedMah
@@ -149,13 +120,14 @@ class BatteryProvider(context: Context) {
         )
     }
 
-    /**
-     * Reads current, voltage, and capacity from kernel power-supply sysfs via shell.
-     * Uses the same first-valid-power-supply logic as PowerProvider for consistency.
-     */
-    private fun readSysfsPowerSupply(): SysfsReadings {
+    private fun readShellBatteryData(): ShellBatteryReadings {
+        val now = System.currentTimeMillis()
+        lastShellSnapshot?.let {
+            if (now - shellCacheTimeMs < SHELL_CACHE_TTL_MS) return it
+        }
+
         val script = """
-            current=0; voltage=0; charge_full=0; charge_full_design=0
+            current=0; voltage=0; charge_full=0; charge_full_design=0; p_current=0; p_voltage=0
             for ps in /sys/class/power_supply/*; do
                 if [ ${'$'}current -eq 0 ] && [ -e "${'$'}ps/current_now" ] && [ -e "${'$'}ps/voltage_now" ]; then
                     current=${'$'}(cat "${'$'}ps/current_now")
@@ -167,44 +139,62 @@ class BatteryProvider(context: Context) {
                 if [ ${'$'}charge_full_design -eq 0 ] && [ -e "${'$'}ps/charge_full_design" ]; then
                     charge_full_design=${'$'}(cat "${'$'}ps/charge_full_design")
                 fi
+                if [ ${'$'}p_current -eq 0 ] && [ -e "${'$'}ps/current_now" ] && [ -e "${'$'}ps/voltage_now" ]; then
+                    p_current=${'$'}(cat "${'$'}ps/current_now")
+                    p_voltage=${'$'}(cat "${'$'}ps/voltage_now")
+                fi
             done
-            echo "${'$'}current ${'$'}voltage ${'$'}charge_full ${'$'}charge_full_design"
+            suspend_time=${'$'}(cat /sys/power/suspend_stats/time 2>/dev/null || echo 0)
+            echo "${'$'}current ${'$'}voltage ${'$'}charge_full ${'$'}charge_full_design ${'$'}p_current ${'$'}p_voltage ${'$'}suspend_time"
         """.trimIndent()
 
         val result = ShellManager.exec(script)
-        if (!result.isSuccess) return SysfsReadings()
+        val output = result.stdout.trim()
 
-        val parts = result.stdout.trim().split(" ")
-        if (parts.size < 4) return SysfsReadings()
+        val readings = if (output.isNotBlank()) {
+            val parts = output.split(" ")
+            val currentUa = parts.getOrNull(0)?.toLongOrNull()?.takeIf { it != 0L }
+            val voltageUv = parts.getOrNull(1)?.toLongOrNull()?.takeIf { it != 0L }
+            val chargeFullUa = parts.getOrNull(2)?.toLongOrNull()?.takeIf { it != 0L }
+            val chargeFullDesignUa = parts.getOrNull(3)?.toLongOrNull()?.takeIf { it != 0L }
+            val pCurrentRaw = parts.getOrNull(4)?.toLongOrNull() ?: 0L
+            val pVoltageRaw = parts.getOrNull(5)?.toLongOrNull() ?: 0L
 
-        return SysfsReadings(
-            currentUa = parts[0].toLongOrNull()?.takeIf { it != 0L },
-            voltageUv = parts[1].toLongOrNull()?.takeIf { it != 0L },
-            chargeFullUa = parts[2].toLongOrNull()?.takeIf { it != 0L },
-            chargeFullDesignUa = parts[3].toLongOrNull()?.takeIf { it != 0L }
-        )
+            var powerW = 0f
+            if (pCurrentRaw != 0L && pVoltageRaw != 0L) {
+                val currentUa = kotlin.math.abs(pCurrentRaw)
+                val voltageUv = pVoltageRaw
+                val powerUw = (currentUa * voltageUv) / 1_000_000L
+                powerW = powerUw / 1_000_000f
+            }
+
+            val suspendTimeMs = parts.getOrNull(6)?.toLongOrNull() ?: 0L
+
+            ShellBatteryReadings(
+                sysfsCurrentUa = currentUa,
+                sysfsVoltageUv = voltageUv,
+                sysfsChargeFullUa = chargeFullUa,
+                sysfsChargeFullDesignUa = chargeFullDesignUa,
+                powerW = powerW,
+                suspendTimeMs = suspendTimeMs
+            )
+        } else {
+            ShellBatteryReadings()
+        }
+
+        lastShellSnapshot = readings
+        shellCacheTimeMs = now
+        return readings
     }
 
-    /**
-     * Non-root fallback for current via [BatteryManager].
-     */
+    fun getLastSuspendTimeMs(): Long = lastShellSnapshot?.suspendTimeMs ?: 0L
+
     private fun readCurrentFromBatteryManager(context: Context): Int {
         val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
         val currentNow = batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW) ?: 0
         return if (currentNow != 0) currentNow / 1000 else 0
     }
 
-    /**
-     * Non-root fallback for battery capacity.
-     *
-     * Uses [BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER] (remaining charge in µAh)
-     * combined with the current percentage to estimate full capacity.
-     *
-     * Formula: estimatedFullCapacityMah = (chargeCounter µAh) / (percent / 100) / 1000
-     *
-     * For rated/design capacity there is no standard non-root API;
-     * we fall back to the estimated capacity.
-     */
     private fun readCapacityFromBatteryManager(context: Context, percent: Int): CapacityFallback {
         if (percent <= 0) return CapacityFallback(0, 0)
         val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
@@ -212,26 +202,26 @@ class BatteryProvider(context: Context) {
 
         val chargeCounterUa = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER)
         if (chargeCounterUa == Int.MIN_VALUE || chargeCounterUa <= 0) {
-            // Some OEMs (MediaTek, Samsung Exynos) don't expose this property.
             return CapacityFallback(0, 0)
         }
 
-        // chargeCounter is in µAh. Convert to mAh and extrapolate to 100%.
         val remainingMah = chargeCounterUa / 1000f
         val estimatedFullMah = (remainingMah / percent * 100).toInt()
 
         return CapacityFallback(
             estimatedMah = estimatedFullMah,
-            ratedMah = estimatedFullMah // best non-root approximation
+            ratedMah = estimatedFullMah
         )
     }
 
     private data class CapacityFallback(val estimatedMah: Int, val ratedMah: Int)
 
-    private data class SysfsReadings(
-        val currentUa: Long? = null,
-        val voltageUv: Long? = null,
-        val chargeFullUa: Long? = null,
-        val chargeFullDesignUa: Long? = null
+    private data class ShellBatteryReadings(
+        val sysfsCurrentUa: Long? = null,
+        val sysfsVoltageUv: Long? = null,
+        val sysfsChargeFullUa: Long? = null,
+        val sysfsChargeFullDesignUa: Long? = null,
+        val powerW: Float = 0f,
+        val suspendTimeMs: Long = 0L
     )
 }

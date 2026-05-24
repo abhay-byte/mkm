@@ -8,6 +8,7 @@ import com.ivarna.mkm.data.model.StorageStatus
 import com.ivarna.mkm.service.BootSettingsManager
 import com.ivarna.mkm.shell.ShellManager
 import com.ivarna.mkm.shell.UfsScripts
+import com.ivarna.mkm.util.AppVisibilityMonitor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,8 +41,10 @@ class StorageViewModel(application: Application) : AndroidViewModel(application)
     private fun startMonitoring() {
         viewModelScope.launch {
             while (true) {
-                _uiState.value = repository.getStorageStatus()
-                delay(5000) 
+                if (AppVisibilityMonitor.isForeground.value) {
+                    _uiState.value = repository.getStorageStatus()
+                }
+                delay(5000)
             }
         }
     }

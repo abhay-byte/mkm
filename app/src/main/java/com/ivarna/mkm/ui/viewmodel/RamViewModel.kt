@@ -9,6 +9,7 @@ import com.ivarna.mkm.data.SystemRepository
 import com.ivarna.mkm.service.BootSettingsManager
 import com.ivarna.mkm.shell.ShellManager
 import com.ivarna.mkm.shell.ShellScripts
+import com.ivarna.mkm.util.AppVisibilityMonitor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,8 +73,10 @@ class RamViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             while (true) {
-                _uiState.value = repository.getRamData()
-                delay(2000) // Refresh every 2 seconds
+                if (AppVisibilityMonitor.isForeground.value) {
+                    _uiState.value = repository.getRamData()
+                }
+                delay(2000)
             }
         }
     }
