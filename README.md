@@ -1,6 +1,10 @@
 <div align="center">
   <img src="assets/logo.png" alt="MKM Logo" width="120"/>
   
+  <a href="https://f-droid.org/packages/com.ivarna.fluxlinux">
+    <img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="80"/>
+  </a>
+  
   # Minimal Kernel Manager (MKM)
   
   **Package:** `com.ivarna.mkm`
