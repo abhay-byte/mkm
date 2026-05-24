@@ -7,7 +7,11 @@
   
   Android kernel management and system monitoring application
 
-  [![Discord](https://img.shields.io/discord/1508147439729774802?label=Discord&logo=discord&color=5865F2&style=flat-square)](https://discord.gg/tAj45MjRkU) [![License](https://img.shields.io/github/license/abhay-byte/mkm?label=License&color=green&style=flat-square)](LICENSE)
+  [![Discord Users](https://img.shields.io/discord/1508147439729774802.svg?label=&labelColor=6A7EC2&color=7389D8&logo=discord&logoColor=FFFFFF)](https://discord.gg/tAj45MjRkU)
+  [![GitHub Downloads](https://img.shields.io/github/downloads/abhay-byte/mkm/total?label=downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/abhay-byte/mkm/releases)
+  [![GitHub Stars](https://img.shields.io/github/stars/abhay-byte/mkm?label=stars&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/abhay-byte/mkm/stargazers)
+  [![License: GPL v3](https://img.shields.io/github/license/abhay-byte/mkm?labelColor=27303D&color=818cf8)](LICENSE)
+  [![Languages](https://img.shields.io/github/languages/count/abhay-byte/mkm?label=Languages&logo=googleearth&labelColor=27303D&color=0D1117)](https://github.com/abhay-byte/mkm)
 
   | | | | |
   | :---: | :---: | :---: | :---: |
@@ -110,8 +114,8 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 
 ## 💬 Join the Community
 
-[![Discord](https://img.shields.io/discord/1508147439729774802?label=Discord&logo=discord&color=5865F2&style=for-the-badge)](https://discord.gg/tAj45MjRkU)
+[![Discord Users](https://img.shields.io/discord/1508147439729774802.svg?label=&labelColor=6A7EC2&color=7389D8&logo=discord&logoColor=FFFFFF)](https://discord.gg/tAj45MjRkU)
 
 Join our Discord server for support, feature requests, and discussions!
 
-[**Join the MKM Discord**](https://discord.gg/tAj45MjRkU)
+**[Join the MKM Discord](https://discord.gg/tAj45MjRkU)**
