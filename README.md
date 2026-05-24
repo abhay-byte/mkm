@@ -103,3 +103,13 @@ MKM requires elevated system access via one of the following methods:
 ## 📄 License
 
 This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 💬 Join the Community
+
+[![Discord](https://img.shields.io/discord/1360891286828027955?label=Discord&logo=discord&color=5865F2&style=for-the-badge)](https://discord.gg/tAj45MjRkU)
+
+Join our Discord server for support, feature requests, and discussions!
+
+[**Join the MKM Discord**](https://discord.gg/tAj45MjRkU)
