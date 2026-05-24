@@ -7,6 +7,8 @@
     <img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="80"/>
   </a>
   
+  <br/>
+  
   # Minimal Kernel Manager (MKM)
   
   **Package:** `com.ivarna.mkm`
