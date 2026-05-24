@@ -7,6 +7,8 @@
   
   Android kernel management and system monitoring application
 
+  [![Discord](https://img.shields.io/discord/1508147439729774802?label=Discord&logo=discord&color=5865F2&style=flat-square)](https://discord.gg/tAj45MjRkU) [![License](https://img.shields.io/github/license/abhay-byte/mkm?label=License&color=green&style=flat-square)](LICENSE)
+
   | | | | |
   | :---: | :---: | :---: | :---: |
   | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width="160"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" width="160"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" width="160"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" width="160"> |
@@ -108,7 +110,7 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 
 ## 💬 Join the Community
 
-[![Discord](https://img.shields.io/discord/1360891286828027955?label=Discord&logo=discord&color=5865F2&style=for-the-badge)](https://discord.gg/tAj45MjRkU)
+[![Discord](https://img.shields.io/discord/1508147439729774802?label=Discord&logo=discord&color=5865F2&style=for-the-badge)](https://discord.gg/tAj45MjRkU)
 
 Join our Discord server for support, feature requests, and discussions!
 
