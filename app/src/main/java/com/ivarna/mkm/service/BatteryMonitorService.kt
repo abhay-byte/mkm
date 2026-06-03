@@ -43,16 +43,23 @@ class BatteryMonitorService : Service() {
         const val PREF_NOTIF_SHOW_TIME_LEFT = "notif_show_time_left"
         const val PREF_NOTIF_SHOW_CURRENT = "notif_show_current"
         const val PREF_NOTIF_SHOW_VOLTAGE = "notif_show_voltage"
-        // Expanded notification content customization
+        // Expanded notification content — discharging
         const val PREF_NOTIF_EXP_TEMP_VOLTAGE = "notif_exp_temp_voltage"
-        const val PREF_NOTIF_EXP_POWER = "notif_exp_power"
-        const val PREF_NOTIF_EXP_DRAIN = "notif_exp_drain"
-        const val PREF_NOTIF_EXP_TIME_LEFT = "notif_exp_time_left"
-        const val PREF_NOTIF_EXP_SCREEN_ON = "notif_exp_screen_on"
-        const val PREF_NOTIF_EXP_SCREEN_OFF = "notif_exp_screen_off"
-        const val PREF_NOTIF_EXP_DEEP_SLEEP = "notif_exp_deep_sleep"
-        const val PREF_NOTIF_EXP_AWAKE = "notif_exp_awake"
-        const val PREF_NOTIF_EXP_SHOW_MAH = "notif_exp_show_mah"
+        const val PREF_NOTIF_EXP_POWER        = "notif_exp_power"
+        const val PREF_NOTIF_EXP_DRAIN        = "notif_exp_drain"
+        const val PREF_NOTIF_EXP_TIME_LEFT    = "notif_exp_time_left"
+        const val PREF_NOTIF_EXP_SCREEN_ON    = "notif_exp_screen_on"
+        const val PREF_NOTIF_EXP_SCREEN_OFF   = "notif_exp_screen_off"
+        const val PREF_NOTIF_EXP_DEEP_SLEEP   = "notif_exp_deep_sleep"
+        const val PREF_NOTIF_EXP_AWAKE        = "notif_exp_awake"
+        const val PREF_NOTIF_EXP_SHOW_MAH     = "notif_exp_show_mah"
+        // Expanded notification content — charging (keys match ChargingNotificationSettingsScreen)
+        const val PREF_NOTIF_CHG_SHOW_POWER    = "notif_chg_show_power"
+        const val PREF_NOTIF_CHG_SHOW_CURRENT  = "notif_chg_show_current"
+        const val PREF_NOTIF_CHG_SHOW_TEMP     = "notif_chg_show_temp"
+        const val PREF_NOTIF_CHG_SHOW_GAINED   = "notif_chg_show_gained"
+        const val PREF_NOTIF_CHG_SHOW_DURATION = "notif_chg_show_duration"
+        const val PREF_NOTIF_CHG_SHOW_ETA      = "notif_chg_show_time_full"
     }
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

@@ -110,8 +110,16 @@ class BatteryNotificationManager(context: Context) {
         if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_SHOW_TEMPERATURE, false)) {
             parts.add(String.format("%.1f°C", stats.temperatureC))
         }
-        if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_SHOW_DRAIN, false) && stats.isSessionActive) {
-            parts.add(String.format("%.2f%%/hr", stats.activeDrainPerHr))
+        if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_SHOW_DRAIN, false)) {
+            if (stats.isCharging) {
+                // Show charge gain rate (%/hr) instead of drain rate during charging
+                val sessionHours = stats.totalSessionTimeMs / 3_600_000f
+                val gainRatePerHr = if (sessionHours > 0.001f && stats.chargingGainedPercent > 0)
+                    stats.chargingGainedPercent / sessionHours else 0f
+                if (gainRatePerHr > 0f) parts.add(String.format("+%.1f%%/hr", gainRatePerHr))
+            } else if (stats.isSessionActive) {
+                parts.add(String.format("%.2f%%/hr", stats.activeDrainPerHr))
+            }
         }
         if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_SHOW_TIME_LEFT, false) && stats.estimatedTimeRemainingMin > 0) {
             val h = stats.estimatedTimeRemainingMin / 60
@@ -119,7 +127,13 @@ class BatteryNotificationManager(context: Context) {
             parts.add(if (h > 0) "${h}h${m}m" else "${m}m")
         }
         if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_SHOW_CURRENT, false)) {
-            parts.add("${kotlin.math.abs(stats.currentMa)}mA")
+            var currentMa = kotlin.math.abs(stats.currentMa)
+            // Fallback: if sensor reports 0 but wattage+voltage are known, derive current
+            if (currentMa == 0 && stats.voltageMv > 0 && stats.calibratedWattageW != 0f) {
+                val rawW = kotlin.math.abs(stats.wattageW)
+                currentMa = ((rawW * 1_000f) / stats.voltageMv).toInt()
+            }
+            parts.add("${currentMa}mA")
         }
         if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_SHOW_VOLTAGE, false)) {
             parts.add("${stats.voltageMv}mV")
@@ -173,30 +187,33 @@ class BatteryNotificationManager(context: Context) {
     private fun buildContentText(stats: BatteryStats): String {
         return buildString {
             if (stats.isCharging) {
-                // Rich charging session content — always show key metrics for charging
+                // Rich charging session content — each line gated by its own pref
                 val powerW = if (stats.calibratedWattageW != 0f) stats.calibratedWattageW
                              else if (stats.wattageW != 0f) stats.wattageW else 0f
-                val currentMa = kotlin.math.abs(stats.currentMa)
+                var currentMa = kotlin.math.abs(stats.currentMa)
+                // Fallback: derive from wattage + voltage if sensor returns 0
+                if (currentMa == 0 && stats.voltageMv > 0 && powerW != 0f) {
+                    val rawW = kotlin.math.abs(stats.wattageW)
+                    currentMa = ((rawW * 1_000f) / stats.voltageMv).toInt()
+                }
 
-                // Temperature is always shown for charging
-                appendLine("Temperature: ${String.format("%.1f", stats.temperatureC)}°C · ${stats.voltageMv} mV")
-
-                if (powerW > 0f) {
+                if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_CHG_SHOW_TEMP, true)) {
+                    appendLine("Temperature: ${String.format("%.1f", stats.temperatureC)}°C · ${stats.voltageMv} mV")
+                }
+                if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_CHG_SHOW_POWER, true) && powerW > 0f) {
                     appendLine("Charging power: ${String.format("+%.2f", powerW)} W")
                 }
-                if (currentMa > 50) {
-                    appendLine("Charge current: ${currentMa} mA")
+                if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_CHG_SHOW_CURRENT, true)) {
+                    if (currentMa > 0) appendLine("Charge current: $currentMa mA")
+                    if (stats.chargingAvgCurrentMa > 0) appendLine("Avg current: ${stats.chargingAvgCurrentMa} mA")
                 }
-                if (stats.chargingAvgCurrentMa > 0) {
-                    appendLine("Avg current: ${stats.chargingAvgCurrentMa} mA")
-                }
-                if (stats.chargingGainedPercent > 0) {
+                if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_CHG_SHOW_GAINED, true) && stats.chargingGainedPercent > 0) {
                     appendLine("Gained: +${stats.chargingGainedPercent}% (${stats.chargingSessionStartPercent}% → ${stats.percent}%)")
                 }
-                if (stats.totalSessionTimeMs > 0) {
+                if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_CHG_SHOW_DURATION, true) && stats.totalSessionTimeMs > 0) {
                     appendLine("Charging for: ${formatDuration(stats.totalSessionTimeMs)}")
                 }
-                if (stats.estimatedTimeRemainingMin > 0) {
+                if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_CHG_SHOW_ETA, true) && stats.estimatedTimeRemainingMin > 0) {
                     val h = stats.estimatedTimeRemainingMin / 60
                     val m = stats.estimatedTimeRemainingMin % 60
                     appendLine("Est. full in: ${if (h > 0) "${h}h ${m}m" else "${m}m"}")
