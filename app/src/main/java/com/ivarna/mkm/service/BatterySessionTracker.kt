@@ -10,6 +10,8 @@ import com.ivarna.mkm.data.model.BatterySnapshot
 import com.ivarna.mkm.data.model.BatteryStats
 import com.ivarna.mkm.data.model.SessionType
 import com.ivarna.mkm.data.provider.BatteryProvider
+import com.ivarna.mkm.data.provider.PowerCalibrationManager
+import com.ivarna.mkm.data.provider.PowerProvider
 import com.ivarna.mkm.utils.BatteryHistoryManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,6 +45,9 @@ class BatterySessionTracker(context: Context) {
 
     private val appContext = context.applicationContext
     private val provider = BatteryProvider(appContext)
+    // Use the same PowerProvider as Settings/Overlay so wattage values are consistent
+    private val powerProvider = PowerProvider(appContext)
+    private val calibrationManager = PowerCalibrationManager(appContext)
     private val powerManager = appContext.getSystemService(Context.POWER_SERVICE) as PowerManager
     private val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val historyManager = BatteryHistoryManager(appContext)
@@ -86,6 +91,9 @@ class BatterySessionTracker(context: Context) {
     private val drainHistory = mutableListOf<Float>()
     private var lastWattageW = 0f
     private var lastDrain = 0f
+    // Dynamic peak for sparkline normalisation — tracks the highest wattage magnitude
+    // seen in the current session window so the graph never clips regardless of calibration.
+    private var peakWattageW = 1f // floor of 1 W avoids division-by-zero on idle
 
     private val _stats = MutableStateFlow<BatteryStats?>(null)
     val stats: StateFlow<BatteryStats?> = _stats.asStateFlow()
@@ -250,7 +258,25 @@ fun start() {
     // ------------------------------------------------------------------
 
     private suspend fun tick() {
-        val snap = provider.getSnapshot(appContext)
+        val rawSnap = provider.getSnapshot(appContext)
+
+        // Read power from the same PowerProvider used by Settings/Overlay.
+        // This eliminates divergence between the two independent sysfs read paths.
+        val multiplier = calibrationManager.getMultiplier()
+        val powerStatus = powerProvider.getPowerStatus(multiplier)
+
+        // Derive signed wattage from PowerProvider's unsigned calibratedPowerW
+        val calibratedW = if (powerStatus.isCharging) powerStatus.calibratedPowerW
+                          else -powerStatus.calibratedPowerW
+        val rawW = if (powerStatus.isCharging) powerStatus.powerW
+                   else -powerStatus.powerW
+
+        // Overlay the authoritative power values onto the battery snapshot
+        val snap = rawSnap.copy(
+            wattageW = rawW,
+            calibratedWattageW = calibratedW,
+            calibrationMultiplier = multiplier
+        )
         val now = System.currentTimeMillis()
 
         synchronized(lock) {
@@ -303,10 +329,11 @@ fun start() {
         if (wattageSamples.size > MAX_HISTORY) wattageSamples.removeAt(0)
         if (temperatureSamples.size > MAX_HISTORY) temperatureSamples.removeAt(0)
 
-        // Update rolling history (use magnitude for sparkline)
+        // Update rolling history — normalise by the dynamic session peak, not a hardcoded cap.
         lastWattageW = kotlin.math.abs(snap.calibratedWattageW)
         lastDrain = activeDrain.coerceAtLeast(0f)
-        wattageHistory.add((lastWattageW / 10f).coerceIn(0f, 1f))
+        if (lastWattageW > peakWattageW) peakWattageW = lastWattageW
+        wattageHistory.add((lastWattageW / peakWattageW).coerceIn(0f, 1f))
         drainHistory.add((lastDrain / 20f).coerceIn(0f, 1f))
         if (wattageHistory.size > MAX_HISTORY) wattageHistory.removeAt(0)
         if (drainHistory.size > MAX_HISTORY) drainHistory.removeAt(0)
@@ -399,7 +426,8 @@ fun start() {
     @Suppress("unused")
     private fun emitFromSnapshotLocked(snap: BatterySnapshot) {
         lastWattageW = kotlin.math.abs(snap.calibratedWattageW)
-        wattageHistory.add((lastWattageW / 10f).coerceIn(0f, 1f))
+        if (lastWattageW > peakWattageW) peakWattageW = lastWattageW
+        wattageHistory.add((lastWattageW / peakWattageW).coerceIn(0f, 1f))
         if (wattageHistory.size > MAX_HISTORY) wattageHistory.removeAt(0)
         computeAndEmitLocked(System.currentTimeMillis())
     }
@@ -529,6 +557,8 @@ fun start() {
         currentSamples.clear()
         wattageSamples.clear()
         temperatureSamples.clear()
+        // Reset sparkline peak so the new session scales independently
+        peakWattageW = 1f
     }
 
     private fun accumulateScreenOnLocked(now: Long) {

@@ -92,8 +92,12 @@ class BatteryProvider(context: Context) {
         }
 
         val multiplier = calibrationManager.getMultiplier()
+        // Apply multiplier to the unsigned magnitude first, then re-apply polarity.
+        // This keeps calibratedWattageW signed (+ve = charging, -ve = discharging)
+        // while ensuring the scale factor never interacts with the sign bit.
+        val calibratedPowerW = powerW * multiplier
         val wattageW = if (isCharging) powerW else -powerW
-        val calibratedWattageW = wattageW * multiplier
+        val calibratedWattageW = if (isCharging) calibratedPowerW else -calibratedPowerW
 
         var ratedCapacityMah = shellReadings.sysfsChargeFullDesignUa?.let { (it / 1000).toInt() } ?: 0
         var estimatedCapacityMah = shellReadings.sysfsChargeFullUa?.let { (it / 1000).toInt() } ?: 0

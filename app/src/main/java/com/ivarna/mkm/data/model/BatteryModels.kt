@@ -3,6 +3,12 @@ package com.ivarna.mkm.data.model
 /**
  * Raw battery snapshot at a point in time.
  * Decoupled from session logic — pure data.
+ *
+ * Wattage polarity contract:
+ *  - [wattageW]          raw watts, signed:       +ve = charging, -ve = discharging
+ *  - [calibratedWattageW] calibrated watts, signed: +ve = charging, -ve = discharging
+ *  - The calibration multiplier is applied to the **unsigned magnitude** before the sign
+ *    is re-applied, so scaling never interacts with the polarity bit.
  */
 data class BatterySnapshot(
     val percent: Int,
@@ -38,6 +44,10 @@ data class BatteryInterval(
 /**
  * Aggregated battery statistics exposed to the UI.
  * Immutable — produced by the session tracker.
+ *
+ * Wattage polarity contract (same as [BatterySnapshot]):
+ *  - [wattageW]          raw watts, signed:       +ve = charging, -ve = discharging
+ *  - [calibratedWattageW] calibrated watts, signed: +ve = charging, -ve = discharging
  */
 data class BatteryStats(
     val percent: Int,
