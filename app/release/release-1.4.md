@@ -1,4 +1,8 @@
-Changelog - MKM v1.4
+<div align="center">
+  <img src="https://raw.githubusercontent.com/abhay-byte/mkm/main/assets/logo.png" alt="MKM Logo" width="120"/>
+</div>
+
+# Changelog - MKM v1.4
 
 ## Version 1.4 (June 2026)
 ### ✨ New Features
