@@ -312,8 +312,8 @@ fun start() {
         val deepSleepDrainPercent = if (currentScreenOff > 0 && screenOffDrainPercent > 0f) {
             screenOffDrainPercent * (currentDeepSleepMs.toFloat() / currentScreenOff)
         } else 0f
-        // Awake drain = screen-off drain minus deep-sleep drain (both are absolute % points)
-        val awakeDrainPercent = (screenOffDrainPercent - deepSleepDrainPercent).coerceAtLeast(0f)
+        // Awake drain = all drain that isn't deep sleep (screenOn + screenOff - deepSleep)
+        val awakeDrainPercent = (screenOnDrainPercent + screenOffDrainPercent - deepSleepDrainPercent).coerceAtLeast(0f)
 
         // Track charging current samples for average
         if (isChargingSession && snap.currentMa != 0) {
@@ -617,7 +617,7 @@ fun start() {
         val deepSleepDrainPct = if (screenOff > 0 && offDrainPct > 0f) {
             offDrainPct * (deepSleep.toFloat() / screenOff)
         } else 0f
-        val awakeDrainPct = (offDrainPct - deepSleepDrainPct).coerceAtLeast(0f)
+        val awakeDrainPct = (onDrainPct + offDrainPct - deepSleepDrainPct).coerceAtLeast(0f)
         val (activeDrain, idleDrain, _) = computeDrainRatesLocked()
 
         val avgCurrent = if (currentSamples.isNotEmpty()) currentSamples.average().toInt() else 0

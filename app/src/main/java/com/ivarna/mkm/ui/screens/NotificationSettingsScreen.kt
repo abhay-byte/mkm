@@ -65,7 +65,6 @@ private val dischargingExpandedOptions = listOf(
     NotifOption(BatteryMonitorService.PREF_NOTIF_EXP_SCREEN_OFF, "Screen Off", true),
     NotifOption(BatteryMonitorService.PREF_NOTIF_EXP_DEEP_SLEEP, "Deep Sleep", true),
     NotifOption(BatteryMonitorService.PREF_NOTIF_EXP_AWAKE, "Awake", true),
-    NotifOption(BatteryMonitorService.PREF_NOTIF_EXP_SHOW_MAH, "Show mAh (capacity estimate)", false, "Append estimated mAh to each stat"),
 )
 
 // Charging expanded options — these always show unconditionally from the manager,

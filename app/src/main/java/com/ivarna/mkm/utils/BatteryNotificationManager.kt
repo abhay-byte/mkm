@@ -222,7 +222,6 @@ class BatteryNotificationManager(context: Context) {
                 if (length > 0 && last() == '\n') deleteCharAt(length - 1)
             } else if (stats.isSessionActive) {
                 // Discharging session content
-                val showMah = prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_EXP_SHOW_MAH, false)
                 if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_EXP_TEMP_VOLTAGE, true)) {
                     appendLine("Temperature: ${String.format("%.1f", stats.temperatureC)}°C · ${stats.voltageMv} mV")
                 }
@@ -238,20 +237,16 @@ class BatteryNotificationManager(context: Context) {
                     appendLine("Est. time left: ${h}h ${m}m")
                 }
                 if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_EXP_SCREEN_ON, true)) {
-                    val mah = mahStr(stats.screenOnDrainPercent, stats, showMah)
-                    appendLine("Screen on: ${formatDuration(stats.screenOnTimeMs)} (${String.format("%.1f", stats.screenOnDrainPercent)}% drain$mah)")
+                    appendLine("Screen on: ${formatDuration(stats.screenOnTimeMs)} (${String.format("%.1f", stats.screenOnDrainPercent)}% drain)")
                 }
                 if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_EXP_SCREEN_OFF, true)) {
-                    val mah = mahStr(stats.screenOffDrainPercent, stats, showMah)
-                    appendLine("Screen off: ${formatDuration(stats.screenOffTimeMs)} (${String.format("%.1f", stats.screenOffDrainPercent)}% drain$mah)")
+                    appendLine("Screen off: ${formatDuration(stats.screenOffTimeMs)} (${String.format("%.1f", stats.screenOffDrainPercent)}% drain)")
                 }
                 if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_EXP_DEEP_SLEEP, true)) {
-                    val mah = mahStr(stats.deepSleepDrainPercent, stats, showMah)
-                    appendLine("Deep sleep: ${formatDuration(stats.deepSleepTimeMs)} (${String.format("%.2f", stats.deepSleepDrainPercent)}% drain$mah)")
+                    appendLine("Deep sleep: ${formatDuration(stats.deepSleepTimeMs)} (${String.format("%.2f", stats.deepSleepDrainPercent)}% drain)")
                 }
                 if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_EXP_AWAKE, true)) {
-                    val mah = mahStr(stats.awakeDrainPercent, stats, showMah)
-                    append("Awake: ${formatDuration(stats.awakeTimeMs)} (${String.format("%.2f", stats.awakeDrainPercent)}% drain$mah)")
+                    append("Awake (non-sleep): ${formatDuration(stats.awakeTimeMs)} (${String.format("%.2f", stats.awakeDrainPercent)}% drain)")
                 }
                 // Remove trailing newline
                 if (length > 0 && last() == '\n') deleteCharAt(length - 1)
@@ -259,17 +254,6 @@ class BatteryNotificationManager(context: Context) {
         }
     }
 
-    /**
-     * Returns a formatted " · ~X mAh" suffix if showMah is true and capacity is known.
-     */
-    private fun mahStr(drainPercent: Float, stats: BatteryStats, showMah: Boolean): String {
-        if (!showMah || drainPercent <= 0f) return ""
-        val capacity = if (stats.estimatedCapacityMah > 0) stats.estimatedCapacityMah
-                       else if (stats.ratedCapacityMah > 0) stats.ratedCapacityMah
-                       else return ""
-        val mah = (drainPercent / 100f * capacity).toInt()
-        return " · ~${mah} mAh"
-    }
 
     private fun openBatteryPendingIntent(): PendingIntent {
         val intent = Intent(appContext, MainActivity::class.java).apply {
