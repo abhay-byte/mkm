@@ -265,10 +265,15 @@ fun start() {
         val multiplier = calibrationManager.getMultiplier()
         val powerStatus = powerProvider.getPowerStatus(multiplier)
 
-        // Derive signed wattage from PowerProvider's unsigned calibratedPowerW
-        val calibratedW = if (powerStatus.isCharging) powerStatus.calibratedPowerW
+        // Sign is determined by Android's BATTERY_STATUS_CHARGING (rawSnap.isCharging),
+        // NOT by the kernel current direction (powerStatus.isCharging).
+        // When the charger is connected but consumption > charge rate the kernel reports
+        // negative current, but Android still says "charging" — we must respect that so
+        // calibratedWattageW never goes negative while the charger is plugged in.
+        val isCharging = rawSnap.isCharging
+        val calibratedW = if (isCharging) powerStatus.calibratedPowerW
                           else -powerStatus.calibratedPowerW
-        val rawW = if (powerStatus.isCharging) powerStatus.powerW
+        val rawW = if (isCharging) powerStatus.powerW
                    else -powerStatus.powerW
 
         // Overlay the authoritative power values onto the battery snapshot
