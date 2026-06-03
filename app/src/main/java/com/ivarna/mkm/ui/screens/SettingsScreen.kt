@@ -37,7 +37,8 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel(),
     powerViewModel: PowerViewModel = viewModel(),
     onOpenDrawer: () -> Unit = {},
-    onRequestShizukuPermission: () -> Unit = {}
+    onRequestShizukuPermission: () -> Unit = {},
+    onOpenNotificationSettings: () -> Unit = {}
 ) {
     val theme by viewModel.theme.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -307,6 +308,16 @@ fun SettingsScreen(
                                 onCheckedChange = { toggleBatteryNotification(it) }
                             )
                         }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    // Navigate to full notification customise screen
+                    SettingsItem(
+                        icon = Icons.Default.Tune,
+                        title = "Customise Notification",
+                        subtitle = "Configure what's shown when charging or discharging",
+                        onClick = onOpenNotificationSettings
                     )
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

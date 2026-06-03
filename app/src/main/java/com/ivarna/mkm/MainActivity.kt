@@ -234,7 +234,10 @@ fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewMode
                 SettingsScreen(
                     viewModel = settingsViewModel,
                     powerViewModel = viewModel(),
-                    onOpenDrawer = openDrawer
+                    onOpenDrawer = openDrawer,
+                    onOpenNotificationSettings = {
+                        navController.navigate(Screen.NotificationSettings.route)
+                    }
                 )
             }
         }
