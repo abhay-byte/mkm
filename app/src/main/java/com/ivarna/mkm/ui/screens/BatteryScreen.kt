@@ -11,8 +11,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.BatteryStd
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
@@ -38,72 +40,31 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ivarna.mkm.data.model.BatterySessionRecord
 import com.ivarna.mkm.data.model.BatteryStats
+import com.ivarna.mkm.data.model.SessionType
 import com.ivarna.mkm.service.BatteryMonitorService
-import com.ivarna.mkm.service.BatterySessionTracker
 import com.ivarna.mkm.ui.components.SectionHeader
 import com.ivarna.mkm.ui.viewmodel.BatteryViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BatteryScreen(
     viewModel: BatteryViewModel = viewModel(),
-    onOpenDrawer: () -> Unit = {}
+    onOpenDrawer: () -> Unit = {},
+    onOpenHistory: () -> Unit = {},
+    onOpenNotificationSettings: () -> Unit = {}
 ) {
     val stats by viewModel.batteryStats.collectAsState()
     val showNotification by viewModel.showNotification.collectAsState()
+    val sessionHistory by viewModel.history.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val batteryPrefs = remember { context.getSharedPreferences(BatteryMonitorService.PREFS_NAME, Context.MODE_PRIVATE) }
-
-    val updateIntervalOptions = remember {
-        listOf(
-            "5s" to 5_000L,
-            "10s" to 10_000L,
-            "30s" to 30_000L,
-            "1 min" to 60_000L,
-            "5 min" to 300_000L,
-            "10 min" to 600_000L
-        )
-    }
-    var selectedIntervalMs by remember {
-        mutableStateOf(batteryPrefs.getLong("battery_update_interval_ms", BatterySessionTracker.DEFAULT_UPDATE_INTERVAL_MS))
-    }
-
-    val notifHeadingOptions = remember {
-        mapOf(
-            "Wattage" to (BatteryMonitorService.PREF_NOTIF_SHOW_WATTAGE to true),
-            "Temperature" to (BatteryMonitorService.PREF_NOTIF_SHOW_TEMPERATURE to false),
-            "Drain Rate" to (BatteryMonitorService.PREF_NOTIF_SHOW_DRAIN to false),
-            "Time Left" to (BatteryMonitorService.PREF_NOTIF_SHOW_TIME_LEFT to false),
-            "Current (mA)" to (BatteryMonitorService.PREF_NOTIF_SHOW_CURRENT to false),
-            "Voltage (mV)" to (BatteryMonitorService.PREF_NOTIF_SHOW_VOLTAGE to false)
-        )
-    }
-    var notifHeadingSelections by remember {
-        mutableStateOf(notifHeadingOptions.mapValues { (_, pair) ->
-            batteryPrefs.getBoolean(pair.first, pair.second)
-        })
-    }
-
-    val notifExpandedOptions = remember {
-        mapOf(
-            "Temperature & Voltage" to (BatteryMonitorService.PREF_NOTIF_EXP_TEMP_VOLTAGE to true),
-            "Power (Wattage)" to (BatteryMonitorService.PREF_NOTIF_EXP_POWER to true),
-            "Drain Rates" to (BatteryMonitorService.PREF_NOTIF_EXP_DRAIN to true),
-            "Time Left" to (BatteryMonitorService.PREF_NOTIF_EXP_TIME_LEFT to true),
-            "Screen On" to (BatteryMonitorService.PREF_NOTIF_EXP_SCREEN_ON to true),
-            "Screen Off" to (BatteryMonitorService.PREF_NOTIF_EXP_SCREEN_OFF to true),
-            "Deep Sleep" to (BatteryMonitorService.PREF_NOTIF_EXP_DEEP_SLEEP to true),
-            "Awake" to (BatteryMonitorService.PREF_NOTIF_EXP_AWAKE to true)
-        )
-    }
-    var notifExpandedSelections by remember {
-        mutableStateOf(notifExpandedOptions.mapValues { (_, pair) ->
-            batteryPrefs.getBoolean(pair.first, pair.second)
-        })
-    }
 
     var pendingToggle by remember { mutableStateOf(false) }
 
@@ -181,31 +142,15 @@ fun BatteryScreen(
                 SectionHeader("CAPACITY")
                 CapacityCard(stats = data)
 
-                if (data.wattageHistory.isNotEmpty()) {
+                if (data.wattageHistory.isNotEmpty() || data.isSessionActive || sessionHistory.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(24.dp))
-                    SectionHeader("WATTAGE HISTORY")
-                    HistorySparklineCard(
-                        history = data.wattageHistory,
-                        currentValue = "${String.format("%+.2f", data.calibratedWattageW)} W",
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.fillMaxWidth()
+                    SectionHeader("ACTIVITY")
+                    UnifiedActivityCard(
+                        stats = data,
+                        records = sessionHistory,
+                        onOpenHistory = onOpenHistory
                     )
                 }
-
-                if (data.drainHistory.isNotEmpty() && data.isSessionActive) {
-                    Spacer(modifier = Modifier.height(24.dp))
-                    SectionHeader("DRAIN HISTORY")
-                    HistorySparklineCard(
-                        history = data.drainHistory,
-                        currentValue = "${String.format("%.2f", data.activeDrainPerHr)}%/hr",
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-                SectionHeader("DRAIN RATES")
-                DrainRateGrid(stats = data)
 
                 Spacer(modifier = Modifier.height(24.dp))
                 SectionHeader("SESSION BREAKDOWN")
@@ -213,36 +158,10 @@ fun BatteryScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
                 SectionHeader("NOTIFICATION")
-                NotificationToggleCard(
+                NotificationNavCard(
                     enabled = showNotification,
-                    onToggle = { onToggleNotification(it) }
-                )
-
-                if (showNotification) {
-                    Spacer(modifier = Modifier.height(24.dp))
-                    SectionHeader("NOTIFICATION CONTENT")
-                    NotificationContentCard(
-                        headingOptions = notifHeadingOptions,
-                        headingSelections = notifHeadingSelections,
-                        expandedOptions = notifExpandedOptions,
-                        expandedSelections = notifExpandedSelections,
-                        onToggle = { prefKey: String, enabled: Boolean ->
-                            notifHeadingSelections = notifHeadingSelections.toMutableMap().also { it[prefKey] = enabled }
-                            notifExpandedSelections = notifExpandedSelections.toMutableMap().also { it[prefKey] = enabled }
-                            batteryPrefs.edit().putBoolean(prefKey, enabled).apply()
-                        }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-                SectionHeader("MONITORING")
-                IntervalSelectorCard(
-                    currentMs = selectedIntervalMs,
-                    options = updateIntervalOptions,
-                    onSelect = { ms ->
-                        selectedIntervalMs = ms
-                        batteryPrefs.edit().putLong("battery_update_interval_ms", ms).apply()
-                    }
+                    onToggle = { onToggleNotification(it) },
+                    onClick = onOpenNotificationSettings
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -585,12 +504,55 @@ fun TimeBreakdownCard(stats: BatteryStats) {
         )
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            if (!stats.isSessionActive) {
+            if (stats.isCharging) {
+                // Charging session header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Power,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = Color(0xFF4CAF50)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Charging Session",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF4CAF50)
+                        )
+                    }
+                    if (stats.chargingGainedPercent > 0) {
+                        Text(
+                            text = "+${stats.chargingGainedPercent}%",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF4CAF50)
+                        )
+                    }
+                }
+
+                if (stats.chargingGainedPercent > 0) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "${stats.chargingSessionStartPercent}% → ${stats.percent}%",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+            } else if (!stats.isSessionActive) {
                 Text(
-                    text = "Session ended when charger was connected. Disconnect to start a new session.",
+                    text = "No active discharging session. Disconnect charger to start monitoring.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
             }
 
             TimeRow(
@@ -632,10 +594,11 @@ fun TimeBreakdownCard(stats: BatteryStats) {
                 color = MaterialTheme.colorScheme.tertiary
             )
 
-            if (stats.isSessionActive) {
+            if (stats.isSessionActive || stats.isCharging) {
                 Spacer(modifier = Modifier.height(16.dp))
+                val sessionLabel = if (stats.isCharging) "Charging for" else "Session started"
                 Text(
-                    text = "Session started ${formatDuration(stats.totalSessionTimeMs)} ago",
+                    text = "$sessionLabel ${formatDuration(stats.totalSessionTimeMs)} ago",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -643,6 +606,7 @@ fun TimeBreakdownCard(stats: BatteryStats) {
         }
     }
 }
+
 
 @Composable
 fun TimeRow(
@@ -680,7 +644,7 @@ fun TimeRow(
             )
             if (drainPercent > 0f) {
                 Text(
-                    text = "${String.format("%.1f", drainPercent)}% of drain · ${String.format("%.0f", percent)}% of time",
+                    text = "−${String.format("%.1f", drainPercent)}% · ${String.format("%.0f", percent)}% of time",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -940,6 +904,7 @@ fun IntervalSelectorCard(
                                     }
                                 }
                             )
+
                         }
                     }
                 }
@@ -1015,6 +980,273 @@ fun NotificationContentCard(
                 ) {
                     Text(text = label, style = MaterialTheme.typography.bodyLarge)
                     Switch(checked = checked, onCheckedChange = { onToggle(prefKey, it) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SessionHistorySummaryCard(
+    records: List<BatterySessionRecord>,
+    onClick: () -> Unit
+) {
+    val charging = records.count { it.sessionType == SessionType.CHARGING }
+    val discharging = records.size - charging
+
+    ElevatedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.History,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "Past Sessions",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = if (records.isEmpty()) {
+                            "No sessions recorded yet"
+                        } else {
+                            "${records.size} saved · $charging charging · $discharging discharging"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "Open session history",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Unified Activity Card — wattage sparkline + drain sparkline + session summary
+// ---------------------------------------------------------------------------
+
+@Composable
+fun UnifiedActivityCard(
+    stats: BatteryStats,
+    records: List<BatterySessionRecord>,
+    onOpenHistory: () -> Unit
+) {
+    val charging = records.count { it.sessionType == SessionType.CHARGING }
+    val discharging = records.size - charging
+
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+
+            // ── Wattage sparkline ──────────────────────────────────────────
+            if (stats.wattageHistory.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Power",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "${String.format("%+.2f", stats.calibratedWattageW)} W",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (stats.isCharging) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Sparkline(
+                    history = stats.wattageHistory,
+                    color = if (stats.isCharging) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.fillMaxWidth().height(52.dp)
+                )
+            }
+
+            // ── Drain sparkline (only while discharging) ──────────────────
+            if (stats.drainHistory.isNotEmpty() && stats.isSessionActive && !stats.isCharging) {
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Drain Rate",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "${String.format("%.2f", stats.activeDrainPerHr)}%/hr",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Sparkline(
+                    history = stats.drainHistory,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.fillMaxWidth().height(52.dp)
+                )
+            }
+
+            // ── Session history summary ────────────────────────────────────
+            if (stats.wattageHistory.isNotEmpty() || (stats.drainHistory.isNotEmpty() && stats.isSessionActive)) {
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenHistory)
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.History,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Session History",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = if (records.isEmpty()) "No sessions recorded yet"
+                                   else "${records.size} saved · $charging charging · $discharging discharging",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "Open history",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Notification Nav Card — toggle + navigate to settings
+// ---------------------------------------------------------------------------
+
+@Composable
+fun NotificationNavCard(
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+    onClick: () -> Unit
+) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Icon(
+                        imageVector = if (enabled) Icons.Default.Notifications else Icons.Default.NotificationsOff,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Notification Card",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = if (enabled) "Showing live battery stats in notification" else "Tap to enable battery notification",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Switch(checked = enabled, onCheckedChange = onToggle)
+            }
+
+            if (enabled) {
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onClick)
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Timer,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Customise notification content",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

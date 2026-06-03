@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.ivarna.mkm.data.model.BatterySessionRecord
 import com.ivarna.mkm.data.model.BatteryStats
 import com.ivarna.mkm.service.BatteryMonitorService
 import kotlinx.coroutines.Job
@@ -37,22 +38,36 @@ class BatteryViewModel(application: Application) : AndroidViewModel(application)
     private val _showNotification = MutableStateFlow(false)
     val showNotification: StateFlow<Boolean> = _showNotification.asStateFlow()
 
+    private val _history = MutableStateFlow<List<BatterySessionRecord>>(emptyList())
+    val history: StateFlow<List<BatterySessionRecord>> = _history.asStateFlow()
+
     private var serviceBound = false
     private var statsCollectionJob: Job? = null
+    private var historyCollectionJob: Job? = null
+    private var boundBinder: BatteryMonitorService.LocalBinder? = null
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as BatteryMonitorService.LocalBinder
+            boundBinder = binder
             statsCollectionJob?.cancel()
             statsCollectionJob = viewModelScope.launch {
                 binder.stats.collect { stats ->
                     _batteryStats.value = stats
                 }
             }
+            historyCollectionJob?.cancel()
+            historyCollectionJob = viewModelScope.launch {
+                binder.history.collect { records ->
+                    _history.value = records
+                }
+            }
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
             statsCollectionJob?.cancel()
+            historyCollectionJob?.cancel()
+            boundBinder = null
         }
     }
 
@@ -91,8 +106,17 @@ class BatteryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun clearHistory() {
+        boundBinder?.clearHistory()
+        // Optimistic local update so the UI clears immediately; the binder
+        // flow will replace it shortly with the canonical empty list.
+        _history.value = emptyList()
+    }
+
     override fun onCleared() {
         super.onCleared()
+        statsCollectionJob?.cancel()
+        historyCollectionJob?.cancel()
         if (serviceBound) {
             getApplication<Application>().unbindService(serviceConnection)
             serviceBound = false

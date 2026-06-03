@@ -1,0 +1,10 @@
+{
+  "category": "engineering",
+  "enabled": true,
+  "installed_path": "/home/abhay/repos/mkm/AGENCY.md",
+  "name": "Software Architect Agent",
+  "slug": "engineering-software-architect",
+  "source_path": "/tmp/nexus-agency-agents-1777615380502-17102/repo/engineering/engineering-software-architect.md",
+  "source_repo": "https://github.com/msitarzewski/agency-agents.git",
+  "version": 1
+}

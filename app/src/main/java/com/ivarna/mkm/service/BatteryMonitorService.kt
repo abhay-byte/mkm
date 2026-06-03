@@ -8,6 +8,7 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import com.ivarna.mkm.data.model.BatteryStats
+import com.ivarna.mkm.data.model.BatterySessionRecord
 import com.ivarna.mkm.utils.BatteryNotificationManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +52,7 @@ class BatteryMonitorService : Service() {
         const val PREF_NOTIF_EXP_SCREEN_OFF = "notif_exp_screen_off"
         const val PREF_NOTIF_EXP_DEEP_SLEEP = "notif_exp_deep_sleep"
         const val PREF_NOTIF_EXP_AWAKE = "notif_exp_awake"
+        const val PREF_NOTIF_EXP_SHOW_MAH = "notif_exp_show_mah"
     }
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -62,6 +64,8 @@ class BatteryMonitorService : Service() {
 
     inner class LocalBinder : Binder() {
         val stats: StateFlow<BatteryStats?> get() = tracker.stats
+        val history: StateFlow<List<BatterySessionRecord>> get() = tracker.history
+        fun clearHistory() = tracker.clearHistory()
     }
 
     override fun onCreate() {

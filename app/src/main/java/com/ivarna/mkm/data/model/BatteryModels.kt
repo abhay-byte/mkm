@@ -69,5 +69,47 @@ data class BatteryStats(
     val intervalCount: Int = 0,
     val wattageHistory: List<Float> = emptyList(),
     val drainHistory: List<Float> = emptyList(),
-    val estimatedTimeRemainingMin: Long = 0L
+    val estimatedTimeRemainingMin: Long = 0L,
+    // Charging-session specific fields
+    val chargingSessionStartPercent: Int = 0,
+    val chargingGainedPercent: Int = 0,
+    val chargingAvgCurrentMa: Int = 0
 )
+
+/**
+ * A persisted snapshot of a finished battery session.
+ *
+ * Captured by [com.ivarna.mkm.service.BatterySessionTracker] when a session
+ * ends (e.g. charger plug/unplug) so the UI can render a history of past
+ * charging and discharging sessions even after a reboot.
+ */
+data class BatterySessionRecord(
+    val id: Long,
+    val sessionType: SessionType,
+    val startTimeMs: Long,
+    val endTimeMs: Long,
+    val startPercent: Int,
+    val endPercent: Int,
+    val screenOnTimeMs: Long,
+    val screenOffTimeMs: Long,
+    val deepSleepTimeMs: Long,
+    val awakeTimeMs: Long,
+    val screenOnDrainPercent: Float,
+    val screenOffDrainPercent: Float,
+    val deepSleepDrainPercent: Float,
+    val awakeDrainPercent: Float,
+    val activeDrainPerHr: Float,
+    val idleDrainPerHr: Float,
+    val avgCurrentMa: Int,
+    val avgWattageW: Float,
+    val avgTemperatureC: Float
+) {
+    val totalDurationMs: Long get() = (endTimeMs - startTimeMs).coerceAtLeast(0L)
+    val percentChange: Int
+        get() = when (sessionType) {
+            SessionType.CHARGING -> endPercent - startPercent
+            SessionType.DISCHARGING -> startPercent - endPercent
+        }
+}
+
+enum class SessionType { CHARGING, DISCHARGING }

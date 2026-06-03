@@ -129,31 +129,83 @@ class BatteryNotificationManager(context: Context) {
     }
 
     private fun buildOneLine(stats: BatteryStats): String {
-        val status = when {
-            stats.isCharging -> "Charging"
-            stats.isSessionActive -> "Discharging"
-            else -> "On AC"
+        return when {
+            stats.isCharging -> {
+                val powerW = if (stats.calibratedWattageW != 0f) stats.calibratedWattageW
+                             else if (stats.wattageW != 0f) stats.wattageW else 0f
+                val parts = mutableListOf<String>()
+                parts.add("Charging · ${String.format("%.1f", stats.temperatureC)}°C")
+                if (powerW > 0f) parts.add("${String.format("+%.1f", powerW)}W")
+                val currentMa = kotlin.math.abs(stats.currentMa)
+                if (currentMa > 50) parts.add("${currentMa}mA")
+                if (stats.chargingGainedPercent > 0) parts.add("+${stats.chargingGainedPercent}%")
+                parts.joinToString(" · ")
+            }
+            stats.isSessionActive -> "Discharging · ${String.format("%.1f", stats.temperatureC)}°C"
+            else -> "On AC · ${String.format("%.1f", stats.temperatureC)}°C"
         }
-        return "$status · ${String.format("%.1f", stats.temperatureC)}°C"
     }
 
     private fun buildSubText(stats: BatteryStats): String {
-        return if (stats.isSessionActive) {
-            val drain = String.format("%.2f", stats.activeDrainPerHr)
-            val time = if (stats.estimatedTimeRemainingMin > 0) {
-                val h = stats.estimatedTimeRemainingMin / 60
-                val m = stats.estimatedTimeRemainingMin % 60
-                " · ${h}h ${m}m left"
-            } else ""
-            "Drain ${drain}%/hr$time"
-        } else {
-            "On AC"
+        return when {
+            stats.isCharging -> {
+                val gained = if (stats.chargingGainedPercent > 0) "+${stats.chargingGainedPercent}% gained" else "Charging"
+                val timeLeft = if (stats.estimatedTimeRemainingMin > 0) {
+                    val h = stats.estimatedTimeRemainingMin / 60
+                    val m = stats.estimatedTimeRemainingMin % 60
+                    " · ${if (h > 0) "${h}h ${m}m" else "${m}m"} to full"
+                } else ""
+                "$gained$timeLeft"
+            }
+            stats.isSessionActive -> {
+                val drain = String.format("%.2f", stats.activeDrainPerHr)
+                val time = if (stats.estimatedTimeRemainingMin > 0) {
+                    val h = stats.estimatedTimeRemainingMin / 60
+                    val m = stats.estimatedTimeRemainingMin % 60
+                    " · ${h}h ${m}m left"
+                } else ""
+                "Drain ${drain}%/hr$time"
+            }
+            else -> "On AC"
         }
     }
 
     private fun buildContentText(stats: BatteryStats): String {
         return buildString {
-            if (stats.isSessionActive) {
+            if (stats.isCharging) {
+                // Rich charging session content — always show key metrics for charging
+                val powerW = if (stats.calibratedWattageW != 0f) stats.calibratedWattageW
+                             else if (stats.wattageW != 0f) stats.wattageW else 0f
+                val currentMa = kotlin.math.abs(stats.currentMa)
+
+                // Temperature is always shown for charging
+                appendLine("Temperature: ${String.format("%.1f", stats.temperatureC)}°C · ${stats.voltageMv} mV")
+
+                if (powerW > 0f) {
+                    appendLine("Charging power: ${String.format("+%.2f", powerW)} W")
+                }
+                if (currentMa > 50) {
+                    appendLine("Charge current: ${currentMa} mA")
+                }
+                if (stats.chargingAvgCurrentMa > 0) {
+                    appendLine("Avg current: ${stats.chargingAvgCurrentMa} mA")
+                }
+                if (stats.chargingGainedPercent > 0) {
+                    appendLine("Gained: +${stats.chargingGainedPercent}% (${stats.chargingSessionStartPercent}% → ${stats.percent}%)")
+                }
+                if (stats.totalSessionTimeMs > 0) {
+                    appendLine("Charging for: ${formatDuration(stats.totalSessionTimeMs)}")
+                }
+                if (stats.estimatedTimeRemainingMin > 0) {
+                    val h = stats.estimatedTimeRemainingMin / 60
+                    val m = stats.estimatedTimeRemainingMin % 60
+                    appendLine("Est. full in: ${if (h > 0) "${h}h ${m}m" else "${m}m"}")
+                }
+                // Remove trailing newline
+                if (length > 0 && last() == '\n') deleteCharAt(length - 1)
+            } else if (stats.isSessionActive) {
+                // Discharging session content
+                val showMah = prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_EXP_SHOW_MAH, false)
                 if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_EXP_TEMP_VOLTAGE, true)) {
                     appendLine("Temperature: ${String.format("%.1f", stats.temperatureC)}°C · ${stats.voltageMv} mV")
                 }
@@ -169,25 +221,37 @@ class BatteryNotificationManager(context: Context) {
                     appendLine("Est. time left: ${h}h ${m}m")
                 }
                 if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_EXP_SCREEN_ON, true)) {
-                    appendLine("Screen on: ${formatDuration(stats.screenOnTimeMs)} (${String.format("%.1f", stats.screenOnDrainPercent)}% drain)")
+                    val mah = mahStr(stats.screenOnDrainPercent, stats, showMah)
+                    appendLine("Screen on: ${formatDuration(stats.screenOnTimeMs)} (${String.format("%.1f", stats.screenOnDrainPercent)}% drain$mah)")
                 }
                 if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_EXP_SCREEN_OFF, true)) {
-                    appendLine("Screen off: ${formatDuration(stats.screenOffTimeMs)} (${String.format("%.1f", stats.screenOffDrainPercent)}% drain)")
+                    val mah = mahStr(stats.screenOffDrainPercent, stats, showMah)
+                    appendLine("Screen off: ${formatDuration(stats.screenOffTimeMs)} (${String.format("%.1f", stats.screenOffDrainPercent)}% drain$mah)")
                 }
                 if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_EXP_DEEP_SLEEP, true)) {
-                    appendLine("Deep sleep: ${formatDuration(stats.deepSleepTimeMs)} (${String.format("%.2f", stats.deepSleepDrainPercent)}% drain)")
+                    val mah = mahStr(stats.deepSleepDrainPercent, stats, showMah)
+                    appendLine("Deep sleep: ${formatDuration(stats.deepSleepTimeMs)} (${String.format("%.2f", stats.deepSleepDrainPercent)}% drain$mah)")
                 }
                 if (prefs.getBoolean(BatteryMonitorService.PREF_NOTIF_EXP_AWAKE, true)) {
-                    append("Awake: ${formatDuration(stats.awakeTimeMs)} (${String.format("%.2f", stats.awakeDrainPercent)}% drain)")
+                    val mah = mahStr(stats.awakeDrainPercent, stats, showMah)
+                    append("Awake: ${formatDuration(stats.awakeTimeMs)} (${String.format("%.2f", stats.awakeDrainPercent)}% drain$mah)")
                 }
-                // Remove trailing newline if last line wasn't appended
-                if (length > 0 && last() == '\n') {
-                    deleteCharAt(length - 1)
-                }
-            } else {
-                append("Plugged in. Monitoring will resume on disconnect.")
+                // Remove trailing newline
+                if (length > 0 && last() == '\n') deleteCharAt(length - 1)
             }
         }
+    }
+
+    /**
+     * Returns a formatted " · ~X mAh" suffix if showMah is true and capacity is known.
+     */
+    private fun mahStr(drainPercent: Float, stats: BatteryStats, showMah: Boolean): String {
+        if (!showMah || drainPercent <= 0f) return ""
+        val capacity = if (stats.estimatedCapacityMah > 0) stats.estimatedCapacityMah
+                       else if (stats.ratedCapacityMah > 0) stats.ratedCapacityMah
+                       else return ""
+        val mah = (drainPercent / 100f * capacity).toInt()
+        return " · ~${mah} mAh"
     }
 
     private fun openBatteryPendingIntent(): PendingIntent {

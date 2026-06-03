@@ -29,6 +29,11 @@ sealed class Screen(val route: String, val label: String, val selectedIcon: Imag
     object Storage : Screen("storage", "Storage", Icons.Filled.SdStorage, Icons.Outlined.SdStorage)
     object Power : Screen("power", "Power", Icons.Filled.Bolt, Icons.Outlined.Bolt)
     object Battery : Screen("battery", "Battery", Icons.Filled.BatteryFull, Icons.Outlined.BatteryFull)
+    object BatteryHistory : Screen("battery_history", "Session History", Icons.Filled.BatteryFull, Icons.Outlined.BatteryFull)
+    object NotificationSettings : Screen("notif_settings", "Notification Settings", Icons.Filled.BatteryFull, Icons.Outlined.BatteryFull)
+    object ChargingNotification : Screen("notif_charging", "Charging Notification", Icons.Filled.BatteryFull, Icons.Outlined.BatteryFull)
+    object DischargingNotification : Screen("notif_discharging", "Discharging Notification", Icons.Filled.BatteryFull, Icons.Outlined.BatteryFull)
+    object MonitoringNotification : Screen("notif_monitoring", "Monitoring", Icons.Filled.BatteryFull, Icons.Outlined.BatteryFull)
     object Overlay : Screen("overlay", "Overlay", Icons.Filled.Layers, Icons.Outlined.Layers)
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
 }

@@ -50,7 +50,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.ivarna.mkm.navigation.Screen
 import com.ivarna.mkm.navigation.navItems
+import com.ivarna.mkm.ui.screens.BatteryHistoryScreen
 import com.ivarna.mkm.ui.screens.BatteryScreen
+import com.ivarna.mkm.ui.screens.NotificationSettingsScreen
+import com.ivarna.mkm.ui.screens.ChargingNotificationSettingsScreen
+import com.ivarna.mkm.ui.screens.DischargingNotificationSettingsScreen
+import com.ivarna.mkm.ui.screens.MonitoringNotificationSettingsScreen
 import com.ivarna.mkm.ui.screens.CpuScreen
 import com.ivarna.mkm.ui.screens.GpuScreen
 import com.ivarna.mkm.ui.screens.HomeScreen
@@ -187,7 +192,43 @@ fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewMode
             composable(Screen.GPU.route) { GpuScreen(onOpenDrawer = openDrawer) }
             composable(Screen.Storage.route) { StorageScreen(onOpenDrawer = openDrawer) }
             composable(Screen.Power.route) { PowerScreen(onOpenDrawer = openDrawer) }
-            composable(Screen.Battery.route) { BatteryScreen(onOpenDrawer = openDrawer) }
+            composable(Screen.Battery.route) {
+                BatteryScreen(
+                    onOpenDrawer = openDrawer,
+                    onOpenHistory = {
+                        navController.navigate(Screen.BatteryHistory.route)
+                    },
+                    onOpenNotificationSettings = {
+                        navController.navigate(Screen.NotificationSettings.route)
+                    }
+                )
+            }
+            composable(Screen.BatteryHistory.route) { entry ->
+                val parent = remember(entry) { navController.getBackStackEntry(Screen.Battery.route) }
+                val batteryViewModel: BatteryViewModel = viewModel(viewModelStoreOwner = parent)
+                BatteryHistoryScreen(
+                    viewModel = batteryViewModel,
+                    onBack = { navController.popBackStack() },
+                    onOpenDrawer = openDrawer
+                )
+            }
+            composable(Screen.NotificationSettings.route) {
+                NotificationSettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenCharging = { navController.navigate(Screen.ChargingNotification.route) },
+                    onOpenDischarging = { navController.navigate(Screen.DischargingNotification.route) },
+                    onOpenMonitoring = { navController.navigate(Screen.MonitoringNotification.route) }
+                )
+            }
+            composable(Screen.ChargingNotification.route) {
+                ChargingNotificationSettingsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.DischargingNotification.route) {
+                DischargingNotificationSettingsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.MonitoringNotification.route) {
+                MonitoringNotificationSettingsScreen(onBack = { navController.popBackStack() })
+            }
             composable(Screen.Overlay.route) { OverlayScreen(onOpenDrawer = openDrawer) }
             composable(Screen.Settings.route) {
                 SettingsScreen(

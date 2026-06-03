@@ -8,7 +8,9 @@ import android.os.PowerManager
 import com.ivarna.mkm.data.model.BatteryInterval
 import com.ivarna.mkm.data.model.BatterySnapshot
 import com.ivarna.mkm.data.model.BatteryStats
+import com.ivarna.mkm.data.model.SessionType
 import com.ivarna.mkm.data.provider.BatteryProvider
+import com.ivarna.mkm.utils.BatteryHistoryManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,14 +18,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.max
 
 /**
- * Tracks a single battery session (unplugged → plugged).
+ * Tracks battery sessions (both discharging and charging).
  *
  * Responsibilities:
  * - Listen to system broadcasts (screen on/off, power connect/disconnect, battery change).
  * - Accumulate time spent in screen-on, screen-off, and deep-sleep states.
  * - Record battery intervals at state transitions to compute active/idle drain rates.
- * - Reset the session when the charger is connected.
- * - Start a new session when the charger is disconnected.
+ * - When charger connects: finalize discharging session, start a new CHARGING session.
+ * - When charger disconnects: finalize charging session, start a new DISCHARGING session.
  *
  * Cohesion: knows **only** about session lifecycle and metric aggregation.
  * Decoupling: emits immutable [BatteryStats] via Flow; has no Compose or View knowledge.
@@ -43,6 +45,7 @@ class BatterySessionTracker(context: Context) {
     private val provider = BatteryProvider(appContext)
     private val powerManager = appContext.getSystemService(Context.POWER_SERVICE) as PowerManager
     private val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val historyManager = BatteryHistoryManager(appContext)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var pollJob: Job? = null
@@ -60,12 +63,23 @@ class BatterySessionTracker(context: Context) {
     private var lastSnapshot: BatterySnapshot? = null
     private val intervals = mutableListOf<BatteryInterval>()
     private var isSessionActive = false
+    private var isChargingSession = false
     private var lastDeepSleepReadTimeMs = 0L
     private var cachedDeepSleepMs = 0L
 
     // Interval bookkeeping
     private var pendingIntervalStartMs = 0L
     private var pendingIntervalStartPercent = 0
+
+    // Charging session tracking
+    private var chargingSessionStartPercent = 0
+    private val chargingCurrentSamples = mutableListOf<Int>()
+
+    // Session running averages — collected per tick so a finished session
+    // can be persisted as a single record with summary metrics.
+    private val currentSamples = mutableListOf<Int>()
+    private val wattageSamples = mutableListOf<Float>()
+    private val temperatureSamples = mutableListOf<Float>()
 
     // Rolling history for sparklines (normalized 0..1)
     private val wattageHistory = mutableListOf<Float>()
@@ -75,6 +89,13 @@ class BatterySessionTracker(context: Context) {
 
     private val _stats = MutableStateFlow<BatteryStats?>(null)
     val stats: StateFlow<BatteryStats?> = _stats.asStateFlow()
+
+    val history = historyManager.records
+    private val historyScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    fun clearHistory() {
+        historyScope.launch { historyManager.clear() }
+    }
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -106,13 +127,11 @@ fun start() {
 
             val snap = provider.getSnapshot(appContext)
             lastSnapshot = snap
-            isSessionActive = !snap.isCharging
+            isSessionActive = true
+            isChargingSession = snap.isCharging
 
-            if (isSessionActive) {
-                startNewSessionLocked(snap)
-            } else {
-                emitFromSnapshotLocked(snap)
-            }
+            startNewSessionLocked(snap)
+            beginIntervalLocked(snap.percent, System.currentTimeMillis())
         }
 
         pollJob = scope.launch {
@@ -141,6 +160,7 @@ fun start() {
         runCatching { appContext.unregisterReceiver(receiver) }
         pollJob?.cancel()
         scope.cancel()
+        historyScope.cancel()
     }
 
     // ------------------------------------------------------------------
@@ -183,29 +203,46 @@ fun start() {
 
     private fun onPowerConnected() {
         synchronized(lock) {
-            if (!isSessionActive) return
             val now = System.currentTimeMillis()
-            val snap = lastSnapshot
-            if (isScreenOn) accumulateScreenOnLocked(now) else accumulateScreenOffLocked(now)
-            endIntervalLocked(isScreenOn, now, snap?.percent ?: sessionStartPercent)
-            lastScreenChangeTimeMs = now
-            isSessionActive = false
-            // Emit final stats for the closed session
-            computeAndEmitLocked(now)
-        }
-    }
-
-    private fun onPowerDisconnected() {
-        synchronized(lock) {
             val snap = provider.getSnapshot(appContext)
             lastSnapshot = snap
-            val now = System.currentTimeMillis()
+            // Finalize the discharging session with final stats
+            if (isScreenOn) accumulateScreenOnLocked(now) else accumulateScreenOffLocked(now)
+            endIntervalLocked(isScreenOn, now, snap?.percent ?: sessionStartPercent)
+            computeAndEmitLocked(now)
+            // Persist the discharging session that just ended
+            persistSessionLocked(SessionType.DISCHARGING, now)
+            // Start a new charging session immediately
             startNewSessionLocked(snap)
             isSessionActive = true
+            isChargingSession = true
             isScreenOn = powerManager.isInteractive
             lastScreenChangeTimeMs = now
             beginIntervalLocked(snap.percent, now)
         }
+        scope.launch { tick() }
+    }
+
+    private fun onPowerDisconnected() {
+        synchronized(lock) {
+            val now = System.currentTimeMillis()
+            val snap = provider.getSnapshot(appContext)
+            lastSnapshot = snap
+            // Finalize the charging session
+            if (isScreenOn) accumulateScreenOnLocked(now) else accumulateScreenOffLocked(now)
+            endIntervalLocked(isScreenOn, now, snap?.percent ?: sessionStartPercent)
+            computeAndEmitLocked(now)
+            // Persist the charging session that just ended
+            persistSessionLocked(SessionType.CHARGING, now)
+            // Start a new discharging session immediately
+            startNewSessionLocked(snap)
+            isSessionActive = true
+            isChargingSession = false
+            isScreenOn = powerManager.isInteractive
+            lastScreenChangeTimeMs = now
+            beginIntervalLocked(snap.percent, now)
+        }
+        scope.launch { tick() }
     }
 
     // ------------------------------------------------------------------
@@ -242,14 +279,29 @@ fun start() {
 
         val (activeDrain, idleDrain, isDrainReliable) = computeDrainRatesLocked()
 
-        // Compute drain-based percentages: how much battery was used during screen-on vs screen-off
+        // Compute absolute drain percentages: how many battery % points were drained during each state
         val (screenOnDrainPercent, screenOffDrainPercent) = computeDrainPercentagesLocked()
 
-        // Deep sleep is a subset of screen-off. Estimate its drain proportionally.
+        // Deep sleep is a subset of screen-off. Estimate its absolute drain proportionally by time.
         val deepSleepDrainPercent = if (currentScreenOff > 0 && screenOffDrainPercent > 0f) {
             screenOffDrainPercent * (currentDeepSleepMs.toFloat() / currentScreenOff)
         } else 0f
-        val awakeDrainPercent = (100f - deepSleepDrainPercent).coerceIn(0f, 100f)
+        // Awake drain = screen-off drain minus deep-sleep drain (both are absolute % points)
+        val awakeDrainPercent = (screenOffDrainPercent - deepSleepDrainPercent).coerceAtLeast(0f)
+
+        // Track charging current samples for average
+        if (isChargingSession && snap.currentMa != 0) {
+            chargingCurrentSamples.add(kotlin.math.abs(snap.currentMa))
+            if (chargingCurrentSamples.size > MAX_HISTORY) chargingCurrentSamples.removeAt(0)
+        }
+
+        // Track running session averages for the history record
+        currentSamples.add(kotlin.math.abs(snap.currentMa))
+        wattageSamples.add(kotlin.math.abs(snap.calibratedWattageW))
+        temperatureSamples.add(snap.temperatureC)
+        if (currentSamples.size > MAX_HISTORY) currentSamples.removeAt(0)
+        if (wattageSamples.size > MAX_HISTORY) wattageSamples.removeAt(0)
+        if (temperatureSamples.size > MAX_HISTORY) temperatureSamples.removeAt(0)
 
         // Update rolling history (use magnitude for sparkline)
         lastWattageW = kotlin.math.abs(snap.calibratedWattageW)
@@ -298,7 +350,11 @@ fun start() {
             intervalCount = intervals.size,
             wattageHistory = wattageHistory.toList(),
             drainHistory = drainHistory.toList(),
-            estimatedTimeRemainingMin = estimatedMinutes
+            estimatedTimeRemainingMin = estimatedMinutes,
+            chargingSessionStartPercent = if (isChargingSession) chargingSessionStartPercent else 0,
+            chargingGainedPercent = if (isChargingSession) (snap.percent - chargingSessionStartPercent).coerceAtLeast(0) else 0,
+            chargingAvgCurrentMa = if (isChargingSession && chargingCurrentSamples.isNotEmpty())
+                (chargingCurrentSamples.average().toInt()) else 0
         )
     }
 
@@ -339,38 +395,13 @@ fun start() {
         }
     }
 
+    // emitFromSnapshotLocked kept as a no-op safety valve; normal path always uses computeAndEmitLocked.
+    @Suppress("unused")
     private fun emitFromSnapshotLocked(snap: BatterySnapshot) {
         lastWattageW = kotlin.math.abs(snap.calibratedWattageW)
         wattageHistory.add((lastWattageW / 10f).coerceIn(0f, 1f))
         if (wattageHistory.size > MAX_HISTORY) wattageHistory.removeAt(0)
-
-        _stats.value = BatteryStats(
-            percent = snap.percent,
-            temperatureC = snap.temperatureC,
-            currentMa = snap.currentMa,
-            isCharging = snap.isCharging,
-            voltageMv = snap.voltageMv,
-            wattageW = snap.wattageW,
-            calibratedWattageW = snap.calibratedWattageW,
-            ratedCapacityMah = snap.ratedCapacityMah,
-            estimatedCapacityMah = snap.estimatedCapacityMah,
-            activeDrainPerHr = 0f,
-            idleDrainPerHr = 0f,
-            screenOnTimeMs = 0L,
-            screenOffTimeMs = 0L,
-            deepSleepTimeMs = 0L,
-            awakeTimeMs = 0L,
-            sessionStartTimeMs = 0L,
-            totalSessionTimeMs = 0L,
-            screenOnPercent = 0f,
-            screenOffPercent = 0f,
-            deepSleepPercent = 0f,
-            awakePercent = 0f,
-            isSessionActive = false,
-            intervalCount = 0,
-            wattageHistory = wattageHistory.toList(),
-            drainHistory = drainHistory.toList()
-        )
+        computeAndEmitLocked(System.currentTimeMillis())
     }
 
     // ------------------------------------------------------------------
@@ -429,18 +460,14 @@ fun start() {
     }
 
     /**
-     * Computes screen-on and screen-off percentages based on actual battery drain,
-     * not time. The user wants to know: "of the total battery used, how much was
-     * eaten by screen-on periods vs screen-off periods?"
+     * Computes screen-on and screen-off **absolute** battery drain in percent points.
+     * E.g., if screen-on periods consumed 8% of the battery, returns 8f.
+     * These are raw % points drained, NOT a ratio of total drained battery.
      */
     private fun computeDrainPercentagesLocked(): Pair<Float, Float> {
-        val onDrain = intervals.filter { it.isScreenOn }.sumOf { it.percentDrop }
-        val offDrain = intervals.filter { !it.isScreenOn }.sumOf { it.percentDrop }
-        val totalDrain = onDrain + offDrain
-        if (totalDrain <= 0) return 0f to 0f
-        val onPct = (onDrain.toFloat() / totalDrain * 100f).coerceIn(0f, 100f)
-        val offPct = 100f - onPct
-        return onPct to offPct
+        val onDrain = intervals.filter { it.isScreenOn }.sumOf { it.percentDrop.coerceAtLeast(0) }
+        val offDrain = intervals.filter { !it.isScreenOn }.sumOf { it.percentDrop.coerceAtLeast(0) }
+        return onDrain.toFloat() to offDrain.toFloat()
     }
 
     // ------------------------------------------------------------------
@@ -495,6 +522,13 @@ fun start() {
         cachedDeepSleepMs = 0L
         pendingIntervalStartMs = sessionStartTimeMs
         pendingIntervalStartPercent = snap.percent
+        // Reset charging tracking
+        chargingSessionStartPercent = snap.percent
+        chargingCurrentSamples.clear()
+        // Reset session averages for the new record
+        currentSamples.clear()
+        wattageSamples.clear()
+        temperatureSamples.clear()
     }
 
     private fun accumulateScreenOnLocked(now: Long) {
@@ -507,5 +541,79 @@ fun start() {
 
     private fun percentOf(part: Long, total: Long): Float {
         return if (total > 0) (part * 100f / total) else 0f
+    }
+
+    // ------------------------------------------------------------------
+    // History persistence
+    // ------------------------------------------------------------------
+
+    /**
+     * Builds a [com.ivarna.mkm.data.model.BatterySessionRecord] from the
+     * currently accumulated session data and writes it to disk on a
+     * background coroutine.
+     *
+     * Skipped (no record written) when:
+     * - the session is shorter than 10 seconds (noise: boot, transient blips), or
+     * - the battery percentage did not actually change in the expected
+     *   direction (e.g. a discharging session that didn't discharge, or a
+     *   charging session that didn't charge). These zero-value records would
+     *   only clutter the history list.
+     */
+    private fun persistSessionLocked(endedSessionType: SessionType, endTimeMs: Long) {
+        val totalMs = endTimeMs - sessionStartTimeMs
+        val endPercent = lastSnapshot?.percent ?: sessionStartPercent
+        val percentDelta = when (endedSessionType) {
+            SessionType.CHARGING -> endPercent - sessionStartPercent
+            SessionType.DISCHARGING -> sessionStartPercent - endPercent
+        }
+
+        // Only persist sessions >= 30s where the battery % actually changed by at least 1 point.
+        val tooShort = totalMs < 30_000L
+        val noChange = percentDelta <= 0
+        if (tooShort || noChange) {
+            // Reset the buffers so the next session starts clean.
+            currentSamples.clear()
+            wattageSamples.clear()
+            temperatureSamples.clear()
+            chargingCurrentSamples.clear()
+            return
+        }
+
+        val screenOn = accumulatedScreenOnMs
+        val screenOff = accumulatedScreenOffMs
+        val deepSleep = cachedDeepSleepMs.coerceAtMost(screenOff)
+        val awake = max(0L, totalMs - deepSleep)
+        val (onDrainPct, offDrainPct) = computeDrainPercentagesLocked()
+        val deepSleepDrainPct = if (screenOff > 0 && offDrainPct > 0f) {
+            offDrainPct * (deepSleep.toFloat() / screenOff)
+        } else 0f
+        val awakeDrainPct = (offDrainPct - deepSleepDrainPct).coerceAtLeast(0f)
+        val (activeDrain, idleDrain, _) = computeDrainRatesLocked()
+
+        val avgCurrent = if (currentSamples.isNotEmpty()) currentSamples.average().toInt() else 0
+        val avgWattage = if (wattageSamples.isNotEmpty()) wattageSamples.average().toFloat() else 0f
+        val avgTemp = if (temperatureSamples.isNotEmpty()) temperatureSamples.average().toFloat() else 0f
+
+        val record = historyManager.buildRecord(
+            sessionType = endedSessionType,
+            startTimeMs = sessionStartTimeMs,
+            endTimeMs = endTimeMs,
+            startPercent = sessionStartPercent,
+            endPercent = endPercent,
+            screenOnTimeMs = screenOn,
+            screenOffTimeMs = screenOff,
+            deepSleepTimeMs = deepSleep,
+            awakeTimeMs = awake,
+            screenOnDrainPercent = onDrainPct,
+            screenOffDrainPercent = offDrainPct,
+            deepSleepDrainPercent = deepSleepDrainPct,
+            awakeDrainPercent = awakeDrainPct,
+            activeDrainPerHr = activeDrain,
+            idleDrainPerHr = idleDrain,
+            avgCurrentMa = avgCurrent,
+            avgWattageW = avgWattage,
+            avgTemperatureC = avgTemp
+        )
+        historyScope.launch { historyManager.add(record) }
     }
 }
