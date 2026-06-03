@@ -1,0 +1,7 @@
+- Added comprehensive battery notification settings
+- Reduced MKM battery self-drain from 5-6% to <1%
+- Fixed wattage sign and awake drain calculation
+- Fixed charging notification preferences
+- Updated side drawer to show locked pages
+- Configurable battery update interval
+- Removed redundant home screen elements
