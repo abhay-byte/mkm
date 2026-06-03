@@ -27,6 +27,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Spacer
@@ -120,6 +121,7 @@ fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewMode
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val currentScreen = navItems.find { it.route == currentDestination?.route }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -155,7 +157,21 @@ fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewMode
                                 contentDescription = null
                             )
                         },
+                        badge = if (!isEnabled) {
+                            {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = "Locked",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        } else null,
                         selected = selected,
+                        colors = androidx.compose.material3.NavigationDrawerItemDefaults.colors(
+                            unselectedIconColor = if (isEnabled) androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                            unselectedTextColor = if (isEnabled) androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                            unselectedBadgeColor = if (isEnabled) androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                        ),
                         onClick = {
                             if (isEnabled) {
                                 scope.launch { drawerState.close() }
@@ -166,6 +182,8 @@ fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewMode
                                     launchSingleTop = true
                                     restoreState = true
                                 }
+                            } else {
+                                android.widget.Toast.makeText(context, "Locked: Root or Shizuku access required", android.widget.Toast.LENGTH_SHORT).show()
                             }
                         },
                         modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)

@@ -44,7 +44,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ivarna.mkm.ui.viewmodel.HomeViewModel
 import com.ivarna.mkm.data.HomeData
-import com.ivarna.mkm.ui.components.QuickActionItem
 import com.ivarna.mkm.ui.components.SectionHeader
 import com.ivarna.mkm.ui.components.StatCard
 
@@ -52,7 +51,6 @@ import com.ivarna.mkm.ui.components.StatCard
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel = viewModel(),
-    onNavigateToPower: () -> Unit = {},
     onOpenDrawer: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -72,13 +70,8 @@ fun HomeScreen(
                 },
                 navigationIcon = {
                      IconButton(onClick = onOpenDrawer) {
-                        Icon(Icons.Filled.Menu, contentDescription = "Menu")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { /* TODO: Overflow menu */ }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                    }
+                         Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                     }
                 },
                 scrollBehavior = scrollBehavior
             )
@@ -106,12 +99,6 @@ fun HomeScreen(
                 SectionHeader("QUICK STATUS MONITOR")
                 
                 QuickStatsGrid(data)
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                SectionHeader("FREQUENT OPERATIONS")
-                
-                QuickActionsList(onNavigateToPower)
                 
                 Spacer(modifier = Modifier.height(innerPadding.calculateBottomPadding() + 32.dp))
             }
@@ -264,38 +251,6 @@ fun QuickStatsGrid(data: HomeData) {
                 progress = data.swap.usagePercent,
                 icon = Icons.Default.SwapHoriz,
                 modifier = Modifier.weight(1f)
-            )
-        }
-    }
-}
-
-
-
-@Composable
-fun QuickActionsList(onNavigateToPower: () -> Unit) {
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
-    ) {
-        Column(modifier = Modifier.padding(vertical = 8.dp)) {
-            // Refresh stats action removed
-            QuickActionItem(
-                icon = Icons.Default.Bolt,
-                title = "Power Efficiency Manager",
-                onClick = onNavigateToPower
-            )
-            QuickActionItem(
-                icon = Icons.Default.Add,
-                title = "Create Swap",
-                onClick = {}
-            )
-            QuickActionItem(
-                icon = Icons.Default.Settings,
-                title = "Advanced Settings",
-                onClick = {}
             )
         }
     }
