@@ -1,0 +1,4 @@
+- Restored mAh capacity estimates in history and notifications
+- Fixed live battery drain calculation to update in real-time
+- Fixed charging ETA calculations for reliable estimates across devices
+- Removed duplicate notification toggles from the Battery screen
