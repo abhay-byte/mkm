@@ -174,30 +174,36 @@ fun SessionHistoryRow(
                         value = "${"%.1f".format(record.avgTemperatureC)}°C"
                     )
                     // Absolute battery % drained per state
+                    val capacityMah = if (record.estimatedCapacityMah > 0) record.estimatedCapacityMah
+                                      else record.ratedCapacityMah
+                    fun pctToMah(pct: Float): String {
+                        if (capacityMah <= 0 || pct <= 0f) return ""
+                        return " · ~${(pct / 100f * capacityMah).toInt()} mAh"
+                    }
                     HistoryDetailRow(
                         label = "Screen on",
                         value = formatHistoryDuration(record.screenOnTimeMs) +
                                 if (record.screenOnDrainPercent > 0f)
-                                    " · −${"%.1f".format(record.screenOnDrainPercent)}%" else ""
+                                    " · −${"%.1f".format(record.screenOnDrainPercent)}%${pctToMah(record.screenOnDrainPercent)}" else ""
                     )
                     HistoryDetailRow(
                         label = "Screen off",
                         value = formatHistoryDuration(record.screenOffTimeMs) +
                                 if (record.screenOffDrainPercent > 0f)
-                                    " · −${"%.1f".format(record.screenOffDrainPercent)}%" else ""
+                                    " · −${"%.1f".format(record.screenOffDrainPercent)}%${pctToMah(record.screenOffDrainPercent)}" else ""
                     )
                     HistoryDetailRow(
                         label = "Deep sleep",
                         value = formatHistoryDuration(record.deepSleepTimeMs) +
                                 if (record.deepSleepDrainPercent > 0f)
-                                    " · −${"%.2f".format(record.deepSleepDrainPercent)}%" else ""
+                                    " · −${"%.2f".format(record.deepSleepDrainPercent)}%${pctToMah(record.deepSleepDrainPercent)}" else ""
                     )
                     if (record.awakeTimeMs > 0) {
                         HistoryDetailRow(
                             label = "Awake",
                             value = formatHistoryDuration(record.awakeTimeMs) +
                                     if (record.awakeDrainPercent > 0f)
-                                        " · −${"%.2f".format(record.awakeDrainPercent)}%" else ""
+                                        " · −${"%.2f".format(record.awakeDrainPercent)}%${pctToMah(record.awakeDrainPercent)}" else ""
                         )
                     }
                 }

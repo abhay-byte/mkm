@@ -398,22 +398,36 @@ fun start() {
         totalSessionMs: Long,
         isDrainReliable: Boolean
     ): Long {
-        // Need at least 3 minutes of session data before trusting any estimate.
-        if (totalSessionMs < 180_000L) return 0L
-
         return if (snap.isCharging) {
-            // Charging: estimate time to full from current and capacity.
+            // Charging: estimate time to full. Need at least 60s of session data.
+            if (totalSessionMs < 60_000L) return 0L
             if (snap.estimatedCapacityMah <= 0 || snap.percent >= 100) return 0L
-            val chargeRateMa = kotlin.math.abs(snap.currentMa)
-            // Reject if charge current is too low (trickle or no real data).
-            if (chargeRateMa < 50) return 0L
+
+            // Prefer instantaneous current; fall back to wattage-derived or session average.
+            val instantMa = kotlin.math.abs(snap.currentMa)
+            val chargeRateMa: Float = when {
+                instantMa >= 50 -> instantMa.toFloat()
+                // Derive from wattage and voltage (P = V*I => I = P/V)
+                snap.calibratedWattageW > 0f && snap.voltageMv > 0 ->
+                    (snap.calibratedWattageW * 1000f / snap.voltageMv)
+                snap.wattageW > 0f && snap.voltageMv > 0 ->
+                    (snap.wattageW * 1000f / snap.voltageMv)
+                // Fall back to session average if we have samples
+                chargingCurrentSamples.isNotEmpty() ->
+                    chargingCurrentSamples.average().toFloat()
+                else -> return 0L
+            }
+            if (chargeRateMa < 50f) return 0L
+
             val remainingMah = (100 - snap.percent) * snap.estimatedCapacityMah / 100f
             val hours = remainingMah / chargeRateMa
             val minutes = (hours * 60).toLong()
             // Sanity cap: more than 24h is unrealistic.
             if (minutes in 1..1440) minutes else 0L
         } else {
-            // Discharging: only trust estimate when active drain comes from
+            // Discharging: need at least 3 minutes of session data before trusting any estimate.
+            if (totalSessionMs < 180_000L) return 0L
+            // Only trust estimate when active drain comes from
             // real screen-on intervals, not the overall-session fallback.
             if (!isDrainReliable || activeDrain <= 0f) return 0L
 
@@ -500,7 +514,16 @@ fun start() {
     private fun computeDrainPercentagesLocked(): Pair<Float, Float> {
         val onDrain = intervals.filter { it.isScreenOn }.sumOf { it.percentDrop.coerceAtLeast(0) }
         val offDrain = intervals.filter { !it.isScreenOn }.sumOf { it.percentDrop.coerceAtLeast(0) }
-        return onDrain.toFloat() to offDrain.toFloat()
+        // Also include the current open (not-yet-closed) interval so live stats update every tick
+        val currentSnap = lastSnapshot
+        val pendingDrop = if (currentSnap != null) {
+            (pendingIntervalStartPercent - currentSnap.percent).coerceAtLeast(0)
+        } else 0
+        return if (isScreenOn) {
+            (onDrain + pendingDrop).toFloat() to offDrain.toFloat()
+        } else {
+            onDrain.toFloat() to (offDrain + pendingDrop).toFloat()
+        }
     }
 
     // ------------------------------------------------------------------
@@ -647,7 +670,9 @@ fun start() {
             idleDrainPerHr = idleDrain,
             avgCurrentMa = avgCurrent,
             avgWattageW = avgWattage,
-            avgTemperatureC = avgTemp
+            avgTemperatureC = avgTemp,
+            ratedCapacityMah = lastSnapshot?.ratedCapacityMah ?: 0,
+            estimatedCapacityMah = lastSnapshot?.estimatedCapacityMah ?: 0
         )
         historyScope.launch { historyManager.add(record) }
     }

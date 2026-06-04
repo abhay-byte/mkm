@@ -55,42 +55,14 @@ import java.util.Locale
 fun BatteryScreen(
     viewModel: BatteryViewModel = viewModel(),
     onOpenDrawer: () -> Unit = {},
-    onOpenHistory: () -> Unit = {},
-    onOpenNotificationSettings: () -> Unit = {}
+    onOpenHistory: () -> Unit = {}
 ) {
     val stats by viewModel.batteryStats.collectAsState()
-    val showNotification by viewModel.showNotification.collectAsState()
     val sessionHistory by viewModel.history.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val batteryPrefs = remember { context.getSharedPreferences(BatteryMonitorService.PREFS_NAME, Context.MODE_PRIVATE) }
-
-    var pendingToggle by remember { mutableStateOf(false) }
-
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            viewModel.setNotificationEnabled(true)
-        } else {
-            pendingToggle = false
-            // Show snackbar explaining why permission is needed
-        }
-    }
-
-    fun onToggleNotification(enabled: Boolean) {
-        if (enabled) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                pendingToggle = true
-                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            } else {
-                viewModel.setNotificationEnabled(true)
-            }
-        } else {
-            viewModel.setNotificationEnabled(false)
-        }
-    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -107,14 +79,6 @@ fun BatteryScreen(
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
                         Icon(Icons.Filled.Menu, contentDescription = "Menu")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { onToggleNotification(!showNotification) }) {
-                        Icon(
-                            imageVector = if (showNotification) Icons.Default.Notifications else Icons.Default.NotificationsOff,
-                            contentDescription = if (showNotification) "Disable notification" else "Enable notification"
-                        )
                     }
                 },
                 scrollBehavior = scrollBehavior
@@ -155,14 +119,6 @@ fun BatteryScreen(
                 Spacer(modifier = Modifier.height(24.dp))
                 SectionHeader("SESSION BREAKDOWN")
                 TimeBreakdownCard(stats = data)
-
-                Spacer(modifier = Modifier.height(24.dp))
-                SectionHeader("NOTIFICATION")
-                NotificationNavCard(
-                    enabled = showNotification,
-                    onToggle = { onToggleNotification(it) },
-                    onClick = onOpenNotificationSettings
-                )
 
                 Spacer(modifier = Modifier.height(32.dp))
             } ?: run {

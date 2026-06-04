@@ -87,7 +87,9 @@ class BatteryHistoryManager(context: Context) {
         idleDrainPerHr: Float,
         avgCurrentMa: Int,
         avgWattageW: Float,
-        avgTemperatureC: Float
+        avgTemperatureC: Float,
+        ratedCapacityMah: Int = 0,
+        estimatedCapacityMah: Int = 0
     ): BatterySessionRecord {
         return BatterySessionRecord(
             id = idGenerator.incrementAndGet(),
@@ -108,7 +110,9 @@ class BatteryHistoryManager(context: Context) {
             idleDrainPerHr = idleDrainPerHr,
             avgCurrentMa = avgCurrentMa,
             avgWattageW = avgWattageW,
-            avgTemperatureC = avgTemperatureC
+            avgTemperatureC = avgTemperatureC,
+            ratedCapacityMah = ratedCapacityMah,
+            estimatedCapacityMah = estimatedCapacityMah
         )
     }
 

@@ -215,9 +215,6 @@ fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewMode
                     onOpenDrawer = openDrawer,
                     onOpenHistory = {
                         navController.navigate(Screen.BatteryHistory.route)
-                    },
-                    onOpenNotificationSettings = {
-                        navController.navigate(Screen.NotificationSettings.route)
                     }
                 )
             }

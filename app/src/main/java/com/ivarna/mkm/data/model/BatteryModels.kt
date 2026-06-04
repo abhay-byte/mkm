@@ -112,7 +112,9 @@ data class BatterySessionRecord(
     val idleDrainPerHr: Float,
     val avgCurrentMa: Int,
     val avgWattageW: Float,
-    val avgTemperatureC: Float
+    val avgTemperatureC: Float,
+    val ratedCapacityMah: Int = 0,
+    val estimatedCapacityMah: Int = 0
 ) {
     val totalDurationMs: Long get() = (endTimeMs - startTimeMs).coerceAtLeast(0L)
     val percentChange: Int

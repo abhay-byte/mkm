@@ -65,6 +65,7 @@ private val dischargingExpandedOptions = listOf(
     NotifOption(BatteryMonitorService.PREF_NOTIF_EXP_SCREEN_OFF, "Screen Off", true),
     NotifOption(BatteryMonitorService.PREF_NOTIF_EXP_DEEP_SLEEP, "Deep Sleep", true),
     NotifOption(BatteryMonitorService.PREF_NOTIF_EXP_AWAKE, "Awake", true),
+    NotifOption(BatteryMonitorService.PREF_NOTIF_EXP_SHOW_MAH, "Show mAh (capacity estimate)", false, "Append estimated mAh to each stat"),
 )
 
 // Charging expanded options — these always show unconditionally from the manager,
@@ -86,7 +87,6 @@ fun NotificationSettingsScreen(
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences(BatteryMonitorService.PREFS_NAME, Context.MODE_PRIVATE) }
-    var notifEnabled by remember { mutableStateOf(prefs.getBoolean(BatteryMonitorService.PREF_NOTIFICATION_ENABLED, false)) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -119,41 +119,27 @@ fun NotificationSettingsScreen(
         ) {
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Master toggle
-            NotifSettingsToggleCard(
-                icon = if (notifEnabled) Icons.Default.Notifications else Icons.Default.NotificationsOff,
-                title = "Battery Notification",
-                subtitle = if (notifEnabled) "Live battery stats visible in status bar" else "Tap to enable the notification card",
-                checked = notifEnabled,
-                onToggle = {
-                    notifEnabled = it
-                    prefs.edit().putBoolean(BatteryMonitorService.PREF_NOTIFICATION_ENABLED, it).apply()
-                }
+            NotifSettingsNavCard(
+                icon = Icons.Default.Power,
+                iconTint = Color(0xFF4CAF50),
+                title = "Charging",
+                subtitle = "Customise the notification while charging",
+                onClick = onOpenCharging
             )
-
-            if (notifEnabled) {
-                NotifSettingsNavCard(
-                    icon = Icons.Default.Power,
-                    iconTint = Color(0xFF4CAF50),
-                    title = "Charging",
-                    subtitle = "Customise the notification while charging",
-                    onClick = onOpenCharging
-                )
-                NotifSettingsNavCard(
-                    icon = Icons.Default.BatteryStd,
-                    iconTint = MaterialTheme.colorScheme.primary,
-                    title = "Discharging",
-                    subtitle = "Customise the notification while on battery",
-                    onClick = onOpenDischarging
-                )
-                NotifSettingsNavCard(
-                    icon = Icons.Default.Timer,
-                    iconTint = MaterialTheme.colorScheme.secondary,
-                    title = "Monitoring",
-                    subtitle = "Refresh interval and heading options",
-                    onClick = onOpenMonitoring
-                )
-            }
+            NotifSettingsNavCard(
+                icon = Icons.Default.BatteryStd,
+                iconTint = MaterialTheme.colorScheme.primary,
+                title = "Discharging",
+                subtitle = "Customise the notification while on battery",
+                onClick = onOpenDischarging
+            )
+            NotifSettingsNavCard(
+                icon = Icons.Default.Timer,
+                iconTint = MaterialTheme.colorScheme.secondary,
+                title = "Monitoring",
+                subtitle = "Refresh interval and heading options",
+                onClick = onOpenMonitoring
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
         }

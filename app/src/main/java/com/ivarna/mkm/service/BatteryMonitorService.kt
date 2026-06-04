@@ -52,6 +52,7 @@ class BatteryMonitorService : Service() {
         const val PREF_NOTIF_EXP_SCREEN_OFF   = "notif_exp_screen_off"
         const val PREF_NOTIF_EXP_DEEP_SLEEP   = "notif_exp_deep_sleep"
         const val PREF_NOTIF_EXP_AWAKE        = "notif_exp_awake"
+        const val PREF_NOTIF_EXP_SHOW_MAH     = "notif_exp_show_mah"
         // Expanded notification content — charging (keys match ChargingNotificationSettingsScreen)
         const val PREF_NOTIF_CHG_SHOW_POWER    = "notif_chg_show_power"
         const val PREF_NOTIF_CHG_SHOW_CURRENT  = "notif_chg_show_current"
