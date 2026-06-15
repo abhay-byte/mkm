@@ -3,7 +3,6 @@ package com.ivarna.mkm.shell
 import com.topjohnwu.superuser.Shell
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import java.util.concurrent.TimeUnit
 
 /**
  * Manages shell command execution with intelligent fallback.
@@ -14,6 +13,9 @@ import java.util.concurrent.TimeUnit
  * For now, operations that require elevated access will use root.
  */
 object ShellManager {
+    private const val COMMAND_TIMEOUT_MS = 10_000L
+    private const val STREAM_JOIN_TIMEOUT_MS = 1_000L
+
 
     /**
      * Access method enum for identifying the current execution mode
@@ -151,11 +153,11 @@ object ShellManager {
             errThread.start()
             
             // Wait for process with timeout
-            val finished = process.waitFor(10, TimeUnit.SECONDS)
+            val finished = waitForProcess(process, COMMAND_TIMEOUT_MS)
             
             // Wait for threads to finish reading
-            outThread.join(1000)
-            errThread.join(1000)
+            outThread.join(STREAM_JOIN_TIMEOUT_MS)
+            errThread.join(STREAM_JOIN_TIMEOUT_MS)
             
             if (!finished) {
                 process.destroy()
@@ -190,11 +192,28 @@ object ShellManager {
                 error.append(line).append("\n")
             }
             
-            process.waitFor(10, TimeUnit.SECONDS)
+            val finished = waitForProcess(process, COMMAND_TIMEOUT_MS)
+            if (!finished) {
+                process.destroy()
+                return CommandResult(-1, output.toString().trim(), "Command timeout after 10 seconds")
+            }
             CommandResult(process.exitValue(), output.toString().trim(), error.toString().trim())
         } catch (e: Exception) {
             CommandResult(-1, "", e.message ?: "Unknown local error")
         }
+    }
+
+    private fun waitForProcess(process: Process, timeoutMillis: Long): Boolean {
+        val waiter = Thread {
+            try {
+                process.waitFor()
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+        }
+        waiter.start()
+        waiter.join(timeoutMillis)
+        return !waiter.isAlive
     }
 
     /**
@@ -312,10 +331,10 @@ object ShellManager {
             outThread.start()
             errThread.start()
             
-            val finished = process.waitFor(10, TimeUnit.SECONDS)
+            val finished = waitForProcess(process, COMMAND_TIMEOUT_MS)
             
-            outThread.join(1000)
-            errThread.join(1000)
+            outThread.join(STREAM_JOIN_TIMEOUT_MS)
+            errThread.join(STREAM_JOIN_TIMEOUT_MS)
             
             if (!finished) {
                 process.destroy()

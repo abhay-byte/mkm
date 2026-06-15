@@ -73,6 +73,18 @@
             </intent-filter>
         </receiver>
 
+        <!-- Auto-reset system battery stats on charger unplug / 100% / reboot (T1) -->
+        <receiver
+            android:name=".receiver.BatteryStatsResetReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.ACTION_POWER_DISCONNECTED" />
+                <action android:name="android.intent.action.BATTERY_CHANGED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Shizuku provider - enabled for v1.1 -->
         <provider
             android:name="rikka.shizuku.ShizukuProvider"

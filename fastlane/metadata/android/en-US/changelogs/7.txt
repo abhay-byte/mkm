@@ -1,0 +1,4 @@
+Auto-reset battery stats on unplug, full charge, and reboot.
+Added Android 13+ themed monochrome app icon support.
+Fixed landscape drawer cut-off by making menu items scrollable.
+Fixed shell command timeout handling on API 24 and API 25.
