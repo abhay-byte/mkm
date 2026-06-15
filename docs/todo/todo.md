@@ -1,5 +1,4 @@
 ---
-[]
 - id: T2
   title: Add monochrome app icon layer for Android 13+ theming
   type: feature
