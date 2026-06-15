@@ -48,4 +48,24 @@ object BatteryStatsResetPrefs {
 
     fun isOnBoot(context: Context): Boolean =
         prefs(context).getBoolean(PREF_ON_BOOT, false)
+
+    // --- Last reset tracking (UI feedback) ---
+
+    private const val PREF_LAST_RESET_AT = "last_reset_at"
+    private const val PREF_LAST_RESET_TRIGGER = "last_reset_trigger"
+
+    fun recordReset(context: Context, trigger: String, timestampMs: Long = System.currentTimeMillis()) {
+        prefs(context).edit {
+            putLong(PREF_LAST_RESET_AT, timestampMs)
+            putString(PREF_LAST_RESET_TRIGGER, trigger)
+        }
+    }
+
+    fun getLastReset(context: Context): Pair<Long, String>? {
+        val p = prefs(context)
+        val at = p.getLong(PREF_LAST_RESET_AT, 0L)
+        if (at == 0L) return null
+        val trigger = p.getString(PREF_LAST_RESET_TRIGGER, "") ?: ""
+        return at to trigger
+    }
 }

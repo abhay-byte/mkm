@@ -57,6 +57,7 @@ class BatteryStatsResetReceiver : BroadcastReceiver() {
             val result = ShellManager.exec("dumpsys batterystats --reset")
             if (result.isSuccess) {
                 Log.i(TAG, "battery stats reset OK (trigger=$trigger)")
+                BatteryStatsResetPrefs.recordReset(context, trigger)
             } else {
                 Log.w(TAG, "battery stats reset failed (trigger=$trigger, exit=${result.exitCode}, err=${result.stderr})")
             }
