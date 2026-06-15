@@ -25,10 +25,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ivarna.mkm.service.BatteryMonitorService
 import com.ivarna.mkm.service.BatterySessionTracker
+import com.ivarna.mkm.shell.ShellManager
 import com.ivarna.mkm.ui.components.*
 import com.ivarna.mkm.ui.viewmodel.AppTheme
 import com.ivarna.mkm.ui.viewmodel.PowerViewModel
 import com.ivarna.mkm.ui.viewmodel.SettingsViewModel
+import com.ivarna.mkm.utils.BatteryStatsResetPrefs
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,6 +89,24 @@ fun SettingsScreen(
         mutableStateOf(batteryPrefs.getLong("battery_update_interval_ms", BatterySessionTracker.DEFAULT_UPDATE_INTERVAL_MS))
     }
     var showIntervalMenu by remember { mutableStateOf(false) }
+
+    // --- Battery Stats Reset state (T1) ---
+    var resetOnUnplug by remember {
+        mutableStateOf(BatteryStatsResetPrefs.isOnUnplug(context))
+    }
+    var resetOnFull by remember {
+        mutableStateOf(BatteryStatsResetPrefs.isOnFull(context))
+    }
+    var resetOnBoot by remember {
+        mutableStateOf(BatteryStatsResetPrefs.isOnBoot(context))
+    }
+    val resetMethod = remember {
+        when {
+            ShellManager.hasShizuku() -> "shizuku"
+            ShellManager.hasRoot() -> "root"
+            else -> "unavailable"
+        }
+    }
 
     fun toggleBatteryNotification(enabled: Boolean) {
         if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -378,6 +398,59 @@ fun SettingsScreen(
                 }
             }
 
+            // Battery Stats Reset (T1)
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                SettingsSection(title = "Battery Stats Reset") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Auto-reset system battery stats (dumpsys batterystats --reset) for fresh wakelock/UID analysis. Requires root or shizuku.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = "Will use: $resetMethod",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (resetMethod == "unavailable")
+                                MaterialTheme.colorScheme.error
+                            else
+                                MaterialTheme.colorScheme.primary
+                        )
+                        SwitchRow(
+                            label = "Reset on charger unplug",
+                            checked = resetOnUnplug,
+                            onCheckedChange = {
+                                resetOnUnplug = it
+                                BatteryStatsResetPrefs.setOnUnplug(context, it)
+                            }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        SwitchRow(
+                            label = "Reset on 100%",
+                            checked = resetOnFull,
+                            onCheckedChange = {
+                                resetOnFull = it
+                                BatteryStatsResetPrefs.setOnFull(context, it)
+                            }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        SwitchRow(
+                            label = "Reset on reboot",
+                            checked = resetOnBoot,
+                            onCheckedChange = {
+                                resetOnBoot = it
+                                BatteryStatsResetPrefs.setOnBoot(context, it)
+                            }
+                        )
+                    }
+                }
+            }
+
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 AboutMeCard(
@@ -476,5 +549,29 @@ private fun setBatteryNotification(context: Context, enabled: Boolean) {
         context.startForegroundService(intent)
     } else {
         context.startService(intent)
+    }
+}
+
+@Composable
+private fun SwitchRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
     }
 }
