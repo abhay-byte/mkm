@@ -102,14 +102,18 @@ fun SettingsScreen(
     var resetOnBoot by remember {
         mutableStateOf(BatteryStatsResetPrefs.isOnBoot(context))
     }
-    val resetMethod = remember {
-        when {
-            ShellManager.hasShizuku() -> "shizuku"
-            ShellManager.hasRoot() -> "root"
-            else -> "unavailable"
+    var resetMethod by remember { mutableStateOf("checking") }
+    LaunchedEffect(Unit) {
+        resetMethod = withContext(Dispatchers.IO) {
+            runCatching {
+                when {
+                    ShellManager.hasShizuku() -> "shizuku"
+                    ShellManager.hasRoot() -> "root"
+                    else -> "unavailable"
+                }
+            }.getOrDefault("unavailable")
         }
     }
-    val lastReset = remember { BatteryStatsResetPrefs.getLastReset(context) }
     var lastResetTick by remember { mutableStateOf(0) }
     val lastResetDisplay = remember(lastResetTick) {
         val current = BatteryStatsResetPrefs.getLastReset(context)

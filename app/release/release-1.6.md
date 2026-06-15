@@ -17,6 +17,7 @@
 * Made the navigation drawer scrollable so landscape users can reach every menu item.
 * Kept the drawer logo and divider pinned while the menu item list scrolls.
 * Fixed shell command timeout handling on API 24 and API 25 devices.
+* Fixed a Settings screen crash caused by loading the adaptive launcher icon in Compose.
 
 ### Android Theming
 

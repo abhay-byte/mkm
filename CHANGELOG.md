@@ -10,6 +10,7 @@
 ### Bug Fixes
 - [T3] Fix landscape drawer items being cut off with no way to reach them.
 - Fix shell command timeout handling on API 24 and API 25 devices.
+- Fix Settings crash caused by loading the adaptive launcher icon in Compose.
 
 ### Maintenance
 - No breaking changes.

@@ -5,6 +5,7 @@
 - Android 13+ monochrome app icon support for themed icons.
 - Navigation drawer is scrollable in landscape mode.
 - Shell command timeout handling works on API 24 and API 25 devices.
+- Settings opens correctly without crashing.
 
 ## Items Shipped
 - T1: Auto-reset system battery stats on charger unplug / 100% / reboot.
