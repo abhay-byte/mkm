@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt"
+    android:viewportWidth="100"
+    android:viewportHeight="100"
+    android:width="100dp"
+    android:height="100dp">
+    <group android:scaleX="0.5625" android:scaleY="0.5625" android:pivotX="50" android:pivotY="50">
+
+        <!-- LEFT SIDE: Gear + rings (stroked, unchanged) clipped to left half -->
+        <group>
+            <clip-path
+                android:pathData="M0 0H48V100H0V0Z" />
+            <path
+                android:pathData="M46 4H54A2 2 0 0 1 56 6V18A2 2 0 0 1 54 20H46A2 2 0 0 1 44 18V6A2 2 0 0 1 46 4Z"
+                android:fillColor="#FFFFFF" />
+            <group
+                android:rotation="45"
+                android:pivotX="50"
+                android:pivotY="50">
+                <path
+                    android:pathData="M46 4H54A2 2 0 0 1 56 6V18A2 2 0 0 1 54 20H46A2 2 0 0 1 44 18V6A2 2 0 0 1 46 4Z"
+                    android:fillColor="#FFFFFF" />
+            </group>
+            <group
+                android:rotation="90"
+                android:pivotX="50"
+                android:pivotY="50">
+                <path
+                    android:pathData="M46 4H54A2 2 0 0 1 56 6V18A2 2 0 0 1 54 20H46A2 2 0 0 1 44 18V6A2 2 0 0 1 46 4Z"
+                    android:fillColor="#FFFFFF" />
+            </group>
+            <group
+                android:rotation="135"
+                android:pivotX="50"
+                android:pivotY="50">
+                <path
+                    android:pathData="M46 4H54A2 2 0 0 1 56 6V18A2 2 0 0 1 54 20H46A2 2 0 0 1 44 18V6A2 2 0 0 1 46 4Z"
+                    android:fillColor="#FFFFFF" />
+            </group>
+            <group
+                android:rotation="180"
+                android:pivotX="50"
+                android:pivotY="50">
+                <path
+                    android:pathData="M46 4H54A2 2 0 0 1 56 6V18A2 2 0 0 1 54 20H46A2 2 0 0 1 44 18V6A2 2 0 0 1 46 4Z"
+                    android:fillColor="#FFFFFF" />
+            </group>
+            <group
+                android:rotation="225"
+                android:pivotX="50"
+                android:pivotY="50">
+                <path
+                    android:pathData="M46 4H54A2 2 0 0 1 56 6V18A2 2 0 0 1 54 20H46A2 2 0 0 1 44 18V6A2 2 0 0 1 46 4Z"
+                    android:fillColor="#FFFFFF" />
+            </group>
+            <group
+                android:rotation="270"
+                android:pivotX="50"
+                android:pivotY="50">
+                <path
+                    android:pathData="M46 4H54A2 2 0 0 1 56 6V18A2 2 0 0 1 54 20H46A2 2 0 0 1 44 18V6A2 2 0 0 1 46 4Z"
+                    android:fillColor="#FFFFFF" />
+            </group>
+            <group
+                android:rotation="315"
+                android:pivotX="50"
+                android:pivotY="50">
+                <path
+                    android:pathData="M46 4H54A2 2 0 0 1 56 6V18A2 2 0 0 1 54 20H46A2 2 0 0 1 44 18V6A2 2 0 0 1 46 4Z"
+                    android:fillColor="#FFFFFF" />
+            </group>
+            <path
+                android:pathData="M80 50A30 30 0 0 1 20 50A30 30 0 0 1 80 50Z"
+                android:strokeColor="#FFFFFF"
+                android:strokeWidth="8" />
+            <path
+                android:pathData="M66 50A16 16 0 0 1 34 50A16 16 0 0 1 66 50Z"
+                android:strokeColor="#FFFFFF"
+                android:strokeWidth="8" />
+        </group>
+
+        <!-- RIGHT SIDE: CPU/circuit -->
+        <!-- CPU square (outer) — filled white -->
+        <path android:fillColor="#FFFFFF"
+              android:pathData="M52 32L71 32A6 6 0 0 1 77 38L77 62A6 6 0 0 1 71 68L52 68Z" />
+        <!-- Inner CPU square — filled dark (background) for hollow/inset look -->
+        <path android:fillColor="#1A1A1A"
+              android:pathData="M52 44L62 44A3 3 0 0 1 65 47L65 53A3 3 0 0 1 62 56L52 56Z" />
+
+        <!-- Connection traces (going OUT of the CPU): keep stroked (as-is) -->
+        <path
+            android:pathData="M63 20L67 20L67 32"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="4"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M63 80L67 80L67 68"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="4"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M77 40L83 40L83 22L85 22"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="4"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M77 50L85 50"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="4"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M77 60L83 60L83 78L85 78"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="4"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+
+        <!-- Endpoint dots: stroked rings (as-is) -->
+        <path
+            android:pathData="M62.5 20A3.5 3.5 0 0 1 55.5 20A3.5 3.5 0 0 1 62.5 20Z"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="4"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M62.5 80A3.5 3.5 0 0 1 55.5 80A3.5 3.5 0 0 1 62.5 80Z"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="4"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M92.5 22A3.5 3.5 0 0 1 85.5 22A3.5 3.5 0 0 1 92.5 22Z"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="4"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M92.5 50A3.5 3.5 0 0 1 85.5 50A3.5 3.5 0 0 1 92.5 50Z"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="4"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M92.5 78A3.5 3.5 0 0 1 85.5 78A3.5 3.5 0 0 1 92.5 78Z"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="4"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+
+    </group>
+</vector>
