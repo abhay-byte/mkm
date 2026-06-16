@@ -67,7 +67,9 @@ data class GpuStatus(
     val renderer: String = "Unknown",
     val sysfsPath: String = "Unknown",
     val setOnBoot: Boolean = false,
-    val freezeValues: Boolean = false
+    val freezeValues: Boolean = false,
+    val frequencyAvailable: Boolean = true,
+    val freqRequiresRoot: Boolean = false
 )
 
 data class SwapDeviceInfo(

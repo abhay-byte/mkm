@@ -2,9 +2,13 @@ package com.ivarna.mkm.ui.screens
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,10 +24,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.BatteryFull
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.DeveloperBoard
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.VideogameAsset
@@ -35,33 +43,38 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.ivarna.mkm.ui.viewmodel.HomeViewModel
 import com.ivarna.mkm.data.HomeData
 import com.ivarna.mkm.ui.components.SectionHeader
 import com.ivarna.mkm.ui.components.StatCard
+import com.ivarna.mkm.ui.viewmodel.HomeViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel = viewModel(),
-    onOpenDrawer: () -> Unit = {}
+    onOpenDrawer: () -> Unit = {},
+    onNavigate: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
             MediumTopAppBar(
-                title = { 
+                title = {
                     Text(
                         "Minimal Kernel Manager",
                         style = MaterialTheme.typography.headlineMedium,
@@ -91,15 +104,23 @@ fun HomeScreen(
                         .padding(horizontal = 16.dp)
                 ) {
                 Spacer(modifier = Modifier.height(8.dp))
-                
+
                 SystemOverviewCard(data.overview, onCheckAgain = { viewModel.refresh() })
-                
+
                 Spacer(modifier = Modifier.height(24.dp))
-                
+
                 SectionHeader("QUICK STATUS MONITOR")
-                
+
                 QuickStatsGrid(data)
-                
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                val isAccessGranted = data.overview.isShizukuActive || data.overview.isRootActive
+                QuickAccessCard(
+                    isAccessGranted = isAccessGranted,
+                    onNavigate = onNavigate
+                )
+
                 Spacer(modifier = Modifier.height(innerPadding.calculateBottomPadding() + 32.dp))
             }
         }
@@ -222,7 +243,7 @@ fun QuickStatsGrid(data: HomeData) {
                 value = "${data.memory.usedUi} / ${data.memory.totalUi}",
                 subValue = "${(data.memory.usagePercent * 100).toInt()}% Used",
                 progress = data.memory.usagePercent,
-                icon = Icons.Default.Memory,
+                icon = Icons.Default.Dns,
                 modifier = Modifier.weight(1f)
             )
             StatCard(
@@ -239,7 +260,10 @@ fun QuickStatsGrid(data: HomeData) {
             StatCard(
                 title = "GPU",
                 value = data.gpu.currentFreq,
-                subValue = "${(data.gpu.loadPercent * 100).toInt()}% Load",
+                subValue = if (!data.gpu.frequencyAvailable && data.gpu.freqRequiresRoot)
+                    "${(data.gpu.loadPercent * 100).toInt()}% Load • Root needed for freq"
+                else
+                    "${(data.gpu.loadPercent * 100).toInt()}% Load",
                 progress = data.gpu.loadPercent,
                 icon = Icons.Default.VideogameAsset,
                 modifier = Modifier.weight(1f)
@@ -255,3 +279,177 @@ fun QuickStatsGrid(data: HomeData) {
         }
     }
 }
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun QuickAccessCard(
+    isAccessGranted: Boolean,
+    onNavigate: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val alwaysEnabled = setOf("battery", "overlay", "settings")
+    val items = listOf(
+        QuickAccessItem("RAM", "ram", Icons.Default.Dns),
+        QuickAccessItem("CPU", "cpu", Icons.Default.DeveloperBoard),
+        QuickAccessItem("GPU", "gpu", Icons.Default.VideogameAsset),
+        QuickAccessItem("Storage", "storage", Icons.Default.SdStorage),
+        QuickAccessItem("Power", "power", Icons.Default.Bolt),
+        QuickAccessItem("Battery", "battery", Icons.Default.BatteryFull),
+        QuickAccessItem("Overlay", "overlay", Icons.Default.SwapHoriz),
+        QuickAccessItem("Settings", "settings", Icons.Default.Settings)
+    )
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "QUICK ACCESS",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                if (!isAccessGranted) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = null,
+                                modifier = Modifier.size(12.dp),
+                                tint = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = "Limited",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items.forEach { item ->
+                    val enabled = isAccessGranted || item.route in alwaysEnabled
+                    QuickAccessTile(
+                        label = item.label,
+                        icon = item.icon,
+                        enabled = enabled,
+                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            if (enabled) {
+                                onNavigate(item.route)
+                            } else {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Locked: Root or Shizuku access required",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickAccessTile(
+    label: String,
+    icon: ImageVector,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val containerColor = if (enabled) {
+        MaterialTheme.colorScheme.surface
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerLowest
+    }
+    val contentColor = if (enabled) {
+        MaterialTheme.colorScheme.onSurface
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+    }
+    ElevatedCard(
+        onClick = onClick,
+        modifier = modifier.height(82.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = containerColor,
+            contentColor = contentColor
+        ),
+        elevation = CardDefaults.elevatedCardElevation(
+            defaultElevation = if (enabled) 1.dp else 0.dp
+        )
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(26.dp)
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            if (!enabled) {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = "Locked",
+                        modifier = Modifier
+                            .padding(2.dp)
+                            .size(10.dp),
+                        tint = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
+        }
+    }
+}
+
+private data class QuickAccessItem(
+    val label: String,
+    val route: String,
+    val icon: ImageVector
+)

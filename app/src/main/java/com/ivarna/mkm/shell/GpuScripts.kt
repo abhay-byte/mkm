@@ -71,19 +71,36 @@ object GpuScripts {
      * TARGET_FREQ=<freq>
      * AVAIL_FREQ=<space separated list>
      * LOAD=<percent 0-100>
+     * FREQ_AVAILABLE=<0|1>
      */
     fun getGpuInfo(path: String): String {
         return """
             echo "GOV=$(cat "$path/governor" 2>/dev/null)"
             echo "AVAIL=$(cat "$path/available_governors" 2>/dev/null)"
-            
-            # Frequencies
-            echo "CUR_FREQ=$(cat "$path/cur_freq" 2>/dev/null)"
+
+            # Frequencies - try primary path, then several fallbacks
+            # (Adreno kernels may expose freq via kgsl-3d0/gpuclk or
+            # /sys/class/devfreq/<dev>/cur_freq; many are root-only on modern Android)
+            CUR_FREQ=""
+            FREQ_AVAILABLE=0
+            BASE=$(basename "$path")
+            SOC_ADDR=$(echo "${'$'}BASE" | cut -d. -f1)
+            for f in "$path/cur_freq" "$path/cur_frequency" "$(dirname "$path")/cur_freq" "/sys/class/kgsl/kgsl-3d0/gpuclk" "/sys/class/kgsl/kgsl-3d0/devfreq/cur_freq" "/sys/class/devfreq/kgsl-3d0/cur_freq" "/sys/class/devfreq/${'$'}BASE/cur_freq" "/sys/devices/platform/soc/${'$'}SOC_ADDR/kgsl/kgsl-3d0/gpuclk" "/sys/devices/platform/soc/${'$'}SOC_ADDR/kgsl/kgsl-3d0/devfreq/cur_freq"; do
+                v=$(cat "${'$'}f" 2>/dev/null | tr -d '[:space:]')
+                if [ -n "${'$'}v" ] && [ "${'$'}v" != "0" ]; then
+                    CUR_FREQ="${'$'}v"
+                    FREQ_AVAILABLE=1
+                    break
+                fi
+            done
+            echo "CUR_FREQ=${'$'}CUR_FREQ"
+            echo "FREQ_AVAILABLE=${'$'}FREQ_AVAILABLE"
+
             echo "MIN_FREQ=$(cat "$path/min_freq" 2>/dev/null)"
             echo "MAX_FREQ=$(cat "$path/max_freq" 2>/dev/null)"
             echo "TARGET_FREQ=$(cat "$path/target_freq" 2>/dev/null)"
             echo "AVAIL_FREQ=$(cat "$path/available_frequencies" 2>/dev/null)"
-            
+
             # Load Calculation
             LOAD=0
             # Try standard load file
@@ -94,17 +111,14 @@ object GpuScripts {
                 if echo "$path" | grep -q "mali"; then
                     if [ -f "/sys/kernel/ged/hal/gpu_utilization" ]; then
                          LOAD=$(cat "/sys/kernel/ged/hal/gpu_utilization")
-                         # Some malis return 0-1, others 0-100. Assume if > 1 it is percent.
-                         # Logic handled in provider if needed, but here let's just output raw
                     fi
                 elif echo "$path" | grep -q "kgsl"; then
-                     # Adreno gpubusy
-                     # Usually at ../gpubusy relative to devfreq
+                     # Adreno gpubusy - usually at ../gpubusy relative to devfreq
                      PARENT=$(dirname "$path")
                      if [ -f "${'$'}PARENT/gpubusy" ]; then
                          read busy total < "${'$'}PARENT/gpubusy"
                          if [ "${'$'}total" -gt 0 ]; then
-                             LOAD=${'$'}(( 100 * busy / total ))
+                             LOAD=$((${'$'}busy * 100 / ${'$'}total))
                          fi
                      fi
                 fi

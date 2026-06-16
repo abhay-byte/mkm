@@ -19,10 +19,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ivarna.mkm.R
 import com.ivarna.mkm.service.BatteryMonitorService
 import com.ivarna.mkm.service.BatterySessionTracker
 import com.ivarna.mkm.shell.ShellManager
@@ -174,8 +176,8 @@ fun SettingsScreen(
             item {
                 AppInfoCard(
                     appName = "Minimal Kernel Manager",
-                    version = "v1.5",
-                    buildDate = "June 4, 2026"
+                    version = "v1.7",
+                    buildDate = "June 16, 2026"
                 )
             }
 
@@ -554,6 +556,41 @@ fun SettingsScreen(
                         modifier = Modifier.padding(8.dp),
                         colors = ListItemDefaults.colors(
                             containerColor = androidx.compose.ui.graphics.Color.Transparent
+                        )
+                    )
+                }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    onClick = { uriHandler.openUri("https://discord.gg/tAj45MjRkU") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = androidx.compose.ui.graphics.Color(0xFF5865F2),
+                        contentColor = androidx.compose.ui.graphics.Color.White
+                    )
+                ) {
+                    ListItem(
+                        headlineContent = { Text("Join MKM Community", fontWeight = FontWeight.Bold) },
+                        supportingContent = { Text("Chat with other MKM users and developers on Discord") },
+                        leadingContent = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_discord),
+                                contentDescription = null
+                            )
+                        },
+                        trailingContent = {
+                            Icon(Icons.Default.OpenInNew, contentDescription = null)
+                        },
+                        modifier = Modifier.padding(8.dp),
+                        colors = ListItemDefaults.colors(
+                            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                            headlineColor = androidx.compose.ui.graphics.Color.White,
+                            supportingColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f),
+                            leadingIconColor = androidx.compose.ui.graphics.Color.White,
+                            trailingIconColor = androidx.compose.ui.graphics.Color.White
                         )
                     )
                 }

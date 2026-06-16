@@ -61,10 +61,27 @@ fun OverlayScreen(
         }
     }
     
-    // Sync state with service life
+    // Sync state with actual service life
     LaunchedEffect(Unit) {
-        // Simple polling to see if enabled (in a real app we'd use a more robust way)
-        isOverlayEnabled = prefs.getBoolean("enabled", false)
+        val prefEnabled = prefs.getBoolean("enabled", false)
+        if (prefEnabled && !OverlayService.isRunning) {
+            // Stale state: user had it on, but service was killed (e.g. force-close).
+            // Auto-restart it instead of lying about its state.
+            if (Settings.canDrawOverlays(context)) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(Intent(context, OverlayService::class.java))
+                } else {
+                    context.startService(Intent(context, OverlayService::class.java))
+                }
+                isOverlayEnabled = true
+            } else {
+                // Permission lost / not granted - reset to off so UI matches reality
+                prefs.edit().putBoolean("enabled", false).apply()
+                isOverlayEnabled = false
+            }
+        } else {
+            isOverlayEnabled = prefEnabled && OverlayService.isRunning
+        }
     }
 
     Scaffold(
@@ -149,9 +166,18 @@ fun OverlayScreen(
         var isMovable by remember { mutableStateOf(prefs.getBoolean("movable", true)) }
         var overlayOpacity by remember { mutableStateOf(prefs.getFloat("overlay_opacity", 0.9f)) }
         var accentColorIndex by remember { mutableStateOf(prefs.getInt("accent_color_index", 0)) }
-        var attachPosition by remember { 
-            mutableStateOf(prefs.getString("attach_position", "top_center") ?: "top_center") 
+        var attachPosition by remember {
+            mutableStateOf(prefs.getString("attach_position", "top_center") ?: "top_center")
         }
+        var showAbsoluteValues by remember { mutableStateOf(prefs.getBoolean("show_absolute_values", false)) }
+        var accentTintBackground by remember { mutableStateOf(prefs.getBoolean("accent_tint_background", false)) }
+        var accentBgColorIndex by remember { mutableStateOf(prefs.getInt("accent_bg_color_index", -1)) }
+        var cpuFreqDisplay by remember { mutableStateOf(prefs.getString("cpu_freq_display", "all_cores") ?: "all_cores") }
+        var cpuFreqDropdownExpanded by remember { mutableStateOf(false) }
+        var absCpu by remember { mutableStateOf(prefs.getBoolean("abs_cpu", true)) }
+        var absGpu by remember { mutableStateOf(prefs.getBoolean("abs_gpu", true)) }
+        var absRam by remember { mutableStateOf(prefs.getBoolean("abs_ram", true)) }
+        var absSwap by remember { mutableStateOf(prefs.getBoolean("abs_swap", true)) }
 
         val accentColors = listOf(
             MaterialTheme.colorScheme.primary,
@@ -197,7 +223,7 @@ fun OverlayScreen(
                         icon = Icons.Default.DeveloperBoard,
                         title = "CPU Utilization",
                         checked = showCpuUsage,
-                        onCheckedChange = { 
+                        onCheckedChange = {
                             showCpuUsage = it
                             prefs.edit().putBoolean("show_cpu_usage", it).apply()
                             notifyService()
@@ -207,7 +233,7 @@ fun OverlayScreen(
                         icon = Icons.Default.Timeline,
                         title = "CPU Frequency",
                         checked = showCpuFreq,
-                        onCheckedChange = { 
+                        onCheckedChange = {
                             showCpuFreq = it
                             prefs.edit().putBoolean("show_cpu_freq", it).apply()
                             notifyService()
@@ -217,17 +243,17 @@ fun OverlayScreen(
                         icon = Icons.Default.VideogameAsset,
                         title = "GPU Utilization",
                         checked = showGpuUsage,
-                        onCheckedChange = { 
+                        onCheckedChange = {
                             showGpuUsage = it
                             prefs.edit().putBoolean("show_gpu_usage", it).apply()
                             notifyService()
                         }
                     )
                     OverlayToggleItem(
-                        icon = Icons.Default.Memory,
+                        icon = Icons.Default.Dns,
                         title = "RAM Usage",
                         checked = showRamUsage,
-                        onCheckedChange = { 
+                        onCheckedChange = {
                             showRamUsage = it
                             prefs.edit().putBoolean("show_ram_usage", it).apply()
                             notifyService()
@@ -386,7 +412,7 @@ fun OverlayScreen(
                         ) {
                             Slider(
                                 value = gridColumns.toFloat(),
-                                onValueChange = { 
+                                onValueChange = {
                                     gridColumns = it.toInt().coerceIn(1, 4)
                                 },
                                 onValueChangeFinished = {
@@ -398,6 +424,134 @@ fun OverlayScreen(
                                 modifier = Modifier.width(120.dp)
                             )
                         }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    OverlayToggleItem(
+                        icon = Icons.Default.Numbers,
+                        title = "Show Absolute Values",
+                        checked = showAbsoluteValues,
+                        onCheckedChange = {
+                            showAbsoluteValues = it
+                            prefs.edit().putBoolean("show_absolute_values", it).apply()
+                            notifyService()
+                        }
+                    )
+
+                    if (showAbsoluteValues) {
+                        Column(modifier = Modifier.padding(start = 16.dp)) {
+                            OverlayToggleItem(
+                                icon = Icons.Default.DeveloperBoard,
+                                title = "  CPU as Frequency",
+                                checked = absCpu,
+                                onCheckedChange = {
+                                    absCpu = it
+                                    prefs.edit().putBoolean("abs_cpu", it).apply()
+                                    notifyService()
+                                }
+                            )
+                            OverlayToggleItem(
+                                icon = Icons.Default.VideogameAsset,
+                                title = "  GPU as Frequency",
+                                checked = absGpu,
+                                onCheckedChange = {
+                                    absGpu = it
+                                    prefs.edit().putBoolean("abs_gpu", it).apply()
+                                    notifyService()
+                                }
+                            )
+                            OverlayToggleItem(
+                                icon = Icons.Default.Dns,
+                                title = "  RAM as Size",
+                                checked = absRam,
+                                onCheckedChange = {
+                                    absRam = it
+                                    prefs.edit().putBoolean("abs_ram", it).apply()
+                                    notifyService()
+                                }
+                            )
+                            OverlayToggleItem(
+                                icon = Icons.Default.SwapCalls,
+                                title = "  SWAP as Size",
+                                checked = absSwap,
+                                onCheckedChange = {
+                                    absSwap = it
+                                    prefs.edit().putBoolean("abs_swap", it).apply()
+                                    notifyService()
+                                }
+                            )
+                        }
+                    }
+
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                        Text(
+                            text = "CPU Frequency Display",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Box {
+                            val currentLabel = when (cpuFreqDisplay) {
+                                "avg" -> "Average"
+                                "max" -> "Max Frequency"
+                                else -> "All Cores"
+                            }
+                            ExposedDropdownMenuBox(
+                                expanded = cpuFreqDropdownExpanded,
+                                onExpandedChange = { cpuFreqDropdownExpanded = it }
+                            ) {
+                                OutlinedTextField(
+                                    value = currentLabel,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Mode") },
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = cpuFreqDropdownExpanded)
+                                    },
+                                    modifier = Modifier
+                                        .menuAnchor()
+                                        .fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = cpuFreqDropdownExpanded,
+                                    onDismissRequest = { cpuFreqDropdownExpanded = false }
+                                ) {
+                                    listOf(
+                                        "all_cores" to "All Cores",
+                                        "avg" to "Average",
+                                        "max" to "Max Frequency"
+                                    ).forEach { (value, label) ->
+                                        DropdownMenuItem(
+                                            text = { Text(label) },
+                                            onClick = {
+                                                cpuFreqDisplay = value
+                                                prefs.edit().putString("cpu_freq_display", value).apply()
+                                                cpuFreqDropdownExpanded = false
+                                                notifyService()
+                                            },
+                                            leadingIcon = {
+                                                if (cpuFreqDisplay == value) {
+                                                    Icon(
+                                                        Icons.Default.Check,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(18.dp),
+                                                        tint = MaterialTheme.colorScheme.primary
+                                                    )
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Controls how CPU frequency is summarised in the overlay.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
                     }
                 }
             }
@@ -470,9 +624,9 @@ fun OverlayScreen(
                                     modifier = Modifier
                                         .size(40.dp)
                                         .background(
-                                            if (accentColorIndex == index) 
-                                                MaterialTheme.colorScheme.surfaceVariant 
-                                            else 
+                                            if (accentColorIndex == index)
+                                                MaterialTheme.colorScheme.surfaceVariant
+                                            else
                                                 Color.Transparent,
                                             CircleShape
                                         )
@@ -483,6 +637,60 @@ fun OverlayScreen(
                                             prefs.edit().putInt("accent_color_index", index).apply()
                                             notifyService()
                                         }
+                                )
+                            }
+                        }
+
+                        OverlayToggleItem(
+                            icon = Icons.Default.FormatColorFill,
+                            title = "Apply Accent to Background",
+                            checked = accentTintBackground,
+                            onCheckedChange = {
+                                accentTintBackground = it
+                                prefs.edit().putBoolean("accent_tint_background", it).apply()
+                                notifyService()
+                            }
+                        )
+
+                        if (accentTintBackground) {
+                            Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
+                                Text(
+                                    text = "Background Color",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    accentColors.forEachIndexed { index, color ->
+                                        val effectiveIndex = if (accentBgColorIndex == -1) accentColorIndex else accentBgColorIndex
+                                        Box(
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .background(
+                                                    if (effectiveIndex == index)
+                                                        MaterialTheme.colorScheme.surfaceVariant
+                                                    else
+                                                        Color.Transparent,
+                                                    CircleShape
+                                                )
+                                                .padding(4.dp)
+                                                .background(color, CircleShape)
+                                                .clickable {
+                                                    accentBgColorIndex = index
+                                                    prefs.edit().putInt("accent_bg_color_index", index).apply()
+                                                    notifyService()
+                                                }
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = "Pick a different color for the background, or leave matching the accent.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                 )
                             }
                         }
@@ -664,7 +872,7 @@ fun ComponentOrderDialog(
         "cpu_usage" to ("CPU Utilization" to Icons.Default.DeveloperBoard),
         "cpu_freq" to ("CPU Frequency" to Icons.Default.Timeline),
         "gpu_usage" to ("GPU Utilization" to Icons.Default.VideogameAsset),
-        "ram_usage" to ("RAM Usage" to Icons.Default.Memory),
+        "ram_usage" to ("RAM Usage" to Icons.Default.Dns),
         "swap_usage" to ("Swap Usage" to Icons.Default.SwapCalls),
         "power_usage" to ("Power Usage" to Icons.Default.FlashOn),
         "cpu_temp" to ("CPU Temperature" to Icons.Default.Thermostat),

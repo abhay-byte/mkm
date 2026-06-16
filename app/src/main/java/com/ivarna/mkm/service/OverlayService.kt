@@ -79,6 +79,14 @@ class OverlayService : Service() {
     private var overlayOpacityState by mutableStateOf(0.9f)
     private var accentColorIndexState by mutableStateOf(0)
     private var showSparklinesState by mutableStateOf(false)
+    private var showAbsoluteValuesState by mutableStateOf(false)
+    private var cpuFreqDisplayState by mutableStateOf("all_cores")
+    private var accentTintBackgroundState by mutableStateOf(false)
+    private var accentBgColorIndexState by mutableStateOf(-1)
+    private var absCpuState by mutableStateOf(true)
+    private var absGpuState by mutableStateOf(true)
+    private var absRamState by mutableStateOf(true)
+    private var absSwapState by mutableStateOf(true)
 
     // History for Sparklines: Map of metric key to list of values
     private val metricHistory = mutableStateMapOf<String, List<Float>>()
@@ -86,6 +94,12 @@ class OverlayService : Service() {
 
     private val CHANNEL_ID = "overlay_service"
     private val NOTIFICATION_ID = 1001
+
+    companion object {
+        @Volatile
+        var isRunning: Boolean = false
+            private set
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -112,13 +126,14 @@ class OverlayService : Service() {
         createNotificationChannel()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(
-                NOTIFICATION_ID, 
-                createNotification(), 
+                NOTIFICATION_ID,
+                createNotification(),
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
             )
         } else {
             startForeground(NOTIFICATION_ID, createNotification())
         }
+        isRunning = true
         showOverlay()
         startMonitoring()
     }
@@ -157,6 +172,14 @@ class OverlayService : Service() {
         overlayOpacityState = prefs.getFloat("overlay_opacity", 0.9f)
         accentColorIndexState = prefs.getInt("accent_color_index", 0)
         showSparklinesState = prefs.getBoolean("show_sparklines", false)
+        showAbsoluteValuesState = prefs.getBoolean("show_absolute_values", false)
+        accentTintBackgroundState = prefs.getBoolean("accent_tint_background", false)
+        accentBgColorIndexState = prefs.getInt("accent_bg_color_index", -1)
+        cpuFreqDisplayState = prefs.getString("cpu_freq_display", "all_cores") ?: "all_cores"
+        absCpuState = prefs.getBoolean("abs_cpu", true)
+        absGpuState = prefs.getBoolean("abs_gpu", true)
+        absRamState = prefs.getBoolean("abs_ram", true)
+        absSwapState = prefs.getBoolean("abs_swap", true)
     }
 
     private fun updateSettings() {
@@ -317,10 +340,18 @@ class OverlayService : Service() {
                     Color(0xFF00BCD4)
                 )
                 val selectedColor = accentColors.getOrElse(accentColorIndexState) { accentColors[0] }
+                val baseSurface = Color(0xFF49454F)
+                val backgroundColor = if (accentTintBackgroundState) {
+                    val bgIndex = if (accentBgColorIndexState == -1) accentColorIndexState else accentBgColorIndexState
+                    val bgColor = accentColors.getOrElse(bgIndex) { selectedColor }
+                    bgColor.copy(alpha = 0.25f)
+                } else {
+                    baseSurface
+                }
 
-                MaterialTheme(colorScheme = darkColorScheme(primary = selectedColor)) {
+                MaterialTheme(colorScheme = darkColorScheme(primary = selectedColor, surfaceVariant = backgroundColor)) {
                     val data by uiState.collectAsState()
-                    
+
                     Card(
                         modifier = Modifier
                             .let {
@@ -338,30 +369,68 @@ class OverlayService : Service() {
                             .padding(2.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = overlayOpacityState)
+                            containerColor = backgroundColor.copy(alpha = overlayOpacityState)
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                     ) {
                         data?.let { homeData ->
                             val metricsMap = mutableMapOf<String, @Composable () -> Unit>()
-                            
+
                             if (showCpuUsageState) metricsMap["cpu_usage"] = {
-                                CompactMetric("CPU", "${(homeData.cpu.overallUsage * 100).toInt()}%", homeData.cpu.overallUsage, showProgressBarsState, Icons.Default.DeveloperBoard, showIconsOnlyState, metricHistory["cpu_usage"])
+                                if (showAbsoluteValuesState && absCpuState) {
+                                    val freqStr = formatFreqCompact(parseFreqMHz(homeData.cpu.clusters.firstOrNull()?.currentFreq ?: "0 MHz"))
+                                    CompactMetric("CPU", freqStr, 0f, false, Icons.Default.DeveloperBoard, showIconsOnlyState, null)
+                                } else {
+                                    CompactMetric("CPU", "${(homeData.cpu.overallUsage * 100).toInt()}%", homeData.cpu.overallUsage, showProgressBarsState, Icons.Default.DeveloperBoard, showIconsOnlyState, metricHistory["cpu_usage"])
+                                }
                             }
                             if (showCpuFreqState) metricsMap["cpu_freq"] = {
-                                val clusterFreqs = homeData.cpu.clusters.sortedBy { it.id }.joinToString(" ") { cluster ->
-                                    cluster.currentFreq.replace(" GHz", "G").replace(" MHz", "M")
+                                val freqStr = when (cpuFreqDisplayState) {
+                                    "avg" -> {
+                                        val freqs = homeData.cpu.clusters.mapNotNull { cluster ->
+                                            val mhz = parseFreqMHz(cluster.currentFreq)
+                                            if (mhz > 0L) mhz else null
+                                        }
+                                        if (freqs.isNotEmpty()) formatFreqCompact(freqs.average().toLong()) else "0"
+                                    }
+                                    "max" -> {
+                                        val maxMhz = homeData.cpu.clusters.mapNotNull { cluster ->
+                                            val mhz = parseFreqMHz(cluster.currentFreq)
+                                            if (mhz > 0L) mhz else null
+                                        }.maxOrNull() ?: 0L
+                                        formatFreqCompact(maxMhz)
+                                    }
+                                    else -> {
+                                        homeData.cpu.clusters.sortedBy { it.id }.joinToString(" ") { cluster ->
+                                            formatFreqCompact(parseFreqMHz(cluster.currentFreq))
+                                        }
+                                    }
                                 }
-                                CompactMetric("FREQ", clusterFreqs, 0f, false, Icons.Default.Speed, showIconsOnlyState, metricHistory["cpu_freq"])
+                                CompactMetric("FREQ", freqStr, 0f, false, Icons.Default.Speed, showIconsOnlyState, metricHistory["cpu_freq"])
                             }
                             if (showGpuUsageState) metricsMap["gpu_usage"] = {
-                                CompactMetric("GPU", "${(homeData.gpu.loadPercent * 100).toInt()}%", homeData.gpu.loadPercent, showProgressBarsState, Icons.Default.VideogameAsset, showIconsOnlyState, metricHistory["gpu_usage"])
+                                if (showAbsoluteValuesState && absGpuState) {
+                                    val freqStr = if (homeData.gpu.frequencyAvailable) {
+                                        formatFreqCompact(parseFreqMHz(homeData.gpu.currentFreq))
+                                    } else "N/A"
+                                    CompactMetric("GPU", freqStr, 0f, false, Icons.Default.VideogameAsset, showIconsOnlyState, null)
+                                } else {
+                                    CompactMetric("GPU", "${(homeData.gpu.loadPercent * 100).toInt()}%", homeData.gpu.loadPercent, showProgressBarsState, Icons.Default.VideogameAsset, showIconsOnlyState, metricHistory["gpu_usage"])
+                                }
                             }
                             if (showRamUsageState) metricsMap["ram_usage"] = {
-                                CompactMetric("RAM", "${(homeData.memory.usagePercent * 100).toInt()}%", homeData.memory.usagePercent, showProgressBarsState, Icons.Default.Memory, showIconsOnlyState, metricHistory["ram_usage"])
+                                if (showAbsoluteValuesState && absRamState) {
+                                    CompactMetric("RAM", homeData.memory.usedUi, 0f, false, Icons.Default.Memory, showIconsOnlyState, null)
+                                } else {
+                                    CompactMetric("RAM", "${(homeData.memory.usagePercent * 100).toInt()}%", homeData.memory.usagePercent, showProgressBarsState, Icons.Default.Memory, showIconsOnlyState, metricHistory["ram_usage"])
+                                }
                             }
                             if (showSwapUsageState && homeData.swap.isActive) metricsMap["swap_usage"] = {
-                                CompactMetric("SWAP", "${(homeData.swap.usagePercent * 100).toInt()}%", homeData.swap.usagePercent, showProgressBarsState, Icons.Default.SwapCalls, showIconsOnlyState, metricHistory["swap_usage"])
+                                if (showAbsoluteValuesState && absSwapState) {
+                                    CompactMetric("SWAP", homeData.swap.usedUi, 0f, false, Icons.Default.SwapCalls, showIconsOnlyState, null)
+                                } else {
+                                    CompactMetric("SWAP", "${(homeData.swap.usagePercent * 100).toInt()}%", homeData.swap.usagePercent, showProgressBarsState, Icons.Default.SwapCalls, showIconsOnlyState, metricHistory["swap_usage"])
+                                }
                             }
                             if (showPowerUsageState) metricsMap["power_usage"] = {
                                 val sign = if (homeData.power.isCharging) "+" else "-"
@@ -551,6 +620,27 @@ class OverlayService : Service() {
         if (::composeView.isInitialized && composeView.isAttachedToWindow) {
             windowManager.removeView(composeView)
         }
+        isRunning = false
         super.onDestroy()
+    }
+}
+
+private fun parseFreqMHz(s: String): Long {
+    val parts = s.trim().split(" ", limit = 2)
+    val num = parts.getOrNull(0)?.toDoubleOrNull() ?: return 0L
+    val unit = parts.getOrNull(1)?.lowercase() ?: ""
+    return when {
+        unit.startsWith("ghz") -> (num * 1000.0).toLong()
+        unit.startsWith("mhz") -> num.toLong()
+        unit.startsWith("khz") -> (num / 1000.0).toLong()
+        else -> num.toLong()
+    }
+}
+
+private fun formatFreqCompact(mhz: Long): String {
+    return when {
+        mhz <= 0L -> "0"
+        mhz >= 1000L -> String.format("%.2fG", mhz / 1000.0)
+        else -> "${mhz}M"
     }
 }

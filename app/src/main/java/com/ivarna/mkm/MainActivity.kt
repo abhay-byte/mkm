@@ -1,7 +1,11 @@
 package com.ivarna.mkm
 
+import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -54,6 +58,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.ivarna.mkm.navigation.Screen
 import com.ivarna.mkm.navigation.navItems
+import com.ivarna.mkm.service.OverlayService
 import com.ivarna.mkm.ui.screens.BatteryHistoryScreen
 import com.ivarna.mkm.ui.screens.BatteryScreen
 import com.ivarna.mkm.ui.screens.NotificationSettingsScreen
@@ -79,6 +84,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val openBattery = intent?.action == com.ivarna.mkm.service.BatteryMonitorService.ACTION_OPEN_BATTERY
+        resumeOverlayIfEnabled()
         setContent {
             val settingsViewModel: SettingsViewModel = viewModel()
             val homeViewModel: HomeViewModel = viewModel()
@@ -95,6 +101,24 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         if (intent.action == com.ivarna.mkm.service.BatteryMonitorService.ACTION_OPEN_BATTERY) {
             recreate()
+        }
+    }
+
+    private fun resumeOverlayIfEnabled() {
+        val prefs = getSharedPreferences("overlay_prefs", Context.MODE_PRIVATE)
+        val enabled = prefs.getBoolean("enabled", false)
+        if (!enabled) return
+        if (OverlayService.isRunning) return
+        if (!Settings.canDrawOverlays(this)) {
+            // Permission was revoked while app was dead - clear stale flag
+            prefs.edit().putBoolean("enabled", false).apply()
+            return
+        }
+        val intent = Intent(this, OverlayService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
         }
     }
 }
@@ -206,11 +230,20 @@ fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewMode
             startDestination = Screen.Home.route,
             modifier = Modifier.fillMaxSize()
         ) {
-            composable(Screen.Home.route) { 
+            composable(Screen.Home.route) {
                 HomeScreen(
-                    viewModel = homeViewModel, 
-                    onOpenDrawer = openDrawer
-                ) 
+                    viewModel = homeViewModel,
+                    onOpenDrawer = openDrawer,
+                    onNavigate = { route ->
+                        navController.navigate(route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                )
             }
             composable(Screen.RAM.route) { RamScreen(onOpenDrawer = openDrawer) }
             composable(Screen.CPU.route) { CpuScreen(onOpenDrawer = openDrawer) }

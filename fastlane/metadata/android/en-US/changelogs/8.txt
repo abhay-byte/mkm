@@ -1,0 +1,8 @@
+Added a Discord community card in Settings to join MKM users and developers.
+Added a Quick Access grid on the Home page for one-tap navigation to CPU, GPU, RAM, Storage, Power, Battery, Overlay, and Settings; locked items show a lock badge and require root or Shizuku.
+Added overlay appearance options to show absolute values (GB / MHz) for CPU, GPU, RAM, and SWAP with per-metric toggles.
+Added an overlay CPU Frequency display mode: All Cores, Average, or Max Frequency.
+Added an overlay accent color option to tint the background, with a separate background color picker.
+Changed the RAM icon to a more representative memory module glyph.
+Fixed overlay state going stale after a force close; the overlay now auto-resumes on app start if it was enabled.
+Improved GPU frequency handling on Adreno / Turnip devices: shows N/A and a "root needed" hint when the kernel blocks shell access.
