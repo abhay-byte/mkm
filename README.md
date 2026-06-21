@@ -1,6 +1,4 @@
 <div align="center">
-  <img src="docs/storelisting/storelisting.gif" alt="MKM Preview" width="100%" style="background: url('docs/storelisting/featureGraphic_16_9.png') center/cover no-repeat;"/>
-  <br/><br/>
   
   <img src="assets/logo.png" alt="MKM Logo" width="120"/>
   
@@ -17,6 +15,10 @@
   **Package:** `com.ivarna.mkm`
   
   Android kernel management and system monitoring application
+  
+  <br/>
+  <img src="docs/storelisting/storelisting.gif" alt="MKM Preview" width="100%" style="background: url('docs/storelisting/featureGraphic_16_9.png') center/cover no-repeat;"/>
+  <br/>
 
   <p align="center">
     <a href="https://discord.gg/tAj45MjRkU">
