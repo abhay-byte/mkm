@@ -1,4 +1,7 @@
 <div align="center">
+  <img src="docs/storelisting/storelisting.gif" alt="MKM Preview" width="100%" style="background: url('docs/storelisting/featureGraphic_16_9.png') center/cover no-repeat;"/>
+  <br/><br/>
+  
   <img src="assets/logo.png" alt="MKM Logo" width="120"/>
   
   <br/><br/>
@@ -38,11 +41,6 @@
       <img src="https://img.shields.io/github/v/release/abhay-byte/mkm?style=for-the-badge&logo=github&color=238636&label=Latest" alt="Latest Release"/>
     </a>
   </p>
-
-  | | | | |
-  | :---: | :---: | :---: | :---: |
-  | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width="160"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" width="160"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" width="160"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" width="160"> |
-  | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5.png" width="160"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6.png" width="160"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/7.png" width="160"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/8.png" width="160"> |
 </div>
 
 ---
