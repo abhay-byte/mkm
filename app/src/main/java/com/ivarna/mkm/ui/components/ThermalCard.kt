@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.components
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -59,7 +60,7 @@ fun ThermalCard(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "Thermal Status",
+                            text = stringResource(com.ivarna.mkm.R.string.thermal_status),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -98,7 +99,7 @@ fun ThermalCard(
                     IconButton(onClick = { expanded = !expanded }) {
                         Icon(
                             imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                            contentDescription = "Expand"
+                            contentDescription = stringResource(com.ivarna.mkm.R.string.expand)
                         )
                     }
                 }
@@ -147,7 +148,7 @@ fun ThermalCard(
                         ) {
                             Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Set Limit")
+                            Text(stringResource(com.ivarna.mkm.R.string.set_limit))
                         }
 
                         Button(
@@ -160,7 +161,7 @@ fun ThermalCard(
                         ) {
                             Icon(Icons.Default.Warning, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Disable")
+                            Text(stringResource(com.ivarna.mkm.R.string.disable))
                         }
                     }
                     
@@ -168,7 +169,7 @@ fun ThermalCard(
                         onClick = { showLogDialog = true },
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                     ) {
-                        Text("Show Debug Logs")
+                        Text(stringResource(com.ivarna.mkm.R.string.show_debug_logs))
                     }
                 }
             }
@@ -182,10 +183,10 @@ fun ThermalCard(
         AlertDialog(
             onDismissRequest = { showLimitDialog = false },
             icon = { Icon(Icons.Default.Thermostat, contentDescription = null) },
-            title = { Text("Set Thermal Limit") },
+            title = { Text(stringResource(com.ivarna.mkm.R.string.set_thermal_limit)) },
             text = {
                 Column {
-                    Text("Adjust the temperature at which throttling begins. Higher values increase performance but also heat.")
+                    Text(stringResource(com.ivarna.mkm.R.string.thermal_limit_desc))
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "${sliderValue.toInt()}°C",
@@ -215,12 +216,12 @@ fun ThermalCard(
                         showLimitDialog = false
                     }
                 ) {
-                    Text("Apply")
+                    Text(stringResource(com.ivarna.mkm.R.string.apply))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showLimitDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(com.ivarna.mkm.R.string.cancel))
                 }
             }
         )
@@ -231,11 +232,11 @@ fun ThermalCard(
         
         AlertDialog(
             onDismissRequest = { showLogDialog = false },
-            title = { Text("Debug Logs") },
+            title = { Text(stringResource(com.ivarna.mkm.R.string.debug_logs)) },
             text = {
                 LazyColumn(modifier = Modifier.height(300.dp)) {
                     if (logs.isEmpty()) {
-                        item { Text("No logs yet.") }
+                        item { Text(stringResource(com.ivarna.mkm.R.string.no_logs_yet)) }
                     } else {
                         items(logs) { log ->
                             Text(
@@ -251,7 +252,7 @@ fun ThermalCard(
             },
             confirmButton = {
                 TextButton(onClick = { showLogDialog = false }) {
-                    Text("Close")
+                    Text(stringResource(com.ivarna.mkm.R.string.close))
                 }
             }
         )
@@ -261,7 +262,7 @@ fun ThermalCard(
         AlertDialog(
             onDismissRequest = { showWarningDialog = false },
             icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text("Extreme Danger") },
+            title = { Text(stringResource(com.ivarna.mkm.R.string.extreme_danger)) },
             text = { 
                 Text("Disabling thermal throttling can permanently damage your device, battery, and cause physical harm. This is NOT recommended.\n\nAre you absolutely sure?") 
             },
@@ -273,12 +274,12 @@ fun ThermalCard(
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Yes, I understand the risks")
+                    Text(stringResource(com.ivarna.mkm.R.string.understand_risks))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showWarningDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(com.ivarna.mkm.R.string.cancel))
                 }
             }
         )

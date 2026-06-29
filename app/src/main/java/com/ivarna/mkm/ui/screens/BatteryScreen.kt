@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.screens
+import androidx.compose.ui.res.stringResource
 
 import android.Manifest
 import android.content.Context
@@ -78,7 +79,7 @@ fun BatteryScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
-                        Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                        Icon(Icons.Filled.Menu, contentDescription = stringResource(com.ivarna.mkm.R.string.menu))
                     }
                 },
                 scrollBehavior = scrollBehavior
@@ -296,7 +297,7 @@ fun CapacityCard(stats: BatteryStats) {
 
             if (showRated) {
                 CapacityRow(
-                    label = "Rated (design) capacity",
+                    label = stringResource(com.ivarna.mkm.R.string.rated_design_capacity),
                     value = "${stats.ratedCapacityMah} mAh",
                     icon = Icons.Default.BatteryStd,
                     color = MaterialTheme.colorScheme.primary
@@ -334,14 +335,14 @@ fun CapacityCard(stats: BatteryStats) {
                 } else if (isEstimatedOnly) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Calculated from charge counter. Root or Shizuku provides more accurate kernel readings.",
+                        text = stringResource(com.ivarna.mkm.R.string.calculated_from_charge_counter),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             } else {
                 Text(
-                    text = "Capacity info unavailable. Root or Shizuku access may be required to read kernel battery data.",
+                    text = stringResource(com.ivarna.mkm.R.string.capacity_unavailable),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -388,14 +389,14 @@ fun CapacityRow(
 fun DrainRateGrid(stats: BatteryStats) {
     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         DrainRateCard(
-            title = "Active Drain",
+            title = stringResource(com.ivarna.mkm.R.string.active_drain),
             value = "${String.format("%.2f", stats.activeDrainPerHr)}%/hr",
             icon = Icons.Default.PhoneAndroid,
             isActive = stats.screenOnTimeMs > 0,
             modifier = Modifier.weight(1f)
         )
         DrainRateCard(
-            title = "Idle Drain",
+            title = stringResource(com.ivarna.mkm.R.string.idle_drain),
             value = "${String.format("%.2f", stats.idleDrainPerHr)}%/hr",
             icon = Icons.Default.Snooze,
             isActive = stats.screenOffTimeMs > 0,
@@ -476,7 +477,7 @@ fun TimeBreakdownCard(stats: BatteryStats) {
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = "Charging Session",
+                            text = stringResource(com.ivarna.mkm.R.string.charging_session),
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF4CAF50)
@@ -504,7 +505,7 @@ fun TimeBreakdownCard(stats: BatteryStats) {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
             } else if (!stats.isSessionActive) {
                 Text(
-                    text = "No active discharging session. Disconnect charger to start monitoring.",
+                    text = stringResource(com.ivarna.mkm.R.string.no_active_discharging),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -512,7 +513,7 @@ fun TimeBreakdownCard(stats: BatteryStats) {
             }
 
             TimeRow(
-                label = "Screen on",
+                label = stringResource(com.ivarna.mkm.R.string.screen_on),
                 duration = formatDuration(stats.screenOnTimeMs),
                 percent = stats.screenOnPercent,
                 drainPercent = stats.screenOnDrainPercent,
@@ -522,7 +523,7 @@ fun TimeBreakdownCard(stats: BatteryStats) {
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
             TimeRow(
-                label = "Screen off",
+                label = stringResource(com.ivarna.mkm.R.string.screen_off),
                 duration = formatDuration(stats.screenOffTimeMs),
                 percent = stats.screenOffPercent,
                 drainPercent = stats.screenOffDrainPercent,
@@ -532,7 +533,7 @@ fun TimeBreakdownCard(stats: BatteryStats) {
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
             TimeRow(
-                label = "Deep sleep",
+                label = stringResource(com.ivarna.mkm.R.string.deep_sleep),
                 duration = formatDuration(stats.deepSleepTimeMs),
                 percent = stats.deepSleepPercent,
                 drainPercent = stats.deepSleepDrainPercent,
@@ -542,7 +543,7 @@ fun TimeBreakdownCard(stats: BatteryStats) {
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
             TimeRow(
-                label = "Awake",
+                label = stringResource(com.ivarna.mkm.R.string.awake),
                 duration = formatDuration(stats.awakeTimeMs),
                 percent = stats.awakePercent,
                 drainPercent = stats.awakeDrainPercent,
@@ -643,7 +644,7 @@ fun NotificationToggleCard(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = "Notification Card",
+                        text = stringResource(com.ivarna.mkm.R.string.notification_card),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -700,7 +701,7 @@ fun HistorySparklineCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Live",
+                    text = stringResource(com.ivarna.mkm.R.string.live),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -815,12 +816,12 @@ fun IntervalSelectorCard(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "Refresh Interval",
+                            text = stringResource(com.ivarna.mkm.R.string.refresh_interval),
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "How often battery stats update",
+                            text = stringResource(com.ivarna.mkm.R.string.how_often_battery_update),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -867,7 +868,7 @@ fun IntervalSelectorCard(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Longer intervals reduce MKM's own battery usage (was every 1s, now default 30s).",
+                text = stringResource(com.ivarna.mkm.R.string.mkm_battery_interval_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
@@ -892,7 +893,7 @@ fun NotificationContentCard(
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                text = "Notification Heading",
+                text = stringResource(com.ivarna.mkm.R.string.notification_heading),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -917,7 +918,7 @@ fun NotificationContentCard(
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
             Text(
-                text = "Expanded Content",
+                text = stringResource(com.ivarna.mkm.R.string.expanded_content),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -976,7 +977,7 @@ fun SessionHistorySummaryCard(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = "Past Sessions",
+                        text = stringResource(com.ivarna.mkm.R.string.past_sessions),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -993,7 +994,7 @@ fun SessionHistorySummaryCard(
             }
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "Open session history",
+                contentDescription = stringResource(com.ivarna.mkm.R.string.open_session_history),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -1030,7 +1031,7 @@ fun UnifiedActivityCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Power",
+                        text = stringResource(com.ivarna.mkm.R.string.power),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1060,7 +1061,7 @@ fun UnifiedActivityCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Drain Rate",
+                        text = stringResource(com.ivarna.mkm.R.string.drain_rate),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1104,7 +1105,7 @@ fun UnifiedActivityCard(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "Session History",
+                            text = stringResource(com.ivarna.mkm.R.string.session_history),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -1118,7 +1119,7 @@ fun UnifiedActivityCard(
                 }
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = "Open history",
+                    contentDescription = stringResource(com.ivarna.mkm.R.string.open_history),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -1193,7 +1194,7 @@ fun NotificationNavCard(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Customise notification content",
+                            text = stringResource(com.ivarna.mkm.R.string.customise_notification_content),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

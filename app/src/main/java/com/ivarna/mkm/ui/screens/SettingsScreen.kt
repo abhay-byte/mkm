@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.screens
+import androidx.compose.ui.res.stringResource
 
 import android.Manifest
 import android.content.Context
@@ -148,7 +149,7 @@ fun SettingsScreen(
             MediumTopAppBar(
                 navigationIcon = {
                      IconButton(onClick = onOpenDrawer) {
-                        Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                        Icon(Icons.Filled.Menu, contentDescription = stringResource(com.ivarna.mkm.R.string.menu))
                     }
                 },
                 title = {
@@ -175,7 +176,7 @@ fun SettingsScreen(
         ) {
             item {
                 AppInfoCard(
-                    appName = "Minimal Kernel Manager",
+                    appName = stringResource(com.ivarna.mkm.R.string.minimal_kernel_manager),
                     version = "v1.7",
                     buildDate = "June 16, 2026"
                 )
@@ -190,10 +191,10 @@ fun SettingsScreen(
             }
 
             item {
-                SettingsSection(title = "Appearance") {
+                SettingsSection(title = stringResource(com.ivarna.mkm.R.string.appearance)) {
                     SettingsItem(
                         icon = Icons.Default.Palette,
-                        title = "Theme",
+                        title = stringResource(com.ivarna.mkm.R.string.theme),
                         subtitle = when(theme) {
                             AppTheme.SYSTEM -> "System Default"
                             AppTheme.DYNAMIC -> "Dynamic (Material You)"
@@ -219,7 +220,7 @@ fun SettingsScreen(
             // Power Calibration - moved from Overlay page
             item {
                 Spacer(modifier = Modifier.height(16.dp))
-                SettingsSection(title = "Power Calibration") {
+                SettingsSection(title = stringResource(com.ivarna.mkm.R.string.power_calibration)) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -239,7 +240,7 @@ fun SettingsScreen(
                         ) {
                             Column {
                                 Text(
-                                    text = "Raw Power",
+                                    text = stringResource(com.ivarna.mkm.R.string.raw_power),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -266,7 +267,7 @@ fun SettingsScreen(
                         }
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                         Text(
-                            text = "Calibration Multiplier",
+                            text = stringResource(com.ivarna.mkm.R.string.calibration_multiplier),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -283,14 +284,14 @@ fun SettingsScreen(
                                     calibrationSaveError = false
                                 },
                                 modifier = Modifier.weight(1f),
-                                label = { Text("Multiplier") },
-                                placeholder = { Text("e.g. 1.1") },
+                                label = { Text(stringResource(com.ivarna.mkm.R.string.multiplier)) },
+                                placeholder = { Text(stringResource(com.ivarna.mkm.R.string.eg_1_1)) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 singleLine = true,
                                 shape = RoundedCornerShape(12.dp),
                                 isError = calibrationSaveError,
                                 supportingText = if (calibrationSaveError) {
-                                    { Text("Invalid number", color = MaterialTheme.colorScheme.error) }
+                                    { Text(stringResource(com.ivarna.mkm.R.string.invalid_number), color = MaterialTheme.colorScheme.error) }
                                 } else null
                             )
                             FilledTonalIconButton(
@@ -309,7 +310,7 @@ fun SettingsScreen(
                                     }
                                 }
                             ) {
-                                Icon(Icons.Default.Save, contentDescription = "Save multiplier")
+                                Icon(Icons.Default.Save, contentDescription = stringResource(com.ivarna.mkm.R.string.save_multiplier))
                             }
                             FilledTonalIconButton(
                                 onClick = {
@@ -325,7 +326,7 @@ fun SettingsScreen(
                                     contentColor = MaterialTheme.colorScheme.onErrorContainer
                                 )
                             ) {
-                                Icon(Icons.Default.SettingsBackupRestore, contentDescription = "Reset to 1×")
+                                Icon(Icons.Default.SettingsBackupRestore, contentDescription = stringResource(com.ivarna.mkm.R.string.reset_to_1x))
                             }
                         }
                         Text(
@@ -340,10 +341,10 @@ fun SettingsScreen(
             // Battery Notification Toggle
             item {
                 Spacer(modifier = Modifier.height(16.dp))
-                SettingsSection(title = "Notifications") {
+                SettingsSection(title = stringResource(com.ivarna.mkm.R.string.notifications)) {
                     SettingsItem(
                         icon = if (batteryNotificationEnabled) Icons.Default.Notifications else Icons.Default.NotificationsOff,
-                        title = "Battery Monitor",
+                        title = stringResource(com.ivarna.mkm.R.string.battery_monitor),
                         subtitle = if (batteryNotificationEnabled) "Persistent notification active" else "Tap to enable battery notification",
                         onClick = { toggleBatteryNotification(!batteryNotificationEnabled) },
                         trailing = {
@@ -359,8 +360,8 @@ fun SettingsScreen(
                     // Navigate to full notification customise screen
                     SettingsItem(
                         icon = Icons.Default.Tune,
-                        title = "Customise Notification",
-                        subtitle = "Configure what's shown when charging or discharging",
+                        title = stringResource(com.ivarna.mkm.R.string.customise_notification),
+                        subtitle = stringResource(com.ivarna.mkm.R.string.configure_when_charging),
                         onClick = onOpenNotificationSettings
                     )
 
@@ -368,7 +369,7 @@ fun SettingsScreen(
 
                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                         Text(
-                            text = "Refresh Interval",
+                            text = stringResource(com.ivarna.mkm.R.string.refresh_interval),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -414,7 +415,7 @@ fun SettingsScreen(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Longer intervals reduce battery usage. Default is 30s.",
+                            text = stringResource(com.ivarna.mkm.R.string.longer_intervals_reduce_battery_usage),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
@@ -425,7 +426,7 @@ fun SettingsScreen(
             // Battery Stats Reset (T1)
             item {
                 Spacer(modifier = Modifier.height(16.dp))
-                SettingsSection(title = "Battery Stats Reset") {
+                SettingsSection(title = stringResource(com.ivarna.mkm.R.string.battery_stats_reset)) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -433,7 +434,7 @@ fun SettingsScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Auto-reset system battery stats (dumpsys batterystats --reset) for fresh wakelock/UID analysis. Requires root or shizuku.",
+                            text = stringResource(com.ivarna.mkm.R.string.auto_reset_battery_stats),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
@@ -451,7 +452,7 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
                         SwitchRow(
-                            label = "Reset on charger unplug",
+                            label = stringResource(com.ivarna.mkm.R.string.reset_on_charger_unplug),
                             checked = resetOnUnplug,
                             onCheckedChange = {
                                 resetOnUnplug = it
@@ -460,7 +461,7 @@ fun SettingsScreen(
                         )
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                         SwitchRow(
-                            label = "Reset on 100%",
+                            label = stringResource(com.ivarna.mkm.R.string.reset_on_100),
                             checked = resetOnFull,
                             onCheckedChange = {
                                 resetOnFull = it
@@ -469,7 +470,7 @@ fun SettingsScreen(
                         )
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                         SwitchRow(
-                            label = "Reset on reboot",
+                            label = stringResource(com.ivarna.mkm.R.string.reset_on_reboot),
                             checked = resetOnBoot,
                             onCheckedChange = {
                                 resetOnBoot = it
@@ -504,7 +505,7 @@ fun SettingsScreen(
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Reset now")
+                                Text(stringResource(com.ivarna.mkm.R.string.reset_now))
                             }
                         }
                     }
@@ -514,24 +515,24 @@ fun SettingsScreen(
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 AboutMeCard(
-                    name = "Abhay Raj",
+                    name = stringResource(com.ivarna.mkm.R.string.abhay_raj),
                     handle = "@abhay-byte",
-                    bio = "Passionate about building software, exploring hardware, and all things Linux."
+                    bio = stringResource(com.ivarna.mkm.R.string.bio_text)
                 )
             }
 
             item {
-                SettingsSection(title = "Connect With Me") {
+                SettingsSection(title = stringResource(com.ivarna.mkm.R.string.connect_with_me)) {
                     SocialItem(
                         icon = Icons.Default.Code,
-                        label = "GitHub",
-                        description = "View my repositories and projects",
+                        label = stringResource(com.ivarna.mkm.R.string.github),
+                        description = stringResource(com.ivarna.mkm.R.string.view_my_repos),
                         onClick = { uriHandler.openUri("https://github.com/abhay-byte") }
                     )
                     SocialItem(
                         icon = Icons.Default.Group,
-                        label = "LinkedIn",
-                        description = "Let's connect professionally",
+                        label = stringResource(com.ivarna.mkm.R.string.linkedin),
+                        description = stringResource(com.ivarna.mkm.R.string.lets_connect),
                         onClick = { uriHandler.openUri("https://www.linkedin.com/in/abhay-byte") }
                     )
                 }
@@ -548,8 +549,8 @@ fun SettingsScreen(
                     )
                 ) {
                     ListItem(
-                        headlineContent = { Text("Star on GitHub", fontWeight = FontWeight.Bold) },
-                        supportingContent = { Text("MKM - If you like this project, please give it a star!") },
+                        headlineContent = { Text(stringResource(com.ivarna.mkm.R.string.star_on_github), fontWeight = FontWeight.Bold) },
+                        supportingContent = { Text(stringResource(com.ivarna.mkm.R.string.mkm_project_desc)) },
                         leadingContent = {
                             Icon(Icons.Default.Star, contentDescription = null)
                         },
@@ -573,8 +574,8 @@ fun SettingsScreen(
                     )
                 ) {
                     ListItem(
-                        headlineContent = { Text("Join MKM Community", fontWeight = FontWeight.Bold) },
-                        supportingContent = { Text("Chat with other MKM users and developers on Discord") },
+                        headlineContent = { Text(stringResource(com.ivarna.mkm.R.string.join_mkm_community), fontWeight = FontWeight.Bold) },
+                        supportingContent = { Text(stringResource(com.ivarna.mkm.R.string.discord_desc)) },
                         leadingContent = {
                             Icon(
                                 painter = painterResource(R.drawable.ic_discord),
@@ -600,7 +601,7 @@ fun SettingsScreen(
 
     if (showThemeDialog) {
         SelectionBottomSheet(
-            title = "App Theme",
+            title = stringResource(com.ivarna.mkm.R.string.app_theme),
             items = AppTheme.values().map { it.name },
             selectedItem = theme.name,
             onDismiss = { showThemeDialog = false },

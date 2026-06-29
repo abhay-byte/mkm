@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.components
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -218,7 +219,7 @@ fun AppInfoCard(
             Box(contentAlignment = Alignment.Center) {
                 Image(
                     painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                    contentDescription = "App Logo",
+                    contentDescription = stringResource(com.ivarna.mkm.R.string.app_logo),
                     modifier = Modifier.size(80.dp)
                 )
             }

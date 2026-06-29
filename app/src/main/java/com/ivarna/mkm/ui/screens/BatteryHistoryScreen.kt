@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.screens
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -57,7 +58,7 @@ fun BatteryHistoryScreen(
             MediumTopAppBar(
                 title = {
                     Text(
-                        "Session History",
+                        stringResource(com.ivarna.mkm.R.string.session_history),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Black
                     )
@@ -66,7 +67,7 @@ fun BatteryHistoryScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(com.ivarna.mkm.R.string.back)
                         )
                     }
                 },
@@ -75,7 +76,7 @@ fun BatteryHistoryScreen(
                         IconButton(onClick = { showClearDialog = true }) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
-                                contentDescription = "Clear history",
+                                contentDescription = stringResource(com.ivarna.mkm.R.string.clear_history),
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
@@ -163,7 +164,7 @@ private fun EmptyHistoryState(modifier: Modifier = Modifier) {
                 modifier = Modifier.padding(bottom = 16.dp)
             )
             Text(
-                text = "No sessions recorded yet",
+                text = stringResource(com.ivarna.mkm.R.string.no_sessions_recorded),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )

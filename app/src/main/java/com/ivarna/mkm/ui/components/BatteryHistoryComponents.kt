@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.components
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
@@ -112,7 +113,7 @@ fun SessionHistoryRow(
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = if (isExpanded) "Collapse" else "Expand",
+                    contentDescription = if (isExpanded) "Collapse" else stringResource(com.ivarna.mkm.R.string.expand),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -125,29 +126,29 @@ fun SessionHistoryRow(
                     // Charging session metrics
                     if (record.avgWattageW > 0f) {
                         HistoryDetailRow(
-                            label = "Avg power",
+                            label = stringResource(com.ivarna.mkm.R.string.avg_power),
                             value = "+${"%.2f".format(record.avgWattageW)} W"
                         )
                     }
                     if (record.avgCurrentMa > 0) {
                         HistoryDetailRow(
-                            label = "Avg current",
+                            label = stringResource(com.ivarna.mkm.R.string.avg_current),
                             value = "${record.avgCurrentMa} mA"
                         )
                     }
                     HistoryDetailRow(
-                        label = "Avg temperature",
+                        label = stringResource(com.ivarna.mkm.R.string.avg_temperature),
                         value = "${"%.1f".format(record.avgTemperatureC)}°C"
                     )
                     if (record.screenOnTimeMs > 0) {
                         HistoryDetailRow(
-                            label = "Screen on",
+                            label = stringResource(com.ivarna.mkm.R.string.screen_on),
                             value = formatHistoryDuration(record.screenOnTimeMs)
                         )
                     }
                     if (record.screenOffTimeMs > 0) {
                         HistoryDetailRow(
-                            label = "Screen off",
+                            label = stringResource(com.ivarna.mkm.R.string.screen_off),
                             value = formatHistoryDuration(record.screenOffTimeMs)
                         )
                     }
@@ -193,14 +194,14 @@ fun SessionHistoryRow(
                                     " · −${"%.1f".format(record.screenOffDrainPercent)}%${pctToMah(record.screenOffDrainPercent)}" else ""
                     )
                     HistoryDetailRow(
-                        label = "Deep sleep",
+                        label = stringResource(com.ivarna.mkm.R.string.deep_sleep),
                         value = formatHistoryDuration(record.deepSleepTimeMs) +
                                 if (record.deepSleepDrainPercent > 0f)
                                     " · −${"%.2f".format(record.deepSleepDrainPercent)}%${pctToMah(record.deepSleepDrainPercent)}" else ""
                     )
                     if (record.awakeTimeMs > 0) {
                         HistoryDetailRow(
-                            label = "Awake",
+                            label = stringResource(com.ivarna.mkm.R.string.awake),
                             value = formatHistoryDuration(record.awakeTimeMs) +
                                     if (record.awakeDrainPercent > 0f)
                                         " · −${"%.2f".format(record.awakeDrainPercent)}%${pctToMah(record.awakeDrainPercent)}" else ""
@@ -249,7 +250,7 @@ fun ClearHistoryDialog(
                 tint = MaterialTheme.colorScheme.error
             )
         },
-        title = { Text("Clear session history?") },
+        title = { Text(stringResource(com.ivarna.mkm.R.string.clear_session_history)) },
         text = {
             Text(
                 "This will permanently remove all $count saved session${if (count == 1) "" else "s"}. " +
@@ -258,12 +259,12 @@ fun ClearHistoryDialog(
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Clear", color = MaterialTheme.colorScheme.error)
+                Text(stringResource(com.ivarna.mkm.R.string.clear), color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(com.ivarna.mkm.R.string.cancel))
             }
         }
     )

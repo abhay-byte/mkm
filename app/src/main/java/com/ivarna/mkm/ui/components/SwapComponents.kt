@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.components
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -20,20 +21,20 @@ fun SwapConfigDialog(
     
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Configure Swap") },
+        title = { Text(stringResource(com.ivarna.mkm.R.string.configure_swap)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 OutlinedTextField(
                     value = sizeText,
                     onValueChange = { sizeText = it },
-                    label = { Text("Size (MB)") },
+                    label = { Text(stringResource(com.ivarna.mkm.R.string.size_mb)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = pathText,
                     onValueChange = { pathText = it },
-                    label = { Text("Path") },
+                    label = { Text(stringResource(com.ivarna.mkm.R.string.path)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 // Note removed as requested
@@ -47,12 +48,12 @@ fun SwapConfigDialog(
                     onDismiss()
                 }
             ) {
-                Text("Apply")
+                Text(stringResource(com.ivarna.mkm.R.string.apply))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(com.ivarna.mkm.R.string.cancel))
             }
         }
     )

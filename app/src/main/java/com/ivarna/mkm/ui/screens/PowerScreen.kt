@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.screens
+import androidx.compose.ui.res.stringResource
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -85,7 +86,7 @@ fun PowerScreen(
             MediumTopAppBar(
                 navigationIcon = {
                      IconButton(onClick = onOpenDrawer) {
-                        Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                        Icon(Icons.Filled.Menu, contentDescription = stringResource(com.ivarna.mkm.R.string.menu))
                     }
                 },
                 title = {
@@ -213,7 +214,7 @@ fun MonitorTab(
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
-                    text = "Update Frequency",
+                    text = stringResource(com.ivarna.mkm.R.string.update_frequency),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -336,7 +337,7 @@ fun CpuBenchTab(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
-                Text("CPU Efficiency", style = MaterialTheme.typography.headlineSmall)
+                Text(stringResource(com.ivarna.mkm.R.string.cpu_efficiency), style = MaterialTheme.typography.headlineSmall)
                 Text(
                     "Calculates Score per Watt across clusters.",
                     style = MaterialTheme.typography.bodyMedium
@@ -349,7 +350,7 @@ fun CpuBenchTab(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                   Text("Start Benchmark")
+                   Text(stringResource(com.ivarna.mkm.R.string.start_benchmark))
                 }
                 
                 StatusMessage(status, onViewLogs, onViewRawData)
@@ -360,7 +361,7 @@ fun CpuBenchTab(
             Spacer(modifier = Modifier.height(16.dp))
             ElevatedCard(shape = RoundedCornerShape(24.dp)) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Efficiency Curve", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(com.ivarna.mkm.R.string.efficiency_curve), style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
                      // User requested: X = Wattage, Y = Score.
                      val points = results.map { it.powerW to it.score }
@@ -397,7 +398,7 @@ fun GpuBenchTab(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(24.dp)) {
-                    Text("GPU Efficiency", style = MaterialTheme.typography.headlineSmall)
+                    Text(stringResource(com.ivarna.mkm.R.string.gpu_efficiency), style = MaterialTheme.typography.headlineSmall)
                     Text(
                         "Measures Power vs Frequency under load.",
                         style = MaterialTheme.typography.bodyMedium
@@ -421,7 +422,7 @@ fun GpuBenchTab(
                 Spacer(modifier = Modifier.height(16.dp))
                  ElevatedCard(shape = RoundedCornerShape(24.dp)) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Power Curve", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(com.ivarna.mkm.R.string.power_curve), style = MaterialTheme.typography.titleMedium)
                         
                          // The user said Y axis score? 
                          // "x axis power and y axis score. and a curve of pwer efficiency we get"
@@ -437,7 +438,7 @@ fun GpuBenchTab(
                          EfficiencyGraph(
                             dataPoints = points,
                             xLabel = "Freq",
-                            yLabel = "Power",
+                            yLabel = stringResource(com.ivarna.mkm.R.string.power),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(250.dp)
@@ -470,10 +471,10 @@ fun StatusMessage(
             )
             Row {
                 TextButton(onClick = { onViewLogs(status.logs) }) {
-                    Text("View Logs")
+                    Text(stringResource(com.ivarna.mkm.R.string.view_logs))
                 }
                 TextButton(onClick = onViewRawData) {
-                    Text("View Raw Data")
+                    Text(stringResource(com.ivarna.mkm.R.string.view_raw_data))
                 }
             }
         }
@@ -504,7 +505,7 @@ fun RealTimeProgressDialog(logs: String) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
                     Spacer(modifier = Modifier.width(16.dp))
-                    Text("Running Benchmark...", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(com.ivarna.mkm.R.string.running_benchmark), style = MaterialTheme.typography.titleMedium)
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Box(
@@ -553,11 +554,11 @@ fun LogViewerDialog(logs: String, isRawData: Boolean, onDismiss: () -> Unit) {
                             clipboard.setPrimaryClip(clip)
                         }
                     ) {
-                        Text("Copy")
+                        Text(stringResource(com.ivarna.mkm.R.string.copy))
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     TextButton(onClick = onDismiss) {
-                        Text("Close")
+                        Text(stringResource(com.ivarna.mkm.R.string.close))
                     }
                 }
             }

@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.screens
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -82,7 +83,7 @@ fun RamScreen(viewModel: RamViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                     },
                     navigationIcon = {
                          IconButton(onClick = onOpenDrawer) {
-                            Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                            Icon(Icons.Filled.Menu, contentDescription = stringResource(com.ivarna.mkm.R.string.menu))
                         }
                     },
                     actions = {
@@ -139,7 +140,7 @@ fun RamScreen(viewModel: RamViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                                     modifier = Modifier.weight(1f)
                                 )
                                 TextButton(onClick = { viewModel.clearError() }) {
-                                    Text("Dismiss", color = MaterialTheme.colorScheme.error)
+                                    Text(stringResource(com.ivarna.mkm.R.string.dismiss), color = MaterialTheme.colorScheme.error)
                                 }
                             }
                         }
@@ -188,7 +189,7 @@ fun MemoryOverviewCard(memory: MemoryStatus) {
     val animatedProgress by animateFloatAsState(
         targetValue = memory.usagePercent,
         animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
-        label = "progress"
+        label = stringResource(com.ivarna.mkm.R.string.progress)
     )
 
     Card(
@@ -263,7 +264,7 @@ fun ActiveSwapContent(
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Swap Usage",
+                text = stringResource(com.ivarna.mkm.R.string.swap_usage),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
@@ -276,7 +277,7 @@ fun ActiveSwapContent(
         }
         Box {
             IconButton(onClick = { showMenu = true }) {
-                Icon(Icons.Default.MoreVert, contentDescription = "Swap options")
+                Icon(Icons.Default.MoreVert, contentDescription = stringResource(com.ivarna.mkm.R.string.swap_options))
             }
             DropdownMenu(
                 expanded = showMenu,
@@ -286,14 +287,14 @@ fun ActiveSwapContent(
                 // Otherwise only show Create New (which is handled by FAB)
                 if (swap.path != "None") {
                     DropdownMenuItem(
-                        text = { Text("Disable Main Swap") },
+                        text = { Text(stringResource(com.ivarna.mkm.R.string.disable_main_swap)) },
                         onClick = {
                             onDisableClick()
                             showMenu = false
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Delete Main Swap File") },
+                        text = { Text(stringResource(com.ivarna.mkm.R.string.delete_main_swap_file)) },
                         onClick = {
                             onRemoveClick(swap.path)
                             showMenu = false
@@ -331,7 +332,7 @@ fun ActiveSwapContent(
         onClick = onConfigureClick,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Text("Create New Swap / Resize")
+        Text(stringResource(com.ivarna.mkm.R.string.create_new_swap_resize))
     }
 }
 
@@ -360,7 +361,7 @@ fun SwapDeviceRow(device: SwapDeviceInfo, onRemove: () -> Unit) {
                 IconButton(onClick = onRemove) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete swap file",
+                        contentDescription = stringResource(com.ivarna.mkm.R.string.delete_swap_file),
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
@@ -392,20 +393,20 @@ fun NoSwapContent(onConfigureClick: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "No Active Swap",
+            text = stringResource(com.ivarna.mkm.R.string.no_active_swap),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Create a swap file to increase available memory and improve system stability.",
+            text = stringResource(com.ivarna.mkm.R.string.create_swap_file),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = onConfigureClick) {
-            Text("Configure Swap")
+            Text(stringResource(com.ivarna.mkm.R.string.configure_swap))
         }
     }
 }
@@ -421,15 +422,15 @@ fun MemoryDetailsCard(memory: MemoryStatus) {
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            InfoRow(label = "Available", value = memory.availableUi)
+            InfoRow(label = stringResource(com.ivarna.mkm.R.string.available), value = memory.availableUi)
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-            InfoRow(label = "Cached", value = memory.cachedUi)
+            InfoRow(label = stringResource(com.ivarna.mkm.R.string.cached), value = memory.cachedUi)
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-            InfoRow(label = "Active", value = memory.activeUi)
+            InfoRow(label = stringResource(com.ivarna.mkm.R.string.active), value = memory.activeUi)
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-            InfoRow(label = "Inactive", value = memory.inactiveUi)
+            InfoRow(label = stringResource(com.ivarna.mkm.R.string.inactive), value = memory.inactiveUi)
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-            InfoRow(label = "Buffers", value = memory.buffersUi)
+            InfoRow(label = stringResource(com.ivarna.mkm.R.string.buffers), value = memory.buffersUi)
         }
     }
 }
@@ -513,7 +514,7 @@ fun DevfreqTuningCard(
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 Text(
-                    text = "Bandwidth Governor",
+                    text = stringResource(com.ivarna.mkm.R.string.bandwidth_governor),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.secondary
                 )
@@ -531,7 +532,7 @@ fun DevfreqTuningCard(
                         readOnly = true,
                         value = devfreq.currentGovernor,
                         onValueChange = {},
-                        label = { Text("Select Mode") },
+                        label = { Text(stringResource(com.ivarna.mkm.R.string.select_mode)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
                     )
@@ -555,7 +556,7 @@ fun DevfreqTuningCard(
                 if (devfreq.availableFrequencies.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Frequencies",
+                        text = stringResource(com.ivarna.mkm.R.string.frequencies),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.secondary
                     )
@@ -581,7 +582,7 @@ fun DevfreqTuningCard(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Changing DDR frequencies can cause immediate system reboots.",
+                                text = stringResource(com.ivarna.mkm.R.string.ddr_reboot_warning),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onErrorContainer
                             )
@@ -602,7 +603,7 @@ fun DevfreqTuningCard(
                             readOnly = true,
                             value = devfreq.currentFreq.takeIf { it != "0" && it.isNotBlank() } ?: "Set Specific Frequency",
                             onValueChange = {},
-                            label = { Text("Force Frequency (Userspace)") },
+                            label = { Text(stringResource(com.ivarna.mkm.R.string.force_frequency_userspace)) },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = freqExpanded) },
                             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
                         )
@@ -627,7 +628,7 @@ fun DevfreqTuningCard(
                 if (devfreq.availableGovernors.isEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "No governors found. This usually means the app was denied Root access.",
+                        text = stringResource(com.ivarna.mkm.R.string.no_governors_found),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -640,7 +641,7 @@ fun DevfreqTuningCard(
                         ) {
                             Column(modifier = Modifier.padding(8.dp)) {
                                 Text(
-                                    text = "Debug Info:",
+                                    text = stringResource(com.ivarna.mkm.R.string.debug_info),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -659,7 +660,7 @@ fun DevfreqTuningCard(
             } else {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Could not find a supported DDR/Interconnect devfreq controller on this device.",
+                    text = stringResource(com.ivarna.mkm.R.string.no_ddr_controller),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )

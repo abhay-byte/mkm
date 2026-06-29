@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.screens
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -44,7 +45,7 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
             MediumTopAppBar(
                 navigationIcon = {
                      IconButton(onClick = onOpenDrawer) {
-                        Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                        Icon(Icons.Filled.Menu, contentDescription = stringResource(com.ivarna.mkm.R.string.menu))
                     }
                 },
                 title = {
@@ -84,7 +85,7 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
             Spacer(modifier = Modifier.height(8.dp))
 
             HeroUsageCard(
-                title = "GPU UTILIZATION",
+                title = stringResource(com.ivarna.mkm.R.string.gpu_utilization),
                 usage = gpuStatus.loadPercent,
                 mainValue = "${(gpuStatus.loadPercent * 100).toInt()}%",
                 subValue = gpuStatus.currentFreq
@@ -107,10 +108,10 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                 )
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    InfoRow(label = "Renderer", value = gpuStatus.renderer)
-                    InfoRow(label = "System Path", value = gpuStatus.sysfsPath)
+                    InfoRow(label = stringResource(com.ivarna.mkm.R.string.renderer), value = gpuStatus.renderer)
+                    InfoRow(label = stringResource(com.ivarna.mkm.R.string.system_path), value = gpuStatus.sysfsPath)
                     InfoRow(label = "Target Frequency", value = gpuStatus.targetFreq)
-                    InfoRow(label = "Governor", value = gpuStatus.governor)
+                    InfoRow(label = stringResource(com.ivarna.mkm.R.string.governor), value = gpuStatus.governor)
                 }
             }
 
@@ -133,12 +134,12 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                 ) {
                     Icon(
                         imageVector = Icons.Default.Warning,
-                        contentDescription = "Warning",
+                        contentDescription = stringResource(com.ivarna.mkm.R.string.warning),
                         tint = MaterialTheme.colorScheme.error
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(
-                        text = "Changing frequencies and governors may cause system instability or reboots. Proceed with caution.",
+                        text = stringResource(com.ivarna.mkm.R.string.instability_warning),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -154,7 +155,7 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
             ) {
                 Column {
                     SettingRow(
-                        label = "GPU Governor",
+                        label = stringResource(com.ivarna.mkm.R.string.gpu_governor),
                         value = gpuStatus.governor,
                         onClick = { showGovernorSheet = true }
                     )
@@ -190,7 +191,7 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
         // Selection Sheets
         if (showGovernorSheet) {
             SelectionBottomSheet(
-                title = "Select GPU Governor",
+                title = stringResource(com.ivarna.mkm.R.string.select_gpu_governor),
                 items = gpuStatus.availableGovernors,
                 selectedItem = gpuStatus.governor,
                 onDismiss = { showGovernorSheet = false },
@@ -203,7 +204,7 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
 
         if (showMaxFreqSheet) {
             SelectionBottomSheet(
-                title = "Maximum Frequency",
+                title = stringResource(com.ivarna.mkm.R.string.maximum_frequency),
                 items = gpuStatus.availableFrequencies,
                 selectedItem = gpuStatus.rawMaxFreq,
                 onDismiss = { showMaxFreqSheet = false },
@@ -217,7 +218,7 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
 
         if (showMinFreqSheet) {
             SelectionBottomSheet(
-                title = "Minimum Frequency",
+                title = stringResource(com.ivarna.mkm.R.string.minimum_frequency),
                 items = gpuStatus.availableFrequencies,
                 selectedItem = gpuStatus.rawMinFreq,
                 onDismiss = { showMinFreqSheet = false },
@@ -231,7 +232,7 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
 
         if (showTargetFreqSheet) {
             SelectionBottomSheet(
-                title = "Target Frequency",
+                title = stringResource(com.ivarna.mkm.R.string.target_frequency),
                 items = gpuStatus.availableFrequencies,
                 selectedItem = gpuStatus.rawTargetFreq,
                 onDismiss = { showTargetFreqSheet = false },

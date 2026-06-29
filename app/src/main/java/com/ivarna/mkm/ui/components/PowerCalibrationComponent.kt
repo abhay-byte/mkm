@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.components
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -58,7 +59,7 @@ fun PowerCalibrationComponent(
                 IconButton(onClick = { multiplierText = "1.0" }) {
                     Icon(
                         Icons.Default.SettingsBackupRestore,
-                        contentDescription = "Reset",
+                        contentDescription = stringResource(com.ivarna.mkm.R.string.reset),
                         tint = MaterialTheme.colorScheme.outline
                     )
                 }
@@ -94,7 +95,7 @@ fun PowerCalibrationComponent(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Calibration Multiplier",
+                text = stringResource(com.ivarna.mkm.R.string.calibration_multiplier),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -114,13 +115,13 @@ fun PowerCalibrationComponent(
                         saveError = false
                     },
                     modifier = Modifier.weight(1f),
-                    label = { Text("Multiplier (e.g. 1.1)") },
+                    label = { Text(stringResource(com.ivarna.mkm.R.string.multiplier_hint)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     isError = saveError,
                     supportingText = if (saveError) {
-                        { Text("Invalid number", color = MaterialTheme.colorScheme.error) }
+                        { Text(stringResource(com.ivarna.mkm.R.string.invalid_number), color = MaterialTheme.colorScheme.error) }
                     } else null
                 )
                 
@@ -144,13 +145,13 @@ fun PowerCalibrationComponent(
                 ) {
                     Icon(Icons.Default.Save, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Save")
+                    Text(stringResource(com.ivarna.mkm.R.string.save))
                 }
             }
             
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Adjust the multiplier to match external power meter readings.",
+                text = stringResource(com.ivarna.mkm.R.string.adjust_multiplier_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )

@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.screens
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -54,7 +55,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
             MediumTopAppBar(
                 navigationIcon = {
                      IconButton(onClick = onOpenDrawer) {
-                        Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                        Icon(Icons.Filled.Menu, contentDescription = stringResource(com.ivarna.mkm.R.string.menu))
                     }
                 },
                 title = {
@@ -99,7 +100,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
             ) {
             item {
                 HeroUsageCard(
-                    title = "OVERALL UTILIZATION",
+                    title = stringResource(com.ivarna.mkm.R.string.overall_utilization),
                     usage = cpuStatus.overallUsage,
                     mainValue = "${(cpuStatus.overallUsage * 100).toInt()}%",
                     subValue = "${cpuStatus.totalCores} Processors Active"
@@ -158,7 +159,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
         // Selection sheets
         selectedClusterForGovernor?.let { cluster ->
             SelectionBottomSheet(
-                title = "Select Governor",
+                title = stringResource(com.ivarna.mkm.R.string.select_governor),
                 items = cluster.availableGovernors,
                 selectedItem = cluster.governor,
                 onDismiss = { selectedClusterForGovernor = null },
@@ -171,7 +172,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
 
         selectedClusterForMaxFreq?.let { cluster ->
             SelectionBottomSheet(
-                title = "Select Max Frequency",
+                title = stringResource(com.ivarna.mkm.R.string.select_max_frequency),
                 items = cluster.availableFrequencies,
                 selectedItem = cluster.rawMaxFreq,
                 onDismiss = { selectedClusterForMaxFreq = null },
@@ -185,7 +186,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
 
         selectedClusterForMinFreq?.let { cluster ->
             SelectionBottomSheet(
-                title = "Select Min Frequency",
+                title = stringResource(com.ivarna.mkm.R.string.select_min_frequency),
                 items = cluster.availableFrequencies,
                 selectedItem = cluster.rawMinFreq,
                 onDismiss = { selectedClusterForMinFreq = null },
@@ -218,17 +219,17 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
 
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         SettingRow(
-                            label = "GOVERNOR",
+                            label = stringResource(com.ivarna.mkm.R.string.governor),
                             value = core.governor,
                             onClick = { showCoreGovernorSheet = true }
                         )
                         SettingRow(
-                            label = "MAX FREQUENCY",
+                            label = stringResource(com.ivarna.mkm.R.string.max_frequency),
                             value = core.maxFreq,
                             onClick = { showCoreMaxFreqSheet = true }
                         )
                         SettingRow(
-                            label = "MIN FREQUENCY",
+                            label = stringResource(com.ivarna.mkm.R.string.min_frequency),
                             value = core.minFreq,
                             onClick = { showCoreMinFreqSheet = true }
                         )
@@ -337,7 +338,7 @@ fun CpuClusterCard(
                     onClick = onMinFreqClick
                 )
                 InfoRow(
-                    label = "Current Clock Speed",
+                    label = stringResource(com.ivarna.mkm.R.string.current_clock_speed),
                     value = cluster.currentFreq
                 )
             }

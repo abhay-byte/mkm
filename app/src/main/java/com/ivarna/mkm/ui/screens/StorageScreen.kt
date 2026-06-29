@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.screens
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -23,6 +24,7 @@ import com.ivarna.mkm.ui.components.StatCard
 import com.ivarna.mkm.ui.components.HeroUsageCard
 import com.ivarna.mkm.ui.components.UfsTuningCard
 import com.ivarna.mkm.ui.viewmodel.StorageViewModel
+import com.ivarna.mkm.R
 import com.ivarna.mkm.ui.components.BootToggleCard
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,12 +41,12 @@ fun StorageScreen(viewModel: StorageViewModel = viewModel(), onOpenDrawer: () ->
             MediumTopAppBar(
                 navigationIcon = {
                      IconButton(onClick = onOpenDrawer) {
-                        Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                        Icon(Icons.Filled.Menu, contentDescription = stringResource(com.ivarna.mkm.R.string.menu))
                     }
                 },
                 title = {
                     Text(
-                        "STORAGE Management",
+                        stringResource(com.ivarna.mkm.R.string.storage_info),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Black
                     )
@@ -77,7 +79,7 @@ fun StorageScreen(viewModel: StorageViewModel = viewModel(), onOpenDrawer: () ->
 
                     if (internalStorage != null) {
                         HeroUsageCard(
-                            title = "INTERNAL STORAGE",
+                            title = stringResource(com.ivarna.mkm.R.string.internal_storage),
                             usage = internalStorage.usagePercent / 100f,
                             mainValue = "${internalStorage.usagePercent.toInt()}%",
                             subValue = "${internalStorage.used} used of ${internalStorage.total}"
@@ -86,7 +88,7 @@ fun StorageScreen(viewModel: StorageViewModel = viewModel(), onOpenDrawer: () ->
 
                     if (systemStorage != null) {
                          StatCard(
-                            title = "System Partition",
+                            title = stringResource(com.ivarna.mkm.R.string.system_partition),
                             value = systemStorage.used,
                             subValue = "of ${systemStorage.total} used",
                             progress = systemStorage.usagePercent / 100f,
@@ -117,13 +119,13 @@ fun StorageScreen(viewModel: StorageViewModel = viewModel(), onOpenDrawer: () ->
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             
-                            InfoRow(label = "Type", value = state.type)
+                            InfoRow(label = stringResource(com.ivarna.mkm.R.string.type), value = state.type)
                             InfoRow(label = "Partition Count", value = state.partitions.size.toString())
                             
                             internalStorage?.let {
-                                InfoRow(label = "Internal Total", value = it.total)
-                                InfoRow(label = "Internal Free", value = it.free)
-                                InfoRow(label = "Block Size", value = "${it.blockSize} bytes")
+                                InfoRow(label = stringResource(com.ivarna.mkm.R.string.internal_total), value = it.total)
+                                InfoRow(label = stringResource(com.ivarna.mkm.R.string.internal_free), value = it.free)
+                                InfoRow(label = stringResource(com.ivarna.mkm.R.string.block_size), value = "${it.blockSize} bytes")
                             }
                         }
                     }

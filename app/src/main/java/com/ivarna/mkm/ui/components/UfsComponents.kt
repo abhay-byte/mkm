@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.components
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -54,7 +55,7 @@ fun UfsTuningCard(
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 Text(
-                    text = "Frequency Governor",
+                    text = stringResource(com.ivarna.mkm.R.string.frequency_governor),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.secondary
                 )
@@ -72,7 +73,7 @@ fun UfsTuningCard(
                         readOnly = true,
                         value = ufs.currentGovernor,
                         onValueChange = {},
-                        label = { Text("Select Mode") },
+                        label = { Text(stringResource(com.ivarna.mkm.R.string.select_mode)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
                     )
@@ -96,7 +97,7 @@ fun UfsTuningCard(
                 if (ufs.availableFrequencies.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Frequencies",
+                        text = stringResource(com.ivarna.mkm.R.string.frequencies),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.secondary
                     )
@@ -122,7 +123,7 @@ fun UfsTuningCard(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Changing frequencies may cause instability or crashes.",
+                                text = stringResource(com.ivarna.mkm.R.string.freq_instability_warning),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onErrorContainer
                             )
@@ -203,7 +204,7 @@ fun UfsTuningCard(
                 if (ufs.availableGovernors.isEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "No governors found. This usually means the app was denied Root access.",
+                        text = stringResource(com.ivarna.mkm.R.string.no_governors_found),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -216,7 +217,7 @@ fun UfsTuningCard(
                         ) {
                             Column(modifier = Modifier.padding(8.dp)) {
                                 Text(
-                                    text = "Debug Info:",
+                                    text = stringResource(com.ivarna.mkm.R.string.debug_info),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold
                                 )

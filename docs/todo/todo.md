@@ -15,16 +15,4 @@
   images: null
   github_ref: null
   plan: null
-- id: T2
-  title: Simplified Chinese Support
-  type: feature
-  priority: high
-  difficulty: medium
-  why: Make the app accessible to Simplified Chinese speaking users
-  really_needed: unknown
-  impact: UI strings, localization resources, possibly layouts
-  followups: null
-  images: null
-  github_ref: GH-13
-  plan: null
 ---

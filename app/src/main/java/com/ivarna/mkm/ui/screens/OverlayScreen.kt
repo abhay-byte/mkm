@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.screens
+import androidx.compose.ui.res.stringResource
 
 import android.content.Context
 import android.content.Intent
@@ -91,7 +92,7 @@ fun OverlayScreen(
             MediumTopAppBar(
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
-                        Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                        Icon(Icons.Filled.Menu, contentDescription = stringResource(com.ivarna.mkm.R.string.menu))
                     }
                 },
                 title = {
@@ -208,7 +209,7 @@ fun OverlayScreen(
         ) {
             item {
                 HeroUsageCard(
-                    title = "OVERLAY STATUS",
+                    title = stringResource(com.ivarna.mkm.R.string.overlay_status),
                     usage = if (isOverlayEnabled) 1f else 0f,
                     mainValue = if (isOverlayEnabled) "ACTIVE" else "INACTIVE",
                     subValue = if (isOverlayEnabled) "Real-time monitoring enabled" else "Overlay service is stopped",
@@ -218,10 +219,10 @@ fun OverlayScreen(
             }
 
             item {
-                SettingsSection(title = "Visible Metrics") {
+                SettingsSection(title = stringResource(com.ivarna.mkm.R.string.visible_metrics)) {
                     OverlayToggleItem(
                         icon = Icons.Default.DeveloperBoard,
-                        title = "CPU Utilization",
+                        title = stringResource(com.ivarna.mkm.R.string.cpu_utilization),
                         checked = showCpuUsage,
                         onCheckedChange = {
                             showCpuUsage = it
@@ -251,7 +252,7 @@ fun OverlayScreen(
                     )
                     OverlayToggleItem(
                         icon = Icons.Default.Dns,
-                        title = "RAM Usage",
+                        title = stringResource(com.ivarna.mkm.R.string.ram_usage),
                         checked = showRamUsage,
                         onCheckedChange = {
                             showRamUsage = it
@@ -261,7 +262,7 @@ fun OverlayScreen(
                     )
                     OverlayToggleItem(
                         icon = Icons.Default.SwapCalls,
-                        title = "Swap Usage",
+                        title = stringResource(com.ivarna.mkm.R.string.swap_usage),
                         checked = showSwapUsage,
                         onCheckedChange = { 
                             showSwapUsage = it
@@ -271,7 +272,7 @@ fun OverlayScreen(
                     )
                     OverlayToggleItem(
                         icon = Icons.Default.FlashOn,
-                        title = "Power Usage",
+                        title = stringResource(com.ivarna.mkm.R.string.power_usage),
                         checked = showPower,
                         onCheckedChange = { 
                             showPower = it
@@ -281,7 +282,7 @@ fun OverlayScreen(
                     )
                     OverlayToggleItem(
                         icon = Icons.Default.Thermostat,
-                        title = "CPU Temperature",
+                        title = stringResource(com.ivarna.mkm.R.string.cpu_temperature),
                         checked = showCpuTemp,
                         onCheckedChange = { 
                             showCpuTemp = it
@@ -291,7 +292,7 @@ fun OverlayScreen(
                     )
                     OverlayToggleItem(
                         icon = Icons.Default.BatteryChargingFull,
-                        title = "Battery Temperature",
+                        title = stringResource(com.ivarna.mkm.R.string.battery_temperature),
                         checked = showBatteryTemp,
                         onCheckedChange = { 
                             showBatteryTemp = it
@@ -301,7 +302,7 @@ fun OverlayScreen(
                     )
                     OverlayToggleItem(
                         icon = Icons.Default.BatteryStd,
-                        title = "Battery Percentage",
+                        title = stringResource(com.ivarna.mkm.R.string.battery_percentage),
                         checked = showBatteryPercent,
                         onCheckedChange = { 
                             showBatteryPercent = it
@@ -327,11 +328,11 @@ fun OverlayScreen(
                     )
                 }
                 
-                SettingsSection(title = "Component Order") {
+                SettingsSection(title = stringResource(com.ivarna.mkm.R.string.component_order)) {
                     SettingsItem(
                         icon = Icons.Default.Reorder,
-                        title = "Reorder Components",
-                        subtitle = "Customize overlay layout",
+                        title = stringResource(com.ivarna.mkm.R.string.reorder_components),
+                        subtitle = stringResource(com.ivarna.mkm.R.string.customize_overlay_layout),
                         onClick = { showReorderDialog = true },
                         trailing = {
                             Icon(
@@ -345,10 +346,10 @@ fun OverlayScreen(
             }
 
             item {
-                SettingsSection(title = "Appearance") {
+                SettingsSection(title = stringResource(com.ivarna.mkm.R.string.appearance)) {
                     OverlayToggleItem(
                         icon = Icons.Default.LinearScale,
-                        title = "Show Progress Bars",
+                        title = stringResource(com.ivarna.mkm.R.string.show_progress_bars),
                         checked = showProgressBars,
                         onCheckedChange = { 
                             showProgressBars = it
@@ -358,7 +359,7 @@ fun OverlayScreen(
                     )
                     OverlayToggleItem(
                         icon = Icons.Default.EmojiSymbols,
-                        title = "Use Icons Only",
+                        title = stringResource(com.ivarna.mkm.R.string.use_icons_only),
                         checked = showIconsOnly,
                         onCheckedChange = { 
                             showIconsOnly = it
@@ -368,7 +369,7 @@ fun OverlayScreen(
                     )
                     OverlayToggleItem(
                         icon = Icons.Default.GridView,
-                        title = "Grid Layout",
+                        title = stringResource(com.ivarna.mkm.R.string.grid_layout),
                         checked = isGridView,
                         onCheckedChange = { 
                             isGridView = it
@@ -381,7 +382,7 @@ fun OverlayScreen(
                     
                     OverlayToggleItem(
                         icon = Icons.Default.ViewArray,
-                        title = "Horizontal Layout",
+                        title = stringResource(com.ivarna.mkm.R.string.horizontal_layout),
                         checked = isHorizontal,
                         onCheckedChange = { 
                             isHorizontal = it
@@ -394,7 +395,7 @@ fun OverlayScreen(
                     
                     OverlayToggleItem(
                         icon = Icons.Default.ShowChart,
-                        title = "Show Sparklines",
+                        title = stringResource(com.ivarna.mkm.R.string.show_sparklines),
                         checked = showSparklines,
                         onCheckedChange = { 
                             showSparklines = it
@@ -406,7 +407,7 @@ fun OverlayScreen(
                     if (isGridView) {
                         SettingsItem(
                             icon = Icons.Default.ViewColumn,
-                            title = "Grid Columns",
+                            title = stringResource(com.ivarna.mkm.R.string.grid_columns),
                             subtitle = "Columns: $gridColumns",
                             onClick = { }
                         ) {
@@ -430,7 +431,7 @@ fun OverlayScreen(
 
                     OverlayToggleItem(
                         icon = Icons.Default.Numbers,
-                        title = "Show Absolute Values",
+                        title = stringResource(com.ivarna.mkm.R.string.show_absolute_values),
                         checked = showAbsoluteValues,
                         onCheckedChange = {
                             showAbsoluteValues = it
@@ -486,7 +487,7 @@ fun OverlayScreen(
 
                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                         Text(
-                            text = "CPU Frequency Display",
+                            text = stringResource(com.ivarna.mkm.R.string.cpu_frequency_display),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -505,7 +506,7 @@ fun OverlayScreen(
                                     value = currentLabel,
                                     onValueChange = {},
                                     readOnly = true,
-                                    label = { Text("Mode") },
+                                    label = { Text(stringResource(com.ivarna.mkm.R.string.mode)) },
                                     trailingIcon = {
                                         ExposedDropdownMenuDefaults.TrailingIcon(expanded = cpuFreqDropdownExpanded)
                                     },
@@ -548,7 +549,7 @@ fun OverlayScreen(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Controls how CPU frequency is summarised in the overlay.",
+                            text = stringResource(com.ivarna.mkm.R.string.cpu_freq_summary_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
@@ -557,10 +558,10 @@ fun OverlayScreen(
             }
 
             item {
-                SettingsSection(title = "Styling") {
+                SettingsSection(title = stringResource(com.ivarna.mkm.R.string.styling)) {
                     SettingsItem(
                         icon = Icons.Default.Opacity,
-                        title = "Background Opacity",
+                        title = stringResource(com.ivarna.mkm.R.string.background_opacity),
                         subtitle = "${(overlayOpacity * 100).toInt()}%",
                         onClick = { }
                     ) {
@@ -643,7 +644,7 @@ fun OverlayScreen(
 
                         OverlayToggleItem(
                             icon = Icons.Default.FormatColorFill,
-                            title = "Apply Accent to Background",
+                            title = stringResource(com.ivarna.mkm.R.string.apply_accent_to_background),
                             checked = accentTintBackground,
                             onCheckedChange = {
                                 accentTintBackground = it
@@ -655,7 +656,7 @@ fun OverlayScreen(
                         if (accentTintBackground) {
                             Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
                                 Text(
-                                    text = "Background Color",
+                                    text = stringResource(com.ivarna.mkm.R.string.background_color),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -688,7 +689,7 @@ fun OverlayScreen(
                                     }
                                 }
                                 Text(
-                                    text = "Pick a different color for the background, or leave matching the accent.",
+                                    text = stringResource(com.ivarna.mkm.R.string.bg_color_desc),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                 )
@@ -699,10 +700,10 @@ fun OverlayScreen(
             }
 
             item {
-                SettingsSection(title = "Overlay Behavior") {
+                SettingsSection(title = stringResource(com.ivarna.mkm.R.string.overlay_behavior)) {
                     SettingsItem(
                         icon = Icons.Default.Speed,
-                        title = "Update Frequency",
+                        title = stringResource(com.ivarna.mkm.R.string.update_frequency),
                         subtitle = "Interval: ${updateInterval}ms",
                         onClick = { }
                     ) {
@@ -722,7 +723,7 @@ fun OverlayScreen(
 
                     OverlayToggleItem(
                         icon = Icons.Default.OpenWith,
-                        title = "Movable Overlay",
+                        title = stringResource(com.ivarna.mkm.R.string.movable_overlay),
                         checked = isMovable,
                         onCheckedChange = { 
                             isMovable = it
@@ -903,7 +904,7 @@ fun ComponentOrderDialog(
                         fontWeight = FontWeight.Bold
                     )
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, "Close")
+                        Icon(Icons.Default.Close, stringResource(com.ivarna.mkm.R.string.close))
                     }
                 }
                 
@@ -1036,7 +1037,7 @@ fun ComponentOrderDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Cancel")
+                        Text(stringResource(com.ivarna.mkm.R.string.cancel))
                     }
                     Button(
                         onClick = {
@@ -1044,7 +1045,7 @@ fun ComponentOrderDialog(
                             onDismiss()
                         }
                     ) {
-                        Text("Save")
+                        Text(stringResource(com.ivarna.mkm.R.string.save))
                     }
                 }
             }

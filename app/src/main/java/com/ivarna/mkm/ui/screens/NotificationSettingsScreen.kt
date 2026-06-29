@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.screens
+import androidx.compose.ui.res.stringResource
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -101,7 +102,7 @@ fun NotificationSettingsScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(com.ivarna.mkm.R.string.back))
                     }
                 },
                 scrollBehavior = scrollBehavior
@@ -122,22 +123,22 @@ fun NotificationSettingsScreen(
             NotifSettingsNavCard(
                 icon = Icons.Default.Power,
                 iconTint = Color(0xFF4CAF50),
-                title = "Charging",
-                subtitle = "Customise the notification while charging",
+                title = stringResource(com.ivarna.mkm.R.string.charging),
+                subtitle = stringResource(com.ivarna.mkm.R.string.customise_while_charging),
                 onClick = onOpenCharging
             )
             NotifSettingsNavCard(
                 icon = Icons.Default.BatteryStd,
                 iconTint = MaterialTheme.colorScheme.primary,
-                title = "Discharging",
-                subtitle = "Customise the notification while on battery",
+                title = stringResource(com.ivarna.mkm.R.string.discharging),
+                subtitle = stringResource(com.ivarna.mkm.R.string.customise_while_on_battery),
                 onClick = onOpenDischarging
             )
             NotifSettingsNavCard(
                 icon = Icons.Default.Timer,
                 iconTint = MaterialTheme.colorScheme.secondary,
-                title = "Monitoring",
-                subtitle = "Refresh interval and heading options",
+                title = stringResource(com.ivarna.mkm.R.string.monitoring),
+                subtitle = stringResource(com.ivarna.mkm.R.string.refresh_and_heading),
                 onClick = onOpenMonitoring
             )
 
@@ -196,7 +197,7 @@ fun ChargingNotificationSettingsScreen(onBack: () -> Unit) {
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(com.ivarna.mkm.R.string.back))
                     }
                 },
                 scrollBehavior = scrollBehavior
@@ -214,7 +215,7 @@ fun ChargingNotificationSettingsScreen(onBack: () -> Unit) {
         ) {
             Spacer(modifier = Modifier.height(4.dp))
             NotifSectionCard(
-                title = "Expanded Content",
+                title = stringResource(com.ivarna.mkm.R.string.expanded_content),
                 subtitle = "Shown when the notification is expanded",
                 iconTint = Color(0xFF4CAF50),
                 options = chargingOptions,
@@ -262,7 +263,7 @@ fun DischargingNotificationSettingsScreen(onBack: () -> Unit) {
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(com.ivarna.mkm.R.string.back))
                     }
                 },
                 scrollBehavior = scrollBehavior
@@ -281,7 +282,7 @@ fun DischargingNotificationSettingsScreen(onBack: () -> Unit) {
             Spacer(modifier = Modifier.height(4.dp))
             NotifSectionCard(
                 title = "Expanded Content",
-                subtitle = "Shown when the notification is expanded while on battery",
+                subtitle = stringResource(com.ivarna.mkm.R.string.shown_when_expanded_battery),
                 iconTint = MaterialTheme.colorScheme.primary,
                 options = dischargingExpandedOptions,
                 selections = selections,
@@ -343,7 +344,7 @@ fun MonitoringNotificationSettingsScreen(onBack: () -> Unit) {
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(com.ivarna.mkm.R.string.back))
                     }
                 },
                 scrollBehavior = scrollBehavior
@@ -377,8 +378,8 @@ fun MonitoringNotificationSettingsScreen(onBack: () -> Unit) {
                             Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
-                                Text("Refresh Interval", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                                Text("How often battery stats update", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(stringResource(com.ivarna.mkm.R.string.refresh_interval), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(com.ivarna.mkm.R.string.how_often_battery_update), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         Box {
@@ -418,8 +419,8 @@ fun MonitoringNotificationSettingsScreen(onBack: () -> Unit) {
 
             // Notification heading toggles
             NotifSectionCard(
-                title = "Notification Heading",
-                subtitle = "Items shown in the notification title bar",
+                title = stringResource(com.ivarna.mkm.R.string.notification_heading),
+                subtitle = stringResource(com.ivarna.mkm.R.string.items_in_title_bar),
                 iconTint = MaterialTheme.colorScheme.secondary,
                 options = headingOptions,
                 selections = headingSelections,

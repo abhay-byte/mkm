@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.components
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -48,7 +49,7 @@ fun StatCard(
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
         animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
-        label = "progress"
+        label = stringResource(com.ivarna.mkm.R.string.progress)
     )
 
     ElevatedCard(
@@ -145,7 +146,7 @@ fun CoreMiniCard(
     val animatedProgress by animateFloatAsState(
         targetValue = core.usagePercent,
         animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
-        label = "progress"
+        label = stringResource(com.ivarna.mkm.R.string.progress)
     )
 
     ElevatedCard(
@@ -260,7 +261,7 @@ fun HeroUsageCard(
     val animatedProgress by animateFloatAsState(
         targetValue = usage,
         animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
-        label = "progress"
+        label = stringResource(com.ivarna.mkm.R.string.progress)
     )
 
     Card(

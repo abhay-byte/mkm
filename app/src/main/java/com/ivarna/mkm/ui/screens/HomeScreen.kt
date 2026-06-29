@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.screens
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -76,14 +77,14 @@ fun HomeScreen(
             MediumTopAppBar(
                 title = {
                     Text(
-                        "Minimal Kernel Manager",
+                        stringResource(com.ivarna.mkm.R.string.minimal_kernel_manager),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Black
                     )
                 },
                 navigationIcon = {
                      IconButton(onClick = onOpenDrawer) {
-                         Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                         Icon(Icons.Filled.Menu, contentDescription = stringResource(com.ivarna.mkm.R.string.menu))
                      }
                 },
                 scrollBehavior = scrollBehavior
@@ -156,7 +157,7 @@ fun SystemOverviewCard(
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Text(
-                        text = "Kernel: ${overview.kernelVersion}",
+                        text = stringResource(com.ivarna.mkm.R.string.kernel_format, overview.kernelVersion),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                     )
@@ -171,12 +172,12 @@ fun SystemOverviewCard(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 StatusBadge(
-                    label = "Shizuku",
+                    label = stringResource(com.ivarna.mkm.R.string.shizuku),
                     isActive = overview.isShizukuActive,
                     modifier = Modifier.weight(1f)
                 )
                 StatusBadge(
-                    label = "Root",
+                    label = stringResource(com.ivarna.mkm.R.string.root),
                     isActive = overview.isRootActive,
                     modifier = Modifier.weight(1f)
                 )
@@ -190,7 +191,7 @@ fun SystemOverviewCard(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Access denied. Please enable Shizuku or grant Root access to use all features.",
+                        text = stringResource(com.ivarna.mkm.R.string.access_denied),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onErrorContainer,
                         modifier = Modifier.padding(12.dp)
@@ -225,7 +226,7 @@ fun StatusBadge(label: String, isActive: Boolean, modifier: Modifier = Modifier)
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = "$label: ${if (isActive) "Active" else "Inactive"}",
+                text = "$label: ${if (isActive) stringResource(com.ivarna.mkm.R.string.active) else stringResource(com.ivarna.mkm.R.string.inactive)}",
                 style = MaterialTheme.typography.labelLarge,
                 color = color,
                 fontWeight = FontWeight.Bold
@@ -239,7 +240,7 @@ fun QuickStatsGrid(data: HomeData) {
     Column {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             StatCard(
-                title = "RAM",
+                title = stringResource(com.ivarna.mkm.R.string.ram),
                 value = "${data.memory.usedUi} / ${data.memory.totalUi}",
                 subValue = "${(data.memory.usagePercent * 100).toInt()}% Used",
                 progress = data.memory.usagePercent,
@@ -247,7 +248,7 @@ fun QuickStatsGrid(data: HomeData) {
                 modifier = Modifier.weight(1f)
             )
             StatCard(
-                title = "CPU",
+                title = stringResource(com.ivarna.mkm.R.string.cpu),
                 value = "${(data.cpu.overallUsage * 100).toInt()}%",
                 subValue = "${data.cpu.totalCores} Cores Active",
                 progress = data.cpu.overallUsage,
@@ -258,7 +259,7 @@ fun QuickStatsGrid(data: HomeData) {
         Spacer(modifier = Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             StatCard(
-                title = "GPU",
+                title = stringResource(com.ivarna.mkm.R.string.gpu),
                 value = data.gpu.currentFreq,
                 subValue = if (!data.gpu.frequencyAvailable && data.gpu.freqRequiresRoot)
                     "${(data.gpu.loadPercent * 100).toInt()}% Load • Root needed for freq"
@@ -269,9 +270,9 @@ fun QuickStatsGrid(data: HomeData) {
                 modifier = Modifier.weight(1f)
             )
             StatCard(
-                title = "Swap",
+                title = stringResource(com.ivarna.mkm.R.string.swap),
                 value = data.swap.totalUi,
-                subValue = if (data.swap.isActive) "Active (${(data.swap.usagePercent * 100).toInt()}%)" else "Inactive",
+                subValue = if (data.swap.isActive) "Active (${(data.swap.usagePercent * 100).toInt()}%)" else stringResource(com.ivarna.mkm.R.string.inactive),
                 progress = data.swap.usagePercent,
                 icon = Icons.Default.SwapHoriz,
                 modifier = Modifier.weight(1f)
@@ -289,11 +290,11 @@ fun QuickAccessCard(
     val context = LocalContext.current
     val alwaysEnabled = setOf("battery", "overlay", "settings")
     val items = listOf(
-        QuickAccessItem("RAM", "ram", Icons.Default.Dns),
-        QuickAccessItem("CPU", "cpu", Icons.Default.DeveloperBoard),
-        QuickAccessItem("GPU", "gpu", Icons.Default.VideogameAsset),
+        QuickAccessItem(stringResource(com.ivarna.mkm.R.string.ram), "ram", Icons.Default.Dns),
+        QuickAccessItem(stringResource(com.ivarna.mkm.R.string.cpu), "cpu", Icons.Default.DeveloperBoard),
+        QuickAccessItem(stringResource(com.ivarna.mkm.R.string.gpu), "gpu", Icons.Default.VideogameAsset),
         QuickAccessItem("Storage", "storage", Icons.Default.SdStorage),
-        QuickAccessItem("Power", "power", Icons.Default.Bolt),
+        QuickAccessItem(stringResource(com.ivarna.mkm.R.string.power), "power", Icons.Default.Bolt),
         QuickAccessItem("Battery", "battery", Icons.Default.BatteryFull),
         QuickAccessItem("Overlay", "overlay", Icons.Default.SwapHoriz),
         QuickAccessItem("Settings", "settings", Icons.Default.Settings)
@@ -310,7 +311,7 @@ fun QuickAccessCard(
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "QUICK ACCESS",
+                    text = stringResource(com.ivarna.mkm.R.string.quick_access),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -333,7 +334,7 @@ fun QuickAccessCard(
                             )
                             Spacer(Modifier.width(4.dp))
                             Text(
-                                text = "Limited",
+                                text = stringResource(com.ivarna.mkm.R.string.limited),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onErrorContainer
@@ -436,7 +437,7 @@ private fun QuickAccessTile(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Lock,
-                        contentDescription = "Locked",
+                        contentDescription = stringResource(com.ivarna.mkm.R.string.locked),
                         modifier = Modifier
                             .padding(2.dp)
                             .size(10.dp),

@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.components
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Canvas
@@ -50,7 +51,7 @@ fun PowerMonitorCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "SYSTEM POWER DRAW",
+                    text = stringResource(com.ivarna.mkm.R.string.system_power_draw),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     fontWeight = FontWeight.Bold
@@ -151,7 +152,7 @@ fun EfficiencyGraph(
 ) {
     if (dataPoints.isEmpty()) {
         Box(modifier = modifier.height(200.dp), contentAlignment = Alignment.Center) {
-            Text("No Data", style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(com.ivarna.mkm.R.string.no_data), style = MaterialTheme.typography.bodyMedium)
         }
         return
     }
@@ -300,7 +301,7 @@ fun BenchmarkResultsTable(results: List<CpuEfficiencyResult>, modifier: Modifier
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Detailed Results",
+                text = stringResource(com.ivarna.mkm.R.string.detailed_results),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -308,9 +309,9 @@ fun BenchmarkResultsTable(results: List<CpuEfficiencyResult>, modifier: Modifier
             
             // Header
             Row(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                Text("Cluster Freqs (MHz)", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold)
-                Text("Power (W)", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
-                Text("Score", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                Text(stringResource(com.ivarna.mkm.R.string.cluster_freqs_mhz), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold)
+                Text(stringResource(com.ivarna.mkm.R.string.power_w), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                Text(stringResource(com.ivarna.mkm.R.string.score), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
             }
             HorizontalDivider()
             

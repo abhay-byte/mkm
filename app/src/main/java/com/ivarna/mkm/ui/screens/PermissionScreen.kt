@@ -1,4 +1,5 @@
 package com.ivarna.mkm.ui.screens
+import androidx.compose.ui.res.stringResource
 
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -91,10 +92,10 @@ fun PermissionRequestScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Shizuku Permission") },
+                title = { Text(stringResource(com.ivarna.mkm.R.string.shizuku_permission)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(com.ivarna.mkm.R.string.back))
                     }
                 }
             )
@@ -136,7 +137,7 @@ fun PermissionRequestScreen(
                             context.startActivity(intent)
                         }
                     ) {
-                        Text("Download Shizuku")
+                        Text(stringResource(com.ivarna.mkm.R.string.download_shizuku))
                     }
                 }
 
@@ -162,7 +163,7 @@ fun PermissionRequestScreen(
                     Button(
                         onClick = { ShizukuManager.requestPermission() }
                     ) {
-                        Text("Grant Permission")
+                        Text(stringResource(com.ivarna.mkm.R.string.grant_permission))
                     }
                 }
                 
@@ -200,7 +201,7 @@ fun PermissionRequestScreen(
                             }
                         }
                     ) {
-                        Text("Open Shizuku")
+                        Text(stringResource(com.ivarna.mkm.R.string.open_shizuku))
                     }
                 }
                 
@@ -272,10 +273,10 @@ fun PermissionRequestScreen(
                     Spacer(modifier = Modifier.height(24.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = onNavigateBack) {
-                            Text("Cancel")
+                            Text(stringResource(com.ivarna.mkm.R.string.cancel))
                         }
                         Button(onClick = { ShizukuManager.requestPermission() }) {
-                            Text("Try Again")
+                            Text(stringResource(com.ivarna.mkm.R.string.try_again))
                         }
                     }
                 }
@@ -283,7 +284,7 @@ fun PermissionRequestScreen(
                 PermissionStatus.Checking -> {
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Checking status...")
+                    Text(stringResource(com.ivarna.mkm.R.string.checking_status))
                 }
             }
         }
@@ -325,7 +326,7 @@ fun AccessMethodCard(
                 )
                 Text(
                     when (accessMethod) {
-                        com.ivarna.mkm.shell.ShellManager.AccessMethod.ROOT -> "Root"
+                        com.ivarna.mkm.shell.ShellManager.AccessMethod.ROOT -> stringResource(com.ivarna.mkm.R.string.root)
                         com.ivarna.mkm.shell.ShellManager.AccessMethod.LOCAL -> "None"
                     },
                     style = MaterialTheme.typography.bodyLarge,
@@ -342,14 +343,14 @@ fun AccessMethodCard(
             val shizukuHidden = ShizukuManager.isHidden()
             AccessMethodItem(
                 icon = Icons.Default.Security,
-                title = if (shizukuHidden) "Shizuku (Hidden)" else "Shizuku",
+                title = if (shizukuHidden) "Shizuku (Hidden)" else stringResource(com.ivarna.mkm.R.string.shizuku),
                 status = when {
-                    ShizukuManager.hasPermission() -> "Active"
+                    ShizukuManager.hasPermission() -> stringResource(com.ivarna.mkm.R.string.active)
                     shizukuHidden -> "Hidden — tap to grant"
                     !ShizukuManager.isInstalled() -> "Not Installed"
                     !ShizukuManager.isRunning() -> "Not Running"
                     !ShizukuManager.hasPermission() -> "Not Permitted"
-                    else -> "Active"
+                    else -> stringResource(com.ivarna.mkm.R.string.active)
                 },
                 statusColor = when {
                     ShizukuManager.hasPermission() -> MaterialTheme.colorScheme.primary
@@ -372,8 +373,8 @@ fun AccessMethodCard(
             // Root status
             AccessMethodItem(
                 icon = Icons.Default.Security,
-                title = "Root",
-                status = if (com.topjohnwu.superuser.Shell.getShell().isRoot) "Active" else "Not Available",
+                title = stringResource(com.ivarna.mkm.R.string.root),
+                status = if (com.topjohnwu.superuser.Shell.getShell().isRoot) stringResource(com.ivarna.mkm.R.string.active) else "Not Available",
                 statusColor = if (com.topjohnwu.superuser.Shell.getShell().isRoot) {
                     MaterialTheme.colorScheme.primary
                 } else {
