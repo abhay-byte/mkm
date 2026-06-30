@@ -78,8 +78,14 @@ import com.ivarna.mkm.ui.viewmodel.BatteryViewModel
 import com.ivarna.mkm.ui.viewmodel.HomeViewModel
 import com.ivarna.mkm.ui.viewmodel.PowerViewModel
 import com.ivarna.mkm.ui.viewmodel.SettingsViewModel
+import com.ivarna.mkm.utils.LocaleHelper
 
 class MainActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        val localeCode = LocaleHelper.getPersistedLocale(newBase)
+        super.attachBaseContext(LocaleHelper.wrap(newBase, localeCode))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

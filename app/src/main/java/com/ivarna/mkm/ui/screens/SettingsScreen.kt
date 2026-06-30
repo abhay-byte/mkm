@@ -30,10 +30,12 @@ import com.ivarna.mkm.service.BatteryMonitorService
 import com.ivarna.mkm.service.BatterySessionTracker
 import com.ivarna.mkm.shell.ShellManager
 import com.ivarna.mkm.ui.components.*
+import com.ivarna.mkm.ui.viewmodel.AppLocale
 import com.ivarna.mkm.ui.viewmodel.AppTheme
 import com.ivarna.mkm.ui.viewmodel.PowerViewModel
 import com.ivarna.mkm.ui.viewmodel.SettingsViewModel
 import com.ivarna.mkm.utils.BatteryStatsResetPrefs
+import com.ivarna.mkm.utils.LocaleHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -55,6 +57,9 @@ fun SettingsScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
+    val localeCode = remember { LocaleHelper.getPersistedLocale(context) }
+    LaunchedEffect(Unit) { viewModel.setLocale(AppLocale.valueOf(localeCode)) }
 
     // --- Power Calibration state ---
     val savedMultiplier by powerViewModel.calibrationMultiplier.collectAsState()
@@ -188,6 +193,23 @@ fun SettingsScreen(
                 AccessMethodCard(
                     onRequestShizukuPermission = onRequestShizukuPermission
                 )
+            }
+
+            // Language
+            item {
+                SettingsSection(title = stringResource(com.ivarna.mkm.R.string.language)) {
+                    val currentLocale = viewModel.locale.collectAsState().value
+                    SettingsItem(
+                        icon = Icons.Default.Translate,
+                        title = stringResource(com.ivarna.mkm.R.string.language),
+                        subtitle = when(currentLocale) {
+                            AppLocale.SYSTEM -> stringResource(com.ivarna.mkm.R.string.system_default)
+                            AppLocale.EN -> "English"
+                            AppLocale.ZH_CN -> "简体中文"
+                        },
+                        onClick = { showLanguageDialog = true }
+                    )
+                }
             }
 
             item {
@@ -597,6 +619,30 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+
+    val systemDefaultLabel = stringResource(com.ivarna.mkm.R.string.system_default)
+    if (showLanguageDialog) {
+        SelectionBottomSheet(
+            title = stringResource(com.ivarna.mkm.R.string.language),
+            items = AppLocale.values().map { it.name },
+            selectedItem = viewModel.locale.collectAsState().value.name,
+            onDismiss = { showLanguageDialog = false },
+            onItemSelected = {
+                val appLocale = AppLocale.valueOf(it)
+                viewModel.setLocale(appLocale)
+                LocaleHelper.persistLocale(context, appLocale.name)
+                (context as? android.app.Activity)?.recreate()
+                showLanguageDialog = false
+            },
+            itemLabel = { localeName ->
+                when(AppLocale.valueOf(localeName)) {
+                    AppLocale.SYSTEM -> systemDefaultLabel
+                    AppLocale.EN -> "English"
+                    AppLocale.ZH_CN -> "简体中文"
+                }
+            }
+        )
     }
 
     if (showThemeDialog) {

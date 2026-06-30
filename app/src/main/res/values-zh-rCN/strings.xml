@@ -38,6 +38,8 @@
     <string name="longer_intervals_reduce_battery_usage">增加间隔可减少电池消耗。默认 30 秒。</string>
     <string name="auto_reset_battery_stats">自动重置系统电池统计（dumpsys batterystats --reset），用于分析唤醒锁/UID。需要 Root 或 Shizuku。</string>
     <string name="appearance">外观</string>
+    <string name="language">语言</string>
+    <string name="system_default">系统默认</string>
     <string name="theme">主题</string>
     <string name="notifications">通知</string>
     <string name="battery_monitor">电池监控</string>

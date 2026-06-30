@@ -18,7 +18,7 @@ android {
         versionCode = 8
         versionName = "1.7"
         ndkVersion = "29.0.0"
-        resConfigs("en")
+        resConfigs("en", "zh-rCN")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

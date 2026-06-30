@@ -38,6 +38,8 @@
     <string name="longer_intervals_reduce_battery_usage">Longer intervals reduce battery usage. Default is 30s.</string>
     <string name="auto_reset_battery_stats">Auto-reset system battery stats (dumpsys batterystats --reset) for fresh wakelock/UID analysis. Requires root or shizuku.</string>
     <string name="appearance">Appearance</string>
+    <string name="language">Language</string>
+    <string name="system_default">System Default</string>
     <string name="theme">Theme</string>
     <string name="notifications">Notifications</string>
     <string name="battery_monitor">Battery Monitor</string>
