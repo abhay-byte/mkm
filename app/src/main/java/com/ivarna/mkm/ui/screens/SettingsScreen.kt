@@ -462,7 +462,7 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
                         Text(
-                            text = "context.getString(com.ivarna.mkm.R.string.reset_will_use_format, resetMethod)",
+                            text = stringResource(com.ivarna.mkm.R.string.reset_will_use_format, resetMethod),
                             style = MaterialTheme.typography.labelSmall,
                             color = if (resetMethod == "unavailable")
                                 MaterialTheme.colorScheme.error
