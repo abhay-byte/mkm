@@ -233,7 +233,7 @@ fun AppInfoCard(
             fontWeight = FontWeight.Black
         )
         Text(
-            text = "$version • $buildDate",
+            text = stringResource(com.ivarna.mkm.R.string.version_build_format, version, buildDate),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

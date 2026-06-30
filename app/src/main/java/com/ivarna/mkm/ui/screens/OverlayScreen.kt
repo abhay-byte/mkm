@@ -98,12 +98,12 @@ fun OverlayScreen(
                 title = {
                     Column {
                         Text(
-                            "Status Overlay",
+                            stringResource(com.ivarna.mkm.R.string.status_overlay),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Black
                         )
                         Text(
-                            "Performance Monitor",
+                            stringResource(com.ivarna.mkm.R.string.performance_monitor),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
@@ -211,8 +211,8 @@ fun OverlayScreen(
                 HeroUsageCard(
                     title = stringResource(com.ivarna.mkm.R.string.overlay_status),
                     usage = if (isOverlayEnabled) 1f else 0f,
-                    mainValue = if (isOverlayEnabled) "ACTIVE" else "INACTIVE",
-                    subValue = if (isOverlayEnabled) "Real-time monitoring enabled" else "Overlay service is stopped",
+                    mainValue = if (isOverlayEnabled) stringResource(com.ivarna.mkm.R.string.active_caps) else stringResource(com.ivarna.mkm.R.string.inactive_caps),
+                    subValue = if (isOverlayEnabled) stringResource(com.ivarna.mkm.R.string.realtime_monitoring_enabled) else stringResource(com.ivarna.mkm.R.string.overlay_service_stopped),
                     onClick = { /* No action needed */ },
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
@@ -408,7 +408,7 @@ fun OverlayScreen(
                         SettingsItem(
                             icon = Icons.Default.ViewColumn,
                             title = stringResource(com.ivarna.mkm.R.string.grid_columns),
-                            subtitle = "Columns: $gridColumns",
+                            subtitle = stringResource(com.ivarna.mkm.R.string.columns_format, gridColumns),
                             onClick = { }
                         ) {
                             Slider(
@@ -494,7 +494,7 @@ fun OverlayScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Box {
                             val currentLabel = when (cpuFreqDisplay) {
-                                "avg" -> "Average"
+                                "avg" -> stringResource(com.ivarna.mkm.R.string.average)
                                 "max" -> "Max Frequency"
                                 else -> "All Cores"
                             }

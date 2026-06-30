@@ -52,7 +52,7 @@ fun PowerScreen(
     val realTimeLogs by viewModel.realTimeLogs.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Monitor", "CPU Bench", "GPU Bench")
+    val tabs = listOf(stringResource(com.ivarna.mkm.R.string.monitor), stringResource(com.ivarna.mkm.R.string.cpu_bench), stringResource(com.ivarna.mkm.R.string.gpu_bench))
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     val tabContainerColor by animateColorAsState(
@@ -92,12 +92,12 @@ fun PowerScreen(
                 title = {
                     Column {
                         Text(
-                            "Power Monitor",
+                            stringResource(com.ivarna.mkm.R.string.power_monitor),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Black
                         )
                         Text(
-                            "Efficiency & Benchmarks",
+                            stringResource(com.ivarna.mkm.R.string.efficiency_benchmarks),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
@@ -222,15 +222,15 @@ fun MonitorTab(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 val intervalOptions = listOf(
-                    500L to "Fast (0.5s)",
-                    1000L to "Normal (1s)",
-                    2000L to "Slow (2s)"
+                    500L to stringResource(com.ivarna.mkm.R.string.fast_interval),
+                    1000L to stringResource(com.ivarna.mkm.R.string.normal_interval),
+                    2000L to stringResource(com.ivarna.mkm.R.string.slow_interval)
                 )
                 
-                val currentLabel = intervalOptions.find { it.first == updateInterval }?.second ?: "Custom"
+                val currentLabel = intervalOptions.find { it.first == updateInterval }?.second ?: stringResource(com.ivarna.mkm.R.string.custom)
                 
                 Text(
-                    text = "Current: $currentLabel",
+                    text = stringResource(com.ivarna.mkm.R.string.current_label_format, currentLabel),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
                 )
@@ -263,7 +263,7 @@ fun MonitorTab(
 
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            "Values are read directly from kernel power supply subsystem.",
+            stringResource(com.ivarna.mkm.R.string.power_values_desc),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -339,7 +339,7 @@ fun CpuBenchTab(
             Column(modifier = Modifier.padding(24.dp)) {
                 Text(stringResource(com.ivarna.mkm.R.string.cpu_efficiency), style = MaterialTheme.typography.headlineSmall)
                 Text(
-                    "Calculates Score per Watt across clusters.",
+                    stringResource(com.ivarna.mkm.R.string.cpu_efficiency_desc),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -367,8 +367,8 @@ fun CpuBenchTab(
                      val points = results.map { it.powerW to it.score }
                      EfficiencyGraph(
                         dataPoints = points,
-                        xLabel = "Power (W)",
-                        yLabel = "Score",
+                        xLabel = stringResource(com.ivarna.mkm.R.string.power_w),
+                        yLabel = stringResource(com.ivarna.mkm.R.string.score),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(250.dp)
@@ -400,7 +400,7 @@ fun GpuBenchTab(
                 Column(modifier = Modifier.padding(24.dp)) {
                     Text(stringResource(com.ivarna.mkm.R.string.gpu_efficiency), style = MaterialTheme.typography.headlineSmall)
                     Text(
-                        "Measures Power vs Frequency under load.",
+                        stringResource(com.ivarna.mkm.R.string.gpu_efficiency_desc),
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(modifier = Modifier.height(16.dp))
@@ -437,7 +437,7 @@ fun GpuBenchTab(
                          val points = results.map { it.frequencyHz.toFloat() to it.powerW }
                          EfficiencyGraph(
                             dataPoints = points,
-                            xLabel = "Freq",
+                            xLabel = stringResource(com.ivarna.mkm.R.string.frequencies),
                             yLabel = stringResource(com.ivarna.mkm.R.string.power),
                             modifier = Modifier
                                 .fillMaxWidth()

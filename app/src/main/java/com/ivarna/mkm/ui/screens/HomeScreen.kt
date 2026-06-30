@@ -242,7 +242,7 @@ fun QuickStatsGrid(data: HomeData) {
             StatCard(
                 title = stringResource(com.ivarna.mkm.R.string.ram),
                 value = "${data.memory.usedUi} / ${data.memory.totalUi}",
-                subValue = "${(data.memory.usagePercent * 100).toInt()}% Used",
+                subValue = stringResource(com.ivarna.mkm.R.string.percent_used_format, (data.memory.usagePercent * 100).toInt()),
                 progress = data.memory.usagePercent,
                 icon = Icons.Default.Dns,
                 modifier = Modifier.weight(1f)
@@ -250,7 +250,7 @@ fun QuickStatsGrid(data: HomeData) {
             StatCard(
                 title = stringResource(com.ivarna.mkm.R.string.cpu),
                 value = "${(data.cpu.overallUsage * 100).toInt()}%",
-                subValue = "${data.cpu.totalCores} Cores Active",
+                subValue = stringResource(com.ivarna.mkm.R.string.cores_active_format, data.cpu.totalCores),
                 progress = data.cpu.overallUsage,
                 icon = Icons.Default.DeveloperBoard,
                 modifier = Modifier.weight(1f)
@@ -261,10 +261,7 @@ fun QuickStatsGrid(data: HomeData) {
             StatCard(
                 title = stringResource(com.ivarna.mkm.R.string.gpu),
                 value = data.gpu.currentFreq,
-                subValue = if (!data.gpu.frequencyAvailable && data.gpu.freqRequiresRoot)
-                    "${(data.gpu.loadPercent * 100).toInt()}% Load • Root needed for freq"
-                else
-                    "${(data.gpu.loadPercent * 100).toInt()}% Load",
+                subValue = if (!data.gpu.frequencyAvailable && data.gpu.freqRequiresRoot) stringResource(com.ivarna.mkm.R.string.gpu_load_root_format, (data.gpu.loadPercent * 100).toInt()) else stringResource(com.ivarna.mkm.R.string.gpu_load_format, (data.gpu.loadPercent * 100).toInt()),
                 progress = data.gpu.loadPercent,
                 icon = Icons.Default.VideogameAsset,
                 modifier = Modifier.weight(1f)
@@ -272,7 +269,7 @@ fun QuickStatsGrid(data: HomeData) {
             StatCard(
                 title = stringResource(com.ivarna.mkm.R.string.swap),
                 value = data.swap.totalUi,
-                subValue = if (data.swap.isActive) "Active (${(data.swap.usagePercent * 100).toInt()}%)" else stringResource(com.ivarna.mkm.R.string.inactive),
+                subValue = if (data.swap.isActive) stringResource(com.ivarna.mkm.R.string.swap_active_format, (data.swap.usagePercent * 100).toInt()) else stringResource(com.ivarna.mkm.R.string.inactive),
                 progress = data.swap.usagePercent,
                 icon = Icons.Default.SwapHoriz,
                 modifier = Modifier.weight(1f)
@@ -293,11 +290,11 @@ fun QuickAccessCard(
         QuickAccessItem(stringResource(com.ivarna.mkm.R.string.ram), "ram", Icons.Default.Dns),
         QuickAccessItem(stringResource(com.ivarna.mkm.R.string.cpu), "cpu", Icons.Default.DeveloperBoard),
         QuickAccessItem(stringResource(com.ivarna.mkm.R.string.gpu), "gpu", Icons.Default.VideogameAsset),
-        QuickAccessItem("Storage", "storage", Icons.Default.SdStorage),
+        QuickAccessItem(stringResource(com.ivarna.mkm.R.string.storage), "storage", Icons.Default.SdStorage),
         QuickAccessItem(stringResource(com.ivarna.mkm.R.string.power), "power", Icons.Default.Bolt),
-        QuickAccessItem("Battery", "battery", Icons.Default.BatteryFull),
-        QuickAccessItem("Overlay", "overlay", Icons.Default.SwapHoriz),
-        QuickAccessItem("Settings", "settings", Icons.Default.Settings)
+        QuickAccessItem(stringResource(com.ivarna.mkm.R.string.battery), "battery", Icons.Default.BatteryFull),
+        QuickAccessItem(stringResource(com.ivarna.mkm.R.string.overlay), "overlay", Icons.Default.SwapHoriz),
+        QuickAccessItem(stringResource(com.ivarna.mkm.R.string.settings), "settings", Icons.Default.Settings)
     )
 
     Card(
@@ -362,7 +359,7 @@ fun QuickAccessCard(
                             } else {
                                 android.widget.Toast.makeText(
                                     context,
-                                    "Locked: Root or Shizuku access required",
+                                    context.getString(com.ivarna.mkm.R.string.locked_toast),
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
                             }

@@ -82,7 +82,7 @@ fun StorageScreen(viewModel: StorageViewModel = viewModel(), onOpenDrawer: () ->
                             title = stringResource(com.ivarna.mkm.R.string.internal_storage),
                             usage = internalStorage.usagePercent / 100f,
                             mainValue = "${internalStorage.usagePercent.toInt()}%",
-                            subValue = "${internalStorage.used} used of ${internalStorage.total}"
+                            subValue = stringResource(com.ivarna.mkm.R.string.storage_used_of_format, internalStorage.used, internalStorage.total)
                         )
                     }
 
@@ -90,7 +90,7 @@ fun StorageScreen(viewModel: StorageViewModel = viewModel(), onOpenDrawer: () ->
                          StatCard(
                             title = stringResource(com.ivarna.mkm.R.string.system_partition),
                             value = systemStorage.used,
-                            subValue = "of ${systemStorage.total} used",
+                            subValue = stringResource(com.ivarna.mkm.R.string.storage_of_used_format, systemStorage.total),
                             progress = systemStorage.usagePercent / 100f,
                             icon = Icons.Default.SdStorage,
                             modifier = Modifier.fillMaxWidth()
@@ -125,7 +125,7 @@ fun StorageScreen(viewModel: StorageViewModel = viewModel(), onOpenDrawer: () ->
                             internalStorage?.let {
                                 InfoRow(label = stringResource(com.ivarna.mkm.R.string.internal_total), value = it.total)
                                 InfoRow(label = stringResource(com.ivarna.mkm.R.string.internal_free), value = it.free)
-                                InfoRow(label = stringResource(com.ivarna.mkm.R.string.block_size), value = "${it.blockSize} bytes")
+                                InfoRow(label = stringResource(com.ivarna.mkm.R.string.block_size), value = stringResource(com.ivarna.mkm.R.string.block_size_bytes_format, it.blockSize.toString()))
                             }
                         }
                     }

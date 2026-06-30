@@ -72,7 +72,7 @@ fun BatteryScreen(
             MediumTopAppBar(
                 title = {
                     Text(
-                        "Battery",
+                        stringResource(com.ivarna.mkm.R.string.battery),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Black
                     )
@@ -137,9 +137,9 @@ fun BatteryScreen(
 @Composable
 fun BatteryHeroCard(stats: BatteryStats) {
     val statusText = when {
-        stats.isCharging -> "Charging"
-        stats.isSessionActive -> "Discharging ${stats.currentMa} mA"
-        else -> "On AC"
+        stats.isCharging -> stringResource(com.ivarna.mkm.R.string.charging)
+        stats.isSessionActive -> stringResource(com.ivarna.mkm.R.string.discharging_ma_format, stats.currentMa)
+        else -> stringResource(com.ivarna.mkm.R.string.on_ac)
     }
 
     val statusColor = when {
@@ -236,11 +236,11 @@ fun EstimatedTimeCard(stats: BatteryStats) {
             if (hours > 0) append("${hours}h ")
             append("${minutes}m")
         }
-        subLabel = if (stats.isCharging) "until full" else "remaining"
+        subLabel = if (stats.isCharging) stringResource(com.ivarna.mkm.R.string.until_full) else stringResource(com.ivarna.mkm.R.string.remaining)
         color = if (stats.isCharging) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary
     } else {
         label = "—"
-        subLabel = if (stats.isCharging) "Calculating…" else "Need more data"
+        subLabel = if (stats.isCharging) stringResource(com.ivarna.mkm.R.string.calculating_ellipsis) else stringResource(com.ivarna.mkm.R.string.need_more_data)
         color = MaterialTheme.colorScheme.onSurfaceVariant
     }
 
@@ -553,9 +553,9 @@ fun TimeBreakdownCard(stats: BatteryStats) {
 
             if (stats.isSessionActive || stats.isCharging) {
                 Spacer(modifier = Modifier.height(16.dp))
-                val sessionLabel = if (stats.isCharging) "Charging for" else "Session started"
+                val sessionText = if (stats.isCharging) stringResource(com.ivarna.mkm.R.string.charging_duration_format, formatDuration(stats.totalSessionTimeMs)) else stringResource(com.ivarna.mkm.R.string.session_duration_format, formatDuration(stats.totalSessionTimeMs))
                 Text(
-                    text = "$sessionLabel ${formatDuration(stats.totalSessionTimeMs)} ago",
+                    text = sessionText,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1107,7 +1107,7 @@ fun UnifiedActivityCard(
                         )
                         Text(
                             text = if (records.isEmpty()) stringResource(com.ivarna.mkm.R.string.no_sessions_recorded)
-                                   else "${records.size} saved · $charging charging · $discharging discharging",
+                                   else stringResource(com.ivarna.mkm.R.string.history_saved_summary_format, records.size, charging, discharging),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

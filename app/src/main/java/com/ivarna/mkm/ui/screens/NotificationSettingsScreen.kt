@@ -95,7 +95,7 @@ fun NotificationSettingsScreen(
             MediumTopAppBar(
                 title = {
                     Text(
-                        "Notification Settings",
+                        stringResource(com.ivarna.mkm.R.string.notification_settings),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Black
                     )
@@ -159,7 +159,7 @@ fun ChargingNotificationSettingsScreen(onBack: () -> Unit) {
     val prefs = remember { context.getSharedPreferences(BatteryMonitorService.PREFS_NAME, Context.MODE_PRIVATE) }
 
     // Charging notification always shows temp, power, current, gained %, duration, est. full
-    // We expose a single toggle for "Show in expanded" per metric — these map to existing prefs
+    // We expose a single toggle for stringResource(com.ivarna.mkm.R.string.show_in_expanded) per metric — these map to existing prefs
     // but for charging the content is currently unconditional (see BatteryNotificationManager).
     // We add charging-specific prefs here for forward-compat.
 
@@ -190,7 +190,7 @@ fun ChargingNotificationSettingsScreen(onBack: () -> Unit) {
             MediumTopAppBar(
                 title = {
                     Text(
-                        "Charging Notification",
+                        stringResource(com.ivarna.mkm.R.string.charging_notification),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Black
                     )
@@ -256,7 +256,7 @@ fun DischargingNotificationSettingsScreen(onBack: () -> Unit) {
             MediumTopAppBar(
                 title = {
                     Text(
-                        "Discharging Notification",
+                        stringResource(com.ivarna.mkm.R.string.discharging_notification),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Black
                     )
@@ -318,9 +318,9 @@ fun MonitoringNotificationSettingsScreen(onBack: () -> Unit) {
         "5s" to 5_000L,
         "10s" to 10_000L,
         "30s" to 30_000L,
-        "1 min" to 60_000L,
-        "5 min" to 300_000L,
-        "10 min" to 600_000L
+        stringResource(com.ivarna.mkm.R.string.one_min) to 60_000L,
+        stringResource(com.ivarna.mkm.R.string.five_min) to 300_000L,
+        stringResource(com.ivarna.mkm.R.string.ten_min) to 600_000L
     )
     var selectedIntervalMs by remember {
         mutableStateOf(prefs.getLong("battery_update_interval_ms", BatterySessionTracker.DEFAULT_UPDATE_INTERVAL_MS))
@@ -337,7 +337,7 @@ fun MonitoringNotificationSettingsScreen(onBack: () -> Unit) {
             MediumTopAppBar(
                 title = {
                     Text(
-                        "Monitoring",
+                        stringResource(com.ivarna.mkm.R.string.monitoring),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Black
                     )

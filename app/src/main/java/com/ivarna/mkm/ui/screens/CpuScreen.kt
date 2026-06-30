@@ -66,7 +66,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                             fontWeight = FontWeight.Black
                         )
                         Text(
-                            "CPU Management",
+                            stringResource(com.ivarna.mkm.R.string.cpu_management),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
@@ -103,7 +103,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                     title = stringResource(com.ivarna.mkm.R.string.overall_utilization),
                     usage = cpuStatus.overallUsage,
                     mainValue = "${(cpuStatus.overallUsage * 100).toInt()}%",
-                    subValue = "${cpuStatus.totalCores} Processors Active"
+                    subValue = stringResource(com.ivarna.mkm.R.string.processors_active_format, cpuStatus.totalCores)
                 )
             }
 
@@ -211,7 +211,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                         .padding(bottom = 48.dp)
                 ) {
                     Text(
-                        text = "Core ${core.id} Settings",
+                        text = stringResource(com.ivarna.mkm.R.string.core_settings_format, core.id),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 24.dp)
@@ -239,7 +239,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
 
             if (showCoreGovernorSheet) {
                 SelectionBottomSheet(
-                    title = "Core ${core.id} Governor",
+                    title = stringResource(com.ivarna.mkm.R.string.core_governor_format, core.id),
                     items = core.availableGovernors,
                     selectedItem = core.governor,
                     onDismiss = { showCoreGovernorSheet = false },
@@ -252,7 +252,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
 
             if (showCoreMaxFreqSheet) {
                 SelectionBottomSheet(
-                    title = "Core ${core.id} Max Frequency",
+                    title = stringResource(com.ivarna.mkm.R.string.core_max_freq_format, core.id),
                     items = core.availableFrequencies,
                     selectedItem = core.rawMaxFreq,
                     onDismiss = { showCoreMaxFreqSheet = false },
@@ -266,7 +266,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
 
             if (showCoreMinFreqSheet) {
                 SelectionBottomSheet(
-                    title = "Core ${core.id} Min Frequency",
+                    title = stringResource(com.ivarna.mkm.R.string.core_min_freq_format, core.id),
                     items = core.availableFrequencies,
                     selectedItem = core.rawMinFreq,
                     onDismiss = { showCoreMinFreqSheet = false },
@@ -302,7 +302,7 @@ fun CpuClusterCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Cluster ${cluster.id}",
+                    text = stringResource(com.ivarna.mkm.R.string.cluster_id_format, cluster.id),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -311,7 +311,7 @@ fun CpuClusterCard(
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                 ) {
                     Text(
-                        text = "Cores ${cluster.coreRange.first}-${cluster.coreRange.last}",
+                        text = stringResource(com.ivarna.mkm.R.string.cluster_cores_range_format, cluster.coreRange.first, cluster.coreRange.last),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer

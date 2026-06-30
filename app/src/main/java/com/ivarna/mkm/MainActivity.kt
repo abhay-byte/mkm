@@ -32,6 +32,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.ui.res.stringResource
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Lock
@@ -186,7 +187,7 @@ fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewMode
                     val isEnabled = isAccessGranted || screen == Screen.Home || screen == Screen.Settings || screen == Screen.Overlay || screen == Screen.Battery
                     
                     NavigationDrawerItem(
-                        label = { Text(screen.label) },
+                        label = { Text(stringResource(screen.labelResId)) },
                         icon = {
                             Icon(
                                 imageVector = if (selected) screen.selectedIcon else screen.unselectedIcon,
@@ -219,7 +220,7 @@ fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewMode
                                     restoreState = true
                                 }
                             } else {
-                                android.widget.Toast.makeText(context, "Locked: Root or Shizuku access required", android.widget.Toast.LENGTH_SHORT).show()
+                                android.widget.Toast.makeText(context, context.getString(com.ivarna.mkm.R.string.locked_toast), android.widget.Toast.LENGTH_SHORT).show()
                             }
                         },
                         modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)

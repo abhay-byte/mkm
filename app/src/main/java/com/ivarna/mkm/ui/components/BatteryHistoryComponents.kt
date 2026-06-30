@@ -58,6 +58,7 @@ fun SessionHistoryRow(
     onToggleExpand: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val isCharging = record.sessionType == SessionType.CHARGING
     val accent = if (isCharging) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary
     val signedChange = if (isCharging) "+${record.percentChange}" else "−${record.percentChange.coerceAtLeast(0)}"
@@ -113,7 +114,7 @@ fun SessionHistoryRow(
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = if (isExpanded) "Collapse" else stringResource(com.ivarna.mkm.R.string.expand),
+                    contentDescription = if (isExpanded) stringResource(com.ivarna.mkm.R.string.collapse) else stringResource(com.ivarna.mkm.R.string.expand),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -127,18 +128,18 @@ fun SessionHistoryRow(
                     if (record.avgWattageW > 0f) {
                         HistoryDetailRow(
                             label = stringResource(com.ivarna.mkm.R.string.avg_power),
-                            value = "+${"%.2f".format(record.avgWattageW)} W"
+                            value = stringResource(com.ivarna.mkm.R.string.wattage_signed_format, record.avgWattageW)
                         )
                     }
                     if (record.avgCurrentMa > 0) {
                         HistoryDetailRow(
                             label = stringResource(com.ivarna.mkm.R.string.avg_current),
-                            value = "${record.avgCurrentMa} mA"
+                            value = stringResource(com.ivarna.mkm.R.string.current_format_ma, record.avgCurrentMa)
                         )
                     }
                     HistoryDetailRow(
                         label = stringResource(com.ivarna.mkm.R.string.avg_temperature),
-                        value = "${"%.1f".format(record.avgTemperatureC)}°C"
+                        value = stringResource(com.ivarna.mkm.R.string.temperature_format, record.avgTemperatureC)
                     )
                     if (record.screenOnTimeMs > 0) {
                         HistoryDetailRow(
@@ -156,55 +157,55 @@ fun SessionHistoryRow(
                     // Discharging session metrics
                     HistoryDetailRow(
                         label = stringResource(com.ivarna.mkm.R.string.active_drain),
-                        value = "${"%.2f".format(record.activeDrainPerHr)}%/hr"
+                        value = stringResource(com.ivarna.mkm.R.string.drain_rate_format, record.activeDrainPerHr)
                     )
                     HistoryDetailRow(
                         label = stringResource(com.ivarna.mkm.R.string.idle_drain),
-                        value = "${"%.2f".format(record.idleDrainPerHr)}%/hr"
+                        value = stringResource(com.ivarna.mkm.R.string.drain_rate_format, record.idleDrainPerHr)
                     )
                     HistoryDetailRow(
                         label = stringResource(com.ivarna.mkm.R.string.avg_current),
-                        value = "${record.avgCurrentMa} mA"
+                        value = stringResource(com.ivarna.mkm.R.string.current_format_ma, record.avgCurrentMa)
                     )
                     HistoryDetailRow(
                         label = stringResource(com.ivarna.mkm.R.string.avg_power),
-                        value = "${"%.2f".format(record.avgWattageW)} W"
+                        value = stringResource(com.ivarna.mkm.R.string.wattage_format, record.avgWattageW)
                     )
                     HistoryDetailRow(
                         label = stringResource(com.ivarna.mkm.R.string.avg_temperature),
-                        value = "${"%.1f".format(record.avgTemperatureC)}°C"
+                        value = stringResource(com.ivarna.mkm.R.string.temperature_format, record.avgTemperatureC)
                     )
                     // Absolute battery % drained per state
                     val capacityMah = if (record.estimatedCapacityMah > 0) record.estimatedCapacityMah
                                       else record.ratedCapacityMah
                     fun pctToMah(pct: Float): String {
                         if (capacityMah <= 0 || pct <= 0f) return ""
-                        return " · ~${(pct / 100f * capacityMah).toInt()} mAh"
+                        return context.getString(com.ivarna.mkm.R.string.mah_estimate_suffix, (pct / 100f * capacityMah).toInt())
                     }
                     HistoryDetailRow(
                         label = stringResource(com.ivarna.mkm.R.string.screen_on),
                         value = formatHistoryDuration(record.screenOnTimeMs) +
                                 if (record.screenOnDrainPercent > 0f)
-                                    " · −${"%.1f".format(record.screenOnDrainPercent)}%${pctToMah(record.screenOnDrainPercent)}" else ""
+                                    stringResource(com.ivarna.mkm.R.string.drain_detail_format, record.screenOnDrainPercent, pctToMah(record.screenOnDrainPercent)) else ""
                     )
                     HistoryDetailRow(
                         label = stringResource(com.ivarna.mkm.R.string.screen_off),
                         value = formatHistoryDuration(record.screenOffTimeMs) +
                                 if (record.screenOffDrainPercent > 0f)
-                                    " · −${"%.1f".format(record.screenOffDrainPercent)}%${pctToMah(record.screenOffDrainPercent)}" else ""
+                                    stringResource(com.ivarna.mkm.R.string.drain_detail_format, record.screenOffDrainPercent, pctToMah(record.screenOffDrainPercent)) else ""
                     )
                     HistoryDetailRow(
                         label = stringResource(com.ivarna.mkm.R.string.deep_sleep),
                         value = formatHistoryDuration(record.deepSleepTimeMs) +
                                 if (record.deepSleepDrainPercent > 0f)
-                                    " · −${"%.2f".format(record.deepSleepDrainPercent)}%${pctToMah(record.deepSleepDrainPercent)}" else ""
+                                    stringResource(com.ivarna.mkm.R.string.drain_detail_format_two_decimal, record.deepSleepDrainPercent, pctToMah(record.deepSleepDrainPercent)) else ""
                     )
                     if (record.awakeTimeMs > 0) {
                         HistoryDetailRow(
                             label = stringResource(com.ivarna.mkm.R.string.awake),
                             value = formatHistoryDuration(record.awakeTimeMs) +
                                     if (record.awakeDrainPercent > 0f)
-                                        " · −${"%.2f".format(record.awakeDrainPercent)}%${pctToMah(record.awakeDrainPercent)}" else ""
+                                        stringResource(com.ivarna.mkm.R.string.drain_detail_format_two_decimal, record.awakeDrainPercent, pctToMah(record.awakeDrainPercent)) else ""
                         )
                     }
                 }

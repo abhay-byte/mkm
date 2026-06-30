@@ -90,9 +90,9 @@ fun SettingsScreen(
             "5s" to 5_000L,
             "10s" to 10_000L,
             "30s" to 30_000L,
-            "1 min" to 60_000L,
-            "5 min" to 300_000L,
-            "10 min" to 600_000L
+            context.getString(com.ivarna.mkm.R.string.one_min) to 60_000L,
+            context.getString(com.ivarna.mkm.R.string.five_min) to 300_000L,
+            context.getString(com.ivarna.mkm.R.string.ten_min) to 600_000L
         )
     }
     var selectedIntervalMs by remember {
@@ -110,16 +110,17 @@ fun SettingsScreen(
     var resetOnBoot by remember {
         mutableStateOf(BatteryStatsResetPrefs.isOnBoot(context))
     }
-    var resetMethod by remember { mutableStateOf("checking") }
+    val defaultChecking = stringResource(com.ivarna.mkm.R.string.reset_method_checking)
+        var resetMethod by remember { mutableStateOf(defaultChecking) }
     LaunchedEffect(Unit) {
         resetMethod = withContext(Dispatchers.IO) {
             runCatching {
                 when {
-                    ShellManager.hasShizuku() -> "shizuku"
-                    ShellManager.hasRoot() -> "root"
-                    else -> "unavailable"
+                    ShellManager.hasShizuku() -> context.getString(com.ivarna.mkm.R.string.reset_method_shizuku)
+                    ShellManager.hasRoot() -> context.getString(com.ivarna.mkm.R.string.reset_method_root)
+                    else -> context.getString(com.ivarna.mkm.R.string.reset_method_unavailable)
                 }
-            }.getOrDefault("unavailable")
+            }.getOrDefault(context.getString(com.ivarna.mkm.R.string.reset_method_unavailable))
         }
     }
     var lastResetTick by remember { mutableStateOf(0) }
@@ -129,13 +130,13 @@ fun SettingsScreen(
             val agoMs = System.currentTimeMillis() - at
             val mins = agoMs / 60_000
             val rel = when {
-                mins < 1L -> "just now"
-                mins < 60L -> "$mins min ago"
-                mins < 1440L -> "${mins / 60L} h ago"
-                else -> "${mins / 1440L} d ago"
+                mins < 1L -> context.getString(com.ivarna.mkm.R.string.just_now)
+                mins < 60L -> context.getString(com.ivarna.mkm.R.string.mins_ago_format, mins.toInt())
+                mins < 1440L -> context.getString(com.ivarna.mkm.R.string.hours_ago_format, (mins / 60L).toInt())
+                else -> context.getString(com.ivarna.mkm.R.string.days_ago_format, (mins / 1440L).toInt())
             }
-            "Last reset: $rel (trigger: $trigger)"
-        } ?: "Last reset: never"
+            context.getString(com.ivarna.mkm.R.string.last_reset_format, rel, trigger)
+        } ?: context.getString(com.ivarna.mkm.R.string.last_reset_never)
     }
 
     fun toggleBatteryNotification(enabled: Boolean) {
@@ -159,7 +160,7 @@ fun SettingsScreen(
                 },
                 title = {
                     Text(
-                        "Settings",
+                        stringResource(com.ivarna.mkm.R.string.settings),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Black
                     )
@@ -218,21 +219,21 @@ fun SettingsScreen(
                         icon = Icons.Default.Palette,
                         title = stringResource(com.ivarna.mkm.R.string.theme),
                         subtitle = when(theme) {
-                            AppTheme.SYSTEM -> "System Default"
-                            AppTheme.DYNAMIC -> "Dynamic (Material You)"
-                            AppTheme.LIGHT -> "Light"
-                            AppTheme.DARK -> "Dark"
-                            AppTheme.AMOLED -> "Black (AMOLED)"
-                            AppTheme.NORD -> "Nord Theme"
-                            AppTheme.NORD_LIGHT -> "Nord Light"
-                            AppTheme.DRACULA -> "Dracula"
-                            AppTheme.MONOKAI -> "Monokai"
-                            AppTheme.GRUVBOX -> "Gruvbox"
-                            AppTheme.GRUVBOX_LIGHT -> "Gruvbox Light"
+                            AppTheme.SYSTEM -> stringResource(com.ivarna.mkm.R.string.system_default)
+                            AppTheme.DYNAMIC -> stringResource(com.ivarna.mkm.R.string.theme_dynamic)
+                            AppTheme.LIGHT -> stringResource(com.ivarna.mkm.R.string.theme_light)
+                            AppTheme.DARK -> stringResource(com.ivarna.mkm.R.string.theme_dark)
+                            AppTheme.AMOLED -> stringResource(com.ivarna.mkm.R.string.theme_amoled)
+                            AppTheme.NORD -> stringResource(com.ivarna.mkm.R.string.theme_nord)
+                            AppTheme.NORD_LIGHT -> stringResource(com.ivarna.mkm.R.string.theme_nord_light)
+                            AppTheme.DRACULA -> stringResource(com.ivarna.mkm.R.string.theme_dracula)
+                            AppTheme.MONOKAI -> stringResource(com.ivarna.mkm.R.string.theme_monokai)
+                            AppTheme.GRUVBOX -> stringResource(com.ivarna.mkm.R.string.theme_gruvbox)
+                            AppTheme.GRUVBOX_LIGHT -> stringResource(com.ivarna.mkm.R.string.theme_gruvbox_light)
                             AppTheme.SOLARIZED -> "Solarized Dark"
-                            AppTheme.SOLARIZED_LIGHT -> "Solarized Light"
-                            AppTheme.SYNTHWAVE -> "Synthwave (Neon)"
-                            AppTheme.ONE_LIGHT -> "One Light"
+                            AppTheme.SOLARIZED_LIGHT -> stringResource(com.ivarna.mkm.R.string.theme_solarized_light)
+                            AppTheme.SYNTHWAVE -> stringResource(com.ivarna.mkm.R.string.theme_synthwave)
+                            AppTheme.ONE_LIGHT -> stringResource(com.ivarna.mkm.R.string.theme_one_light)
                         },
                         onClick = { showThemeDialog = true }
                     )
@@ -275,7 +276,7 @@ fun SettingsScreen(
                             }
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
-                                    text = "Calibrated (${savedMultiplier}×)",
+                                    text = stringResource(com.ivarna.mkm.R.string.calibrated_multiplier_format, "$savedMultiplier"),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.primary
                                 )
@@ -325,7 +326,7 @@ fun SettingsScreen(
                                         userHasEdited = false
                                         calibrationSaveError = false
                                         coroutineScope.launch {
-                                            snackbarHostState.showSnackbar("Multiplier saved: ${v}×")
+                                            snackbarHostState.showSnackbar(context.getString(com.ivarna.mkm.R.string.multiplier_saved_format, "${v}"))
                                         }
                                     } else {
                                         calibrationSaveError = true
@@ -340,7 +341,7 @@ fun SettingsScreen(
                                     userHasEdited = false
                                     calibrationSaveError = false
                                     coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Reset to 1.0×")
+                                        snackbarHostState.showSnackbar(context.getString(com.ivarna.mkm.R.string.reset_to_one_multiplier))
                                     }
                                 },
                                 colors = IconButtonDefaults.filledTonalIconButtonColors(
@@ -352,7 +353,7 @@ fun SettingsScreen(
                             }
                         }
                         Text(
-                            text = "Saved: ${savedMultiplier}×  •  Match your external power meter.",
+                            text = stringResource(com.ivarna.mkm.R.string.multiplier_saved_desc_format, "$savedMultiplier"),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
                         )
@@ -461,7 +462,7 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
                         Text(
-                            text = "Will use: $resetMethod",
+                            text = "context.getString(com.ivarna.mkm.R.string.reset_will_use_format, resetMethod)",
                             style = MaterialTheme.typography.labelSmall,
                             color = if (resetMethod == "unavailable")
                                 MaterialTheme.colorScheme.error
@@ -514,9 +515,9 @@ fun SettingsScreen(
                                         if (result.isSuccess) {
                                             BatteryStatsResetPrefs.recordReset(context, "manual")
                                             lastResetTick++
-                                            snackbarHostState.showSnackbar("Battery stats reset")
+                                            snackbarHostState.showSnackbar(context.getString(com.ivarna.mkm.R.string.battery_stats_reset_toast))
                                         } else {
-                                            snackbarHostState.showSnackbar("Reset failed: ${result.stderr.ifBlank { "exit ${result.exitCode}" }}")
+                                            snackbarHostState.showSnackbar(context.getString(com.ivarna.mkm.R.string.battery_stats_reset_failed_format, result.stderr.ifBlank { "exit ${result.exitCode}" }))
                                         }
                                     }
                                 }
@@ -657,21 +658,21 @@ fun SettingsScreen(
             },
             itemLabel = {
                 when(AppTheme.valueOf(it)) {
-                    AppTheme.SYSTEM -> "System Default"
-                    AppTheme.DYNAMIC -> "Dynamic (Material You)"
-                    AppTheme.LIGHT -> "Light"
-                    AppTheme.DARK -> "Dark"
-                    AppTheme.AMOLED -> "Black (AMOLED)"
-                    AppTheme.NORD -> "Nord Theme"
-                    AppTheme.NORD_LIGHT -> "Nord Light"
-                    AppTheme.DRACULA -> "Dracula"
-                    AppTheme.MONOKAI -> "Monokai"
-                    AppTheme.GRUVBOX -> "Gruvbox"
-                    AppTheme.GRUVBOX_LIGHT -> "Gruvbox Light"
+                    AppTheme.SYSTEM -> context.getString(com.ivarna.mkm.R.string.system_default)
+                    AppTheme.DYNAMIC -> context.getString(com.ivarna.mkm.R.string.theme_dynamic)
+                    AppTheme.LIGHT -> context.getString(com.ivarna.mkm.R.string.theme_light)
+                    AppTheme.DARK -> context.getString(com.ivarna.mkm.R.string.theme_dark)
+                    AppTheme.AMOLED -> context.getString(com.ivarna.mkm.R.string.theme_amoled)
+                    AppTheme.NORD -> context.getString(com.ivarna.mkm.R.string.theme_nord)
+                    AppTheme.NORD_LIGHT -> context.getString(com.ivarna.mkm.R.string.theme_nord_light)
+                    AppTheme.DRACULA -> context.getString(com.ivarna.mkm.R.string.theme_dracula)
+                    AppTheme.MONOKAI -> context.getString(com.ivarna.mkm.R.string.theme_monokai)
+                    AppTheme.GRUVBOX -> context.getString(com.ivarna.mkm.R.string.theme_gruvbox)
+                    AppTheme.GRUVBOX_LIGHT -> context.getString(com.ivarna.mkm.R.string.theme_gruvbox_light)
                     AppTheme.SOLARIZED -> "Solarized Dark"
-                    AppTheme.SOLARIZED_LIGHT -> "Solarized Light"
-                    AppTheme.SYNTHWAVE -> "Synthwave (Neon)"
-                    AppTheme.ONE_LIGHT -> "One Light"
+                    AppTheme.SOLARIZED_LIGHT -> context.getString(com.ivarna.mkm.R.string.theme_solarized_light)
+                    AppTheme.SYNTHWAVE -> context.getString(com.ivarna.mkm.R.string.theme_synthwave)
+                    AppTheme.ONE_LIGHT -> context.getString(com.ivarna.mkm.R.string.theme_one_light)
                 }
             }
         )

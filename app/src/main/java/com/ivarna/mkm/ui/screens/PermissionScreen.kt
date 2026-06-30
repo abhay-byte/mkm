@@ -119,12 +119,12 @@ fun PermissionRequestScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        "Shizuku Not Installed",
+                        stringResource(com.ivarna.mkm.R.string.shizuku_not_installed),
                         style = MaterialTheme.typography.headlineSmall
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Please install Shizuku to use this feature without root access.",
+                        stringResource(com.ivarna.mkm.R.string.shizuku_not_installed_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
@@ -150,12 +150,12 @@ fun PermissionRequestScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        "Shizuku is Hidden",
+                        stringResource(com.ivarna.mkm.R.string.shizuku_is_hidden),
                         style = MaterialTheme.typography.headlineSmall
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Shizuku appears to be hidden from the system but its service is running. You can still grant permission to MKM.",
+                        stringResource(com.ivarna.mkm.R.string.shizuku_is_hidden_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
@@ -176,12 +176,12 @@ fun PermissionRequestScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        "Shizuku Not Running",
+                        stringResource(com.ivarna.mkm.R.string.shizuku_not_running),
                         style = MaterialTheme.typography.headlineSmall
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Shizuku is installed but the service is not running. Please open Shizuku and start the service.",
+                        stringResource(com.ivarna.mkm.R.string.shizuku_not_running_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
@@ -214,12 +214,12 @@ fun PermissionRequestScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        "Permission Required",
+                        stringResource(com.ivarna.mkm.R.string.permission_required),
                         style = MaterialTheme.typography.headlineSmall
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "MKM needs Shizuku permission to manage system settings.",
+                        stringResource(com.ivarna.mkm.R.string.permission_required_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
@@ -240,12 +240,12 @@ fun PermissionRequestScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        "Permission Granted",
+                        stringResource(com.ivarna.mkm.R.string.permission_granted),
                         style = MaterialTheme.typography.headlineSmall
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Setting up...",
+                        stringResource(com.ivarna.mkm.R.string.setting_up_ellipsis),
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
@@ -261,12 +261,12 @@ fun PermissionRequestScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        "Permission Denied",
+                        stringResource(com.ivarna.mkm.R.string.permission_denied),
                         style = MaterialTheme.typography.headlineSmall
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "MKM cannot function without Shizuku permission. You can still use root access if available.",
+                        stringResource(com.ivarna.mkm.R.string.permission_denied_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
@@ -308,7 +308,7 @@ fun AccessMethodCard(
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                "Access Method",
+                stringResource(com.ivarna.mkm.R.string.access_method),
                 style = MaterialTheme.typography.titleLarge
             )
             
@@ -321,13 +321,13 @@ fun AccessMethodCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Current Method:",
+                    stringResource(com.ivarna.mkm.R.string.current_method),
                     style = MaterialTheme.typography.bodyLarge
                 )
                 Text(
                     when (accessMethod) {
                         com.ivarna.mkm.shell.ShellManager.AccessMethod.ROOT -> stringResource(com.ivarna.mkm.R.string.root)
-                        com.ivarna.mkm.shell.ShellManager.AccessMethod.LOCAL -> "None"
+                        com.ivarna.mkm.shell.ShellManager.AccessMethod.LOCAL -> stringResource(com.ivarna.mkm.R.string.none)
                     },
                     style = MaterialTheme.typography.bodyLarge,
                     color = when (accessMethod) {
@@ -343,12 +343,12 @@ fun AccessMethodCard(
             val shizukuHidden = ShizukuManager.isHidden()
             AccessMethodItem(
                 icon = Icons.Default.Security,
-                title = if (shizukuHidden) "Shizuku (Hidden)" else stringResource(com.ivarna.mkm.R.string.shizuku),
+                title = if (shizukuHidden) stringResource(com.ivarna.mkm.R.string.shizuku_hidden) else stringResource(com.ivarna.mkm.R.string.shizuku),
                 status = when {
                     ShizukuManager.hasPermission() -> stringResource(com.ivarna.mkm.R.string.active)
-                    shizukuHidden -> "Hidden — tap to grant"
-                    !ShizukuManager.isInstalled() -> "Not Installed"
-                    !ShizukuManager.isRunning() -> "Not Running"
+                    shizukuHidden -> stringResource(com.ivarna.mkm.R.string.shizuku_hidden_grant)
+                    !ShizukuManager.isInstalled() -> stringResource(com.ivarna.mkm.R.string.not_installed)
+                    !ShizukuManager.isRunning() -> stringResource(com.ivarna.mkm.R.string.not_running)
                     !ShizukuManager.hasPermission() -> stringResource(com.ivarna.mkm.R.string.shizuku_hidden)
                     else -> stringResource(com.ivarna.mkm.R.string.active)
                 },
@@ -374,7 +374,7 @@ fun AccessMethodCard(
             AccessMethodItem(
                 icon = Icons.Default.Security,
                 title = stringResource(com.ivarna.mkm.R.string.root),
-                status = if (com.topjohnwu.superuser.Shell.getShell().isRoot) stringResource(com.ivarna.mkm.R.string.active) else "Not Available",
+                status = if (com.topjohnwu.superuser.Shell.getShell().isRoot) stringResource(com.ivarna.mkm.R.string.active) else stringResource(com.ivarna.mkm.R.string.not_available),
                 statusColor = if (com.topjohnwu.superuser.Shell.getShell().isRoot) {
                     MaterialTheme.colorScheme.primary
                 } else {

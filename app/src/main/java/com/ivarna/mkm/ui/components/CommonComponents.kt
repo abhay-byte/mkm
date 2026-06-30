@@ -159,7 +159,7 @@ fun CoreMiniCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "CORE ${core.id}",
+                text = stringResource(com.ivarna.mkm.R.string.core_format, core.id),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -314,8 +314,8 @@ fun HeroUsageCard(
 
 @Composable
 fun BootToggleCard(
-    title: String = "Apply on Boot",
-    subtitle: String = "Apply these settings automatically after device reboot",
+    title: String = stringResource(com.ivarna.mkm.R.string.apply_on_boot),
+    subtitle: String = stringResource(com.ivarna.mkm.R.string.apply_on_boot_desc),
     enabled: Boolean,
     onToggle: (Boolean) -> Unit,
     modifier: Modifier = Modifier

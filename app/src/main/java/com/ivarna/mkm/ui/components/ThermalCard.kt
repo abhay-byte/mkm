@@ -202,7 +202,7 @@ fun ThermalCard(
                     )
                     if (sliderValue > 85) {
                         Text(
-                            "Warning: High temperatures can degrade battery life.",
+                            stringResource(com.ivarna.mkm.R.string.high_temp_warning),
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall
                         )

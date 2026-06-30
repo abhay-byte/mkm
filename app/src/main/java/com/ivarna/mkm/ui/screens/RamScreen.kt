@@ -76,7 +76,7 @@ fun RamScreen(viewModel: RamViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                 MediumTopAppBar(
                     title = { 
                         Text(
-                            "RAM Management",
+                            stringResource(com.ivarna.mkm.R.string.ram_management),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Black
                         )
@@ -179,7 +179,7 @@ fun RamScreen(viewModel: RamViewModel = viewModel(), onOpenDrawer: () -> Unit = 
         }
 
         if (isProcessing) {
-            LoadingOverlay(message = "Processing...")
+            LoadingOverlay(message = stringResource(com.ivarna.mkm.R.string.processing_ellipsis))
         }
     }
 }
@@ -220,7 +220,7 @@ fun MemoryOverviewCard(memory: MemoryStatus) {
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "${(memory.usagePercent * 100).toInt()}% Used · ${memory.freeUi} Free",
+                text = stringResource(com.ivarna.mkm.R.string.ram_used_free_format, (memory.usagePercent * 100).toInt(), memory.freeUi),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
             )
@@ -319,7 +319,7 @@ fun ActiveSwapContent(
     } else {
          // Fallback for when detailed info is missing but swap is active (shouldn't happen often)
         Text(
-            text = "Active: ${swap.path}",
+            text = stringResource(com.ivarna.mkm.R.string.swap_active_path_format, swap.path),
             style = MaterialTheme.typography.bodyMedium
         )
     }
@@ -373,12 +373,12 @@ fun SwapDeviceRow(device: SwapDeviceInfo, onRemove: () -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
              Text(
-                text = "${device.usedUi} used of ${device.sizeUi}",
+                text = stringResource(com.ivarna.mkm.R.string.swap_used_of_format, device.usedUi, device.sizeUi),
                 style = MaterialTheme.typography.bodySmall,
                  color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = "Prio: ${device.priority}",
+                text = stringResource(com.ivarna.mkm.R.string.swap_priority_format, device.priority),
                  style = MaterialTheme.typography.labelSmall,
                  color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -563,7 +563,7 @@ fun DevfreqTuningCard(
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     Text(
-                        text = "Current: ${devfreq.currentFreq}",
+                        text = stringResource(com.ivarna.mkm.R.string.current_freq_format, devfreq.currentFreq),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -601,7 +601,7 @@ fun DevfreqTuningCard(
                         OutlinedTextField(
                             modifier = Modifier.menuAnchor().fillMaxWidth(),
                             readOnly = true,
-                            value = devfreq.currentFreq.takeIf { it != "0" && it.isNotBlank() } ?: "Set Specific Frequency",
+                            value = devfreq.currentFreq.takeIf { it != "0" && it.isNotBlank() } ?: stringResource(com.ivarna.mkm.R.string.set_specific_frequency),
                             onValueChange = {},
                             label = { Text(stringResource(com.ivarna.mkm.R.string.force_frequency_userspace)) },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = freqExpanded) },
