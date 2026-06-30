@@ -138,7 +138,7 @@ fun OverlayScreen(
                     }
                 },
                 icon = { Icon(if (isOverlayEnabled) Icons.Default.Stop else Icons.Default.PlayArrow, null) },
-                text = { Text(if (isOverlayEnabled) "Stop Overlay" else "Start Overlay") },
+                text = { Text(if (isOverlayEnabled) stringResource(com.ivarna.mkm.R.string.stop_overlay) else stringResource(com.ivarna.mkm.R.string.start_overlay)) },
                 containerColor = if (isOverlayEnabled) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
                 shape = CircleShape // Pill shape for expressive FAB
             )
@@ -232,7 +232,7 @@ fun OverlayScreen(
                     )
                     OverlayToggleItem(
                         icon = Icons.Default.Timeline,
-                        title = "CPU Frequency",
+                        title = stringResource(com.ivarna.mkm.R.string.cpu_frequency),
                         checked = showCpuFreq,
                         onCheckedChange = {
                             showCpuFreq = it
@@ -242,7 +242,7 @@ fun OverlayScreen(
                     )
                     OverlayToggleItem(
                         icon = Icons.Default.VideogameAsset,
-                        title = "GPU Utilization",
+                        title = stringResource(com.ivarna.mkm.R.string.gpu_utilization),
                         checked = showGpuUsage,
                         onCheckedChange = {
                             showGpuUsage = it
@@ -444,7 +444,7 @@ fun OverlayScreen(
                         Column(modifier = Modifier.padding(start = 16.dp)) {
                             OverlayToggleItem(
                                 icon = Icons.Default.DeveloperBoard,
-                                title = "  CPU as Frequency",
+                                title = stringResource(com.ivarna.mkm.R.string.cpu_as_frequency),
                                 checked = absCpu,
                                 onCheckedChange = {
                                     absCpu = it
@@ -454,7 +454,7 @@ fun OverlayScreen(
                             )
                             OverlayToggleItem(
                                 icon = Icons.Default.VideogameAsset,
-                                title = "  GPU as Frequency",
+                                title = stringResource(com.ivarna.mkm.R.string.gpu_as_frequency),
                                 checked = absGpu,
                                 onCheckedChange = {
                                     absGpu = it
@@ -464,7 +464,7 @@ fun OverlayScreen(
                             )
                             OverlayToggleItem(
                                 icon = Icons.Default.Dns,
-                                title = "  RAM as Size",
+                                title = stringResource(com.ivarna.mkm.R.string.ram_as_size),
                                 checked = absRam,
                                 onCheckedChange = {
                                     absRam = it
@@ -474,7 +474,7 @@ fun OverlayScreen(
                             )
                             OverlayToggleItem(
                                 icon = Icons.Default.SwapCalls,
-                                title = "  SWAP as Size",
+                                title = stringResource(com.ivarna.mkm.R.string.swap_as_size),
                                 checked = absSwap,
                                 onCheckedChange = {
                                     absSwap = it

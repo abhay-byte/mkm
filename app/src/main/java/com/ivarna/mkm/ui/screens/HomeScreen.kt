@@ -110,7 +110,7 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                SectionHeader("QUICK STATUS MONITOR")
+                SectionHeader(stringResource(com.ivarna.mkm.R.string.quick_status_monitor))
 
                 QuickStatsGrid(data)
 

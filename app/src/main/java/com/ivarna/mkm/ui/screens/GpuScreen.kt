@@ -98,7 +98,7 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
             )
 
             Spacer(modifier = Modifier.height(24.dp))
-            SectionHeader("Graphics Information")
+            SectionHeader(stringResource(com.ivarna.mkm.R.string.graphics_information))
             ElevatedCard(
                 onClick = {},
                 modifier = Modifier.fillMaxWidth(),
@@ -110,14 +110,14 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                 Column(modifier = Modifier.padding(16.dp)) {
                     InfoRow(label = stringResource(com.ivarna.mkm.R.string.renderer), value = gpuStatus.renderer)
                     InfoRow(label = stringResource(com.ivarna.mkm.R.string.system_path), value = gpuStatus.sysfsPath)
-                    InfoRow(label = "Target Frequency", value = gpuStatus.targetFreq)
+                    InfoRow(label = stringResource(com.ivarna.mkm.R.string.target_frequency), value = gpuStatus.targetFreq)
                     InfoRow(label = stringResource(com.ivarna.mkm.R.string.governor), value = gpuStatus.governor)
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            SectionHeader("Performance Controls")
+            SectionHeader(stringResource(com.ivarna.mkm.R.string.performance_controls))
             
             // Warning Card
             OutlinedCard(
@@ -161,19 +161,19 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingRow(
-                        label = "Maximum Frequency",
+                        label = stringResource(com.ivarna.mkm.R.string.maximum_frequency),
                         value = gpuStatus.maxFreq,
                         onClick = { showMaxFreqSheet = true }
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingRow(
-                        label = "Minimum Frequency",
+                        label = stringResource(com.ivarna.mkm.R.string.minimum_frequency),
                         value = gpuStatus.minFreq,
                         onClick = { showMinFreqSheet = true }
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingRow(
-                        label = "Target Frequency",
+                        label = stringResource(com.ivarna.mkm.R.string.target_frequency),
                         value = gpuStatus.targetFreq,
                         onClick = { showTargetFreqSheet = true }
                     )

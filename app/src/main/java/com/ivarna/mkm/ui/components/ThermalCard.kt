@@ -264,7 +264,7 @@ fun ThermalCard(
             icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
             title = { Text(stringResource(com.ivarna.mkm.R.string.extreme_danger)) },
             text = { 
-                Text("Disabling thermal throttling can permanently damage your device, battery, and cause physical harm. This is NOT recommended.\n\nAre you absolutely sure?") 
+                Text(stringResource(com.ivarna.mkm.R.string.disable_thermal_warning)) 
             },
             confirmButton = {
                 TextButton(

@@ -105,7 +105,7 @@ fun PowerMonitorCard(
                 )
             }
             Text(
-                text = if (status.multiplier != 1.0f) "Calibrated System Consumption (x${status.multiplier})" else "Total System Consumption",
+                text = if (status.multiplier != 1.0f) stringResource(com.ivarna.mkm.R.string.calibrated_format, String.format("%.1f", status.multiplier)) else stringResource(com.ivarna.mkm.R.string.total_system_consumption),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
             )

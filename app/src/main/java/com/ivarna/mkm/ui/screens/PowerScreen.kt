@@ -296,7 +296,7 @@ fun CpuBenchTab(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Debug Logs (Last 20 lines)",
+                        text = stringResource(com.ivarna.mkm.R.string.debug_logs_last_20),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -411,7 +411,7 @@ fun GpuBenchTab(
                         modifier = Modifier.fillMaxWidth(),
                          shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Start Benchmark")
+                        Text(stringResource(com.ivarna.mkm.R.string.start_benchmark))
                     }
                     
                     StatusMessage(status, onViewLogs, onViewRawData)
@@ -487,7 +487,7 @@ fun StatusMessage(
                 style = MaterialTheme.typography.bodyMedium
             )
              TextButton(onClick = { onViewLogs(status.logs) }) {
-                Text("View Logs")
+                Text(stringResource(com.ivarna.mkm.R.string.view_logs))
             }
         }
     }
@@ -534,13 +534,13 @@ fun LogViewerDialog(logs: String, isRawData: Boolean, onDismiss: () -> Unit) {
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = if (isRawData) "Raw Data (CSV)" else "Benchmark Logs", 
+                    text = if (isRawData) stringResource(com.ivarna.mkm.R.string.raw_data_csv) else stringResource(com.ivarna.mkm.R.string.benchmark_logs), 
                     style = MaterialTheme.typography.titleMedium
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Box(modifier = Modifier.weight(1f).background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(8.dp))) {
                     Text(
-                        text = logs.ifEmpty { "No data available." },
+                        text = logs.ifEmpty { stringResource(com.ivarna.mkm.R.string.no_data_available) },
                         style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                         modifier = Modifier.padding(8.dp).verticalScroll(rememberScrollState())
                     )
@@ -550,7 +550,7 @@ fun LogViewerDialog(logs: String, isRawData: Boolean, onDismiss: () -> Unit) {
                     TextButton(
                         onClick = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            val clip = ClipData.newPlainText("MKM Data", logs)
+                            val clip = ClipData.newPlainText(context.getString(com.ivarna.mkm.R.string.mkm_data), logs)
                             clipboard.setPrimaryClip(clip)
                         }
                     ) {

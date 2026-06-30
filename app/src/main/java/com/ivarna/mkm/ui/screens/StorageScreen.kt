@@ -113,14 +113,14 @@ fun StorageScreen(viewModel: StorageViewModel = viewModel(), onOpenDrawer: () ->
                     ) {
                         Column(modifier = Modifier.padding(24.dp)) {
                             Text(
-                                text = "Storage Info",
+                                text = stringResource(com.ivarna.mkm.R.string.storage_info),
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             
                             InfoRow(label = stringResource(com.ivarna.mkm.R.string.type), value = state.type)
-                            InfoRow(label = "Partition Count", value = state.partitions.size.toString())
+                            InfoRow(label = stringResource(com.ivarna.mkm.R.string.partition_count), value = state.partitions.size.toString())
                             
                             internalStorage?.let {
                                 InfoRow(label = stringResource(com.ivarna.mkm.R.string.internal_total), value = it.total)

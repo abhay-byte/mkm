@@ -34,8 +34,8 @@ fun UfsTuningCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                  Column(modifier = Modifier.weight(1f)) {
-                    val title = if (ufs.isSupported) "Controller: ${ufs.controllerPath.substringAfterLast("/")}" else "UFS Controller"
-                    val subtitle = if (ufs.isSupported) ufs.controllerPath else "Not detected or not supported"
+                    val title = if (ufs.isSupported) stringResource(com.ivarna.mkm.R.string.ufs_controller) + ": " + ufs.controllerPath.substringAfterLast("/") else stringResource(com.ivarna.mkm.R.string.ufs_controller)
+                    val subtitle = if (ufs.isSupported) ufs.controllerPath else stringResource(com.ivarna.mkm.R.string.not_detected_or_supported)
                     
                     Text(
                         text = title,
@@ -144,7 +144,7 @@ fun UfsTuningCard(
                             readOnly = true,
                             value = ufs.minFreq,
                             onValueChange = {},
-                            label = { Text("Min Frequency") },
+                            label = { Text(stringResource(com.ivarna.mkm.R.string.min_frequency)) },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = minExpanded) },
                             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
                         )
@@ -179,7 +179,7 @@ fun UfsTuningCard(
                             readOnly = true,
                             value = ufs.maxFreq,
                             onValueChange = {},
-                            label = { Text("Max Frequency") },
+                            label = { Text(stringResource(com.ivarna.mkm.R.string.max_frequency)) },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = maxExpanded) },
                             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
                         )
@@ -236,7 +236,7 @@ fun UfsTuningCard(
             } else {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Could not find a supported UFS controller on this device. ensure you have Root access.",
+                    text = stringResource(com.ivarna.mkm.R.string.no_ufs_controller),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )

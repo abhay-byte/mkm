@@ -136,12 +136,12 @@ private fun HistorySummary(records: List<com.ivarna.mkm.data.model.BatterySessio
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         Text(
-            text = "${records.size} session${if (records.size == 1) "" else "s"} saved",
+            text = stringResource(com.ivarna.mkm.R.string.sessions_saved_count, records.size),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold
         )
         Text(
-            text = "$charging charging · $discharging discharging",
+            text = stringResource(com.ivarna.mkm.R.string.charging_discharging_summary_format, charging, discharging),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -170,8 +170,7 @@ private fun EmptyHistoryState(modifier: Modifier = Modifier) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Sessions are saved automatically when you plug or unplug the charger, " +
-                    "and only when the battery percentage actually changes.",
+                text = stringResource(com.ivarna.mkm.R.string.sessions_saved_auto),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

@@ -50,7 +50,7 @@ fun PowerCalibrationComponent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "POWER CALIBRATION",
+                    text = stringResource(com.ivarna.mkm.R.string.power_calibration),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold

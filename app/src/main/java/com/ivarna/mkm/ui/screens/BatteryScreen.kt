@@ -100,16 +100,16 @@ fun BatteryScreen(
                 BatteryHeroCard(stats = data)
 
                 Spacer(modifier = Modifier.height(24.dp))
-                SectionHeader("BATTERY LIFE")
+                SectionHeader(stringResource(com.ivarna.mkm.R.string.battery_monitor))
                 EstimatedTimeCard(stats = data)
 
                 Spacer(modifier = Modifier.height(24.dp))
-                SectionHeader("CAPACITY")
+                SectionHeader(stringResource(com.ivarna.mkm.R.string.capacity))
                 CapacityCard(stats = data)
 
                 if (data.wattageHistory.isNotEmpty() || data.isSessionActive || sessionHistory.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(24.dp))
-                    SectionHeader("ACTIVITY")
+                    SectionHeader(stringResource(com.ivarna.mkm.R.string.activity))
                     UnifiedActivityCard(
                         stats = data,
                         records = sessionHistory,
@@ -118,7 +118,7 @@ fun BatteryScreen(
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
-                SectionHeader("SESSION BREAKDOWN")
+                SectionHeader(stringResource(com.ivarna.mkm.R.string.session_breakdown))
                 TimeBreakdownCard(stats = data)
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -170,7 +170,7 @@ fun BatteryHeroCard(stats: BatteryStats) {
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Text(
-                        text = "${String.format("%.1f", stats.temperatureC)}°C",
+                        text = stringResource(com.ivarna.mkm.R.string.temperature_format, stats.temperatureC),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
@@ -213,7 +213,7 @@ fun BatteryHeroCard(stats: BatteryStats) {
                     else
                         MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                     StatusBadge(
-                        label = "${String.format("%+.2f", stats.calibratedWattageW)} W",
+                        label = stringResource(com.ivarna.mkm.R.string.wattage_signed_format, stats.calibratedWattageW),
                         color = wattageColor,
                         modifier = Modifier.weight(1f)
                     )
@@ -308,7 +308,7 @@ fun CapacityCard(stats: BatteryStats) {
             if (stats.estimatedCapacityMah > 0) {
                 val isEstimatedOnly = !showRated
                 CapacityRow(
-                    label = if (isEstimatedOnly) "Estimated capacity" else "Estimated full capacity",
+                    label = if (isEstimatedOnly) stringResource(com.ivarna.mkm.R.string.estimated_capacity) else stringResource(com.ivarna.mkm.R.string.estimated_full_capacity),
                     value = "${stats.estimatedCapacityMah} mAh",
                     icon = Icons.Default.BatteryFull,
                     color = MaterialTheme.colorScheme.secondary
@@ -649,7 +649,7 @@ fun NotificationToggleCard(
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = if (enabled) "Showing live battery stats in notification" else "Tap to enable battery notification",
+                        text = if (enabled) stringResource(com.ivarna.mkm.R.string.notification_desc) else stringResource(com.ivarna.mkm.R.string.enable_notification_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -982,11 +982,7 @@ fun SessionHistorySummaryCard(
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = if (records.isEmpty()) {
-                            "No sessions recorded yet"
-                        } else {
-                            "${records.size} saved · $charging charging · $discharging discharging"
-                        },
+                        text = if (records.isEmpty()) stringResource(com.ivarna.mkm.R.string.no_sessions_recorded) else stringResource(com.ivarna.mkm.R.string.sessions_summary_format, records.size, charging, discharging),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1110,7 +1106,7 @@ fun UnifiedActivityCard(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = if (records.isEmpty()) "No sessions recorded yet"
+                            text = if (records.isEmpty()) stringResource(com.ivarna.mkm.R.string.no_sessions_recorded)
                                    else "${records.size} saved · $charging charging · $discharging discharging",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1161,12 +1157,12 @@ fun NotificationNavCard(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "Notification Card",
+                            text = stringResource(com.ivarna.mkm.R.string.notification_card),
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = if (enabled) "Showing live battery stats in notification" else "Tap to enable battery notification",
+                            text = if (enabled) stringResource(com.ivarna.mkm.R.string.notification_desc) else stringResource(com.ivarna.mkm.R.string.enable_notification_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

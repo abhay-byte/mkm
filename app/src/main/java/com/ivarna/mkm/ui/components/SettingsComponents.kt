@@ -240,7 +240,7 @@ fun AppInfoCard(
         Spacer(modifier = Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "Made with ",
+                text = stringResource(com.ivarna.mkm.R.string.made_with),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -251,7 +251,7 @@ fun AppInfoCard(
                 tint = Color.Red
             )
             Text(
-                text = " in Kotlin",
+                text = stringResource(com.ivarna.mkm.R.string.in_kotlin),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

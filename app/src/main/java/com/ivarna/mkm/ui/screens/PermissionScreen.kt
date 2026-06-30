@@ -227,7 +227,7 @@ fun PermissionRequestScreen(
                     Button(
                         onClick = { ShizukuManager.requestPermission() }
                     ) {
-                        Text("Grant Permission")
+                        Text(stringResource(com.ivarna.mkm.R.string.grant_permission))
                     }
                 }
                 
@@ -349,7 +349,7 @@ fun AccessMethodCard(
                     shizukuHidden -> "Hidden — tap to grant"
                     !ShizukuManager.isInstalled() -> "Not Installed"
                     !ShizukuManager.isRunning() -> "Not Running"
-                    !ShizukuManager.hasPermission() -> "Not Permitted"
+                    !ShizukuManager.hasPermission() -> stringResource(com.ivarna.mkm.R.string.shizuku_hidden)
                     else -> stringResource(com.ivarna.mkm.R.string.active)
                 },
                 statusColor = when {

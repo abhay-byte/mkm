@@ -84,7 +84,7 @@ fun SessionHistoryRow(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = if (isCharging) "Charging" else "Discharging",
+                        text = if (isCharging) stringResource(com.ivarna.mkm.R.string.charging) else stringResource(com.ivarna.mkm.R.string.discharging),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         color = accent
@@ -155,23 +155,23 @@ fun SessionHistoryRow(
                 } else {
                     // Discharging session metrics
                     HistoryDetailRow(
-                        label = "Active drain",
+                        label = stringResource(com.ivarna.mkm.R.string.active_drain),
                         value = "${"%.2f".format(record.activeDrainPerHr)}%/hr"
                     )
                     HistoryDetailRow(
-                        label = "Idle drain",
+                        label = stringResource(com.ivarna.mkm.R.string.idle_drain),
                         value = "${"%.2f".format(record.idleDrainPerHr)}%/hr"
                     )
                     HistoryDetailRow(
-                        label = "Avg current",
+                        label = stringResource(com.ivarna.mkm.R.string.avg_current),
                         value = "${record.avgCurrentMa} mA"
                     )
                     HistoryDetailRow(
-                        label = "Avg power",
+                        label = stringResource(com.ivarna.mkm.R.string.avg_power),
                         value = "${"%.2f".format(record.avgWattageW)} W"
                     )
                     HistoryDetailRow(
-                        label = "Avg temperature",
+                        label = stringResource(com.ivarna.mkm.R.string.avg_temperature),
                         value = "${"%.1f".format(record.avgTemperatureC)}°C"
                     )
                     // Absolute battery % drained per state
@@ -182,13 +182,13 @@ fun SessionHistoryRow(
                         return " · ~${(pct / 100f * capacityMah).toInt()} mAh"
                     }
                     HistoryDetailRow(
-                        label = "Screen on",
+                        label = stringResource(com.ivarna.mkm.R.string.screen_on),
                         value = formatHistoryDuration(record.screenOnTimeMs) +
                                 if (record.screenOnDrainPercent > 0f)
                                     " · −${"%.1f".format(record.screenOnDrainPercent)}%${pctToMah(record.screenOnDrainPercent)}" else ""
                     )
                     HistoryDetailRow(
-                        label = "Screen off",
+                        label = stringResource(com.ivarna.mkm.R.string.screen_off),
                         value = formatHistoryDuration(record.screenOffTimeMs) +
                                 if (record.screenOffDrainPercent > 0f)
                                     " · −${"%.1f".format(record.screenOffDrainPercent)}%${pctToMah(record.screenOffDrainPercent)}" else ""

@@ -216,7 +216,7 @@ fun ChargingNotificationSettingsScreen(onBack: () -> Unit) {
             Spacer(modifier = Modifier.height(4.dp))
             NotifSectionCard(
                 title = stringResource(com.ivarna.mkm.R.string.expanded_content),
-                subtitle = "Shown when the notification is expanded",
+                subtitle = stringResource(com.ivarna.mkm.R.string.shown_when_expanded),
                 iconTint = Color(0xFF4CAF50),
                 options = chargingOptions,
                 selections = selections,
@@ -281,7 +281,7 @@ fun DischargingNotificationSettingsScreen(onBack: () -> Unit) {
         ) {
             Spacer(modifier = Modifier.height(4.dp))
             NotifSectionCard(
-                title = "Expanded Content",
+                title = stringResource(com.ivarna.mkm.R.string.expanded_content),
                 subtitle = stringResource(com.ivarna.mkm.R.string.shown_when_expanded_battery),
                 iconTint = MaterialTheme.colorScheme.primary,
                 options = dischargingExpandedOptions,

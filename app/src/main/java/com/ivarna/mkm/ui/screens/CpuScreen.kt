@@ -131,7 +131,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
             }
 
             item {
-                SectionHeader("CPU Clusters")
+                SectionHeader(stringResource(com.ivarna.mkm.R.string.cpu_clusters))
             }
 
             items(cpuStatus.clusters) { cluster ->
@@ -144,7 +144,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
             }
 
             item {
-                SectionHeader("Core Status Monitoring")
+                SectionHeader(stringResource(com.ivarna.mkm.R.string.core_status_monitoring))
             }
 
             item {
@@ -323,17 +323,17 @@ fun CpuClusterCard(
             
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SettingRow(
-                    label = "GOVERNOR",
+                    label = stringResource(com.ivarna.mkm.R.string.governor),
                     value = cluster.governor,
                     onClick = onGovernorClick
                 )
                 SettingRow(
-                    label = "MAX FREQUENCY",
+                    label = stringResource(com.ivarna.mkm.R.string.max_frequency),
                     value = cluster.maxFreq,
                     onClick = onMaxFreqClick
                 )
                 SettingRow(
-                    label = "MIN FREQUENCY",
+                    label = stringResource(com.ivarna.mkm.R.string.min_frequency),
                     value = cluster.minFreq,
                     onClick = onMinFreqClick
                 )
@@ -368,4 +368,3 @@ fun CoreStatusGrid(cores: List<CpuCore>, onCoreClick: (CpuCore) -> Unit) {
         }
     }
 }
-

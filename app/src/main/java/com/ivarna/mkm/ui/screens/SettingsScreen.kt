@@ -367,7 +367,7 @@ fun SettingsScreen(
                     SettingsItem(
                         icon = if (batteryNotificationEnabled) Icons.Default.Notifications else Icons.Default.NotificationsOff,
                         title = stringResource(com.ivarna.mkm.R.string.battery_monitor),
-                        subtitle = if (batteryNotificationEnabled) "Persistent notification active" else "Tap to enable battery notification",
+                        subtitle = if (batteryNotificationEnabled) stringResource(com.ivarna.mkm.R.string.notification_active_desc) else stringResource(com.ivarna.mkm.R.string.enable_notification_desc),
                         onClick = { toggleBatteryNotification(!batteryNotificationEnabled) },
                         trailing = {
                             Switch(

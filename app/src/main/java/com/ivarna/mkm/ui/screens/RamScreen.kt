@@ -96,7 +96,7 @@ fun RamScreen(viewModel: RamViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                 ExtendedFloatingActionButton(
                     onClick = { showSwapDialog = true },
                     icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                    text = { Text("Create New Swap") },
+                    text = { Text(stringResource(com.ivarna.mkm.R.string.create_new_swap)) },
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
@@ -151,7 +151,7 @@ fun RamScreen(viewModel: RamViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                         
                         Spacer(modifier = Modifier.height(24.dp))
                         
-                        SectionHeader("Swap Configuration")
+                        SectionHeader(stringResource(com.ivarna.mkm.R.string.swap_configuration))
                         SwapConfigurationCard(
                             swap = data.swap,
                             onConfigureClick = { showSwapDialog = true },
@@ -160,7 +160,7 @@ fun RamScreen(viewModel: RamViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                         )
                         
                         Spacer(modifier = Modifier.height(24.dp))
-                        SectionHeader("DDR Frequency Tuning")
+                        SectionHeader(stringResource(com.ivarna.mkm.R.string.ddr_frequency_tuning))
                         DevfreqTuningCard(
                             devfreq = data.devfreq,
                             onGovernorSelected = { path, gov -> viewModel.setDevfreqGovernor(path, gov) },
@@ -169,7 +169,7 @@ fun RamScreen(viewModel: RamViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                         
                         Spacer(modifier = Modifier.height(24.dp))
                         
-                        SectionHeader("Memory Details")
+                        SectionHeader(stringResource(com.ivarna.mkm.R.string.memory_details))
                         MemoryDetailsCard(data.memory)
                         
                         Spacer(modifier = Modifier.height(80.dp)) // Space for FAB
@@ -493,8 +493,8 @@ fun DevfreqTuningCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                  Column(modifier = Modifier.weight(1f)) {
-                    val title = if (devfreq.isSupported) "DDR Controller: ${devfreq.controllerPath.substringAfterLast("/")}" else "DDR Controller"
-                    val subtitle = if (devfreq.isSupported) devfreq.controllerPath else "Not detected or not supported"
+                    val title = if (devfreq.isSupported) stringResource(com.ivarna.mkm.R.string.ddr_controller) + ": " + devfreq.controllerPath.substringAfterLast("/") else stringResource(com.ivarna.mkm.R.string.ddr_controller)
+                    val subtitle = if (devfreq.isSupported) devfreq.controllerPath else stringResource(com.ivarna.mkm.R.string.not_detected_or_supported)
                     
                     Text(
                         text = title,
@@ -673,7 +673,7 @@ fun DevfreqTuningCard(
                     ) {
                         Column(modifier = Modifier.padding(8.dp)) {
                              Text(
-                                text = "Debug Info:",
+                                text = stringResource(com.ivarna.mkm.R.string.debug_info),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold
                             )
