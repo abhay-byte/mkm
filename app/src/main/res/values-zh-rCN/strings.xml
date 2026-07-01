@@ -51,8 +51,8 @@
     <string name="reset_on_charger_unplug">拔下充电器时重置</string>
     <string name="reset_on_100">电量 100% 时重置</string>
     <string name="reset_on_reboot">重启时重置</string>
-    <string name="github">GitHub</string>
-    <string name="linkedin">LinkedIn</string>
+    <string name="github">我的 GitHub</string>
+    <string name="linkedin">我的 LinkedIn</string>
     <string name="view_my_repos">查看我的仓库和项目</string>
     <string name="lets_connect">建立专业联系</string>
     <string name="bio_text">热衷于构建软件、探索硬件以及所有 Linux 相关事物。</string>
@@ -63,11 +63,11 @@
     <string name="multiplier">倍数</string>
     <string name="invalid_number">无效数字</string>
     <string name="reset_now">立即重置</string>
-    <string name="star_on_github">在 GitHub 上点赞</string>
+    <string name="star_on_github">在 GitHub 上加星标</string>
     <string name="mkm_project_desc">MKM - 如果你喜欢这个项目，请给它一个 Star！</string>
     <string name="join_mkm_community">加入 MKM 社区</string>
     <string name="discord_desc">在 Discord 上与其他 MKM 用户和开发者交流</string>
-    <string name="minimal_kernel_manager">Minimal Kernel Manager</string>
+    <string name="minimal_kernel_manager">极简内核管理器</string>
     <string name="version_1_7">v1.7</string>
     <string name="june_16_2026">2026 年 6 月 16 日</string>
     <string name="version_build_format">%1$s • %2$s</string>
@@ -173,6 +173,8 @@
     <string name="running_benchmark">运行基准测试中...</string>
     <string name="mkm_data">MKM 数据</string>
     <string name="cpu_frequency_display">CPU 频率显示</string>
+    <string name="cpu_freq_all_cores">所有核心</string>
+    <string name="cpu_freq_max">最高频率</string>
     <string name="cpu_freq_summary_desc">控制覆盖层中 CPU 频率的显示方式。</string>
     <string name="background_color">背景颜色</string>
     <string name="bg_color_desc">为背景选择不同的颜色，或保持与强调色一致。</string>
@@ -187,6 +189,8 @@
     <string name="battery_percentage">电池百分比</string>
     <string name="component_order">组件顺序</string>
     <string name="reorder_components">重新排序组件</string>
+    <string name="drag_to_reorder">长按并拖动以重新排序</string>
+    <string name="unknown_component">未知</string>
     <string name="customize_overlay_layout">自定义覆盖层布局</string>
     <string name="show_progress_bars">显示进度条</string>
     <string name="use_icons_only">仅使用图标</string>
@@ -202,8 +206,13 @@
     <string name="styling">样式</string>
     <string name="background_opacity">背景透明度</string>
     <string name="apply_accent_to_background">将强调色应用于背景</string>
+    <string name="accent_color">强调色</string>
+    <string name="select_overlay_theme">选择覆盖层主题</string>
     <string name="overlay_behavior">覆盖层行为</string>
     <string name="interval_format">间隔：%sms</string>
+    <string name="attach_position">附加位置</string>
+    <string name="screen">屏幕</string>
+    <string name="overlay_appear_desc">覆盖层将以小型悬浮窗的形式显示在其他应用之上。</string>
     <string name="movable_overlay">可移动覆盖层</string>
     <string name="shizuku_permission">Shizuku 权限</string>
     <string name="download_shizuku">下载 Shizuku</string>
@@ -223,7 +232,7 @@
     <string name="sessions_count_format">%s 个会话</string>
     <string name="charging_discharging_format">充电 %1$s • 放电 %2$s</string>
     <string name="no_sessions_recorded">尚未记录任何会话</string>
-    <string name="sessions_saved_auto">插入或拔下充电器时会自动保存会话。</string>
+    <string name="sessions_saved_auto">插入或拔下充电器时会自动保存会话，并且仅在电池百分比实际变化时保存。</string>
     <string name="clear_history">清除历史</string>
     <string name="size_mb">大小（MB）</string>
     <string name="path">路径</string>
