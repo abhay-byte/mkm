@@ -482,4 +482,8 @@
     <string name="processors_active_format">%1$d 个处理器处于活跃状态</string>
     <string name="cluster_id_format">集群 %1$d</string>
     <string name="cluster_cores_range_format">核心 %1$d-%2$d</string>
+
+    <!-- Overlay FPS Monitor -->
+    <string name="fps_monitor">FPS 监视器</string>
+    <string name="fps_format">%1$.0f FPS</string>
 </resources>

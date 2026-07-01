@@ -158,7 +158,7 @@ fun OverlayScreen(
         var isGridView by remember { mutableStateOf(prefs.getBoolean("is_grid_view", false)) }
         var isHorizontal by remember { mutableStateOf(prefs.getBoolean("is_horizontal", false)) }
         var showSparklines by remember { mutableStateOf(prefs.getBoolean("show_sparklines", false)) }
-        val defaultOrder = "cpu_usage,cpu_freq,gpu_usage,ram_usage,swap_usage,power_usage,cpu_temp,battery_temp,battery_percent"
+        val defaultOrder = "cpu_usage,cpu_freq,gpu_usage,ram_usage,swap_usage,power_usage,cpu_temp,battery_temp,battery_percent,fps"
         var componentOrder by remember { 
             mutableStateOf((prefs.getString("component_order", defaultOrder) ?: defaultOrder).split(",")) 
         }
@@ -179,6 +179,7 @@ fun OverlayScreen(
         var absGpu by remember { mutableStateOf(prefs.getBoolean("abs_gpu", true)) }
         var absRam by remember { mutableStateOf(prefs.getBoolean("abs_ram", true)) }
         var absSwap by remember { mutableStateOf(prefs.getBoolean("abs_swap", true)) }
+        var showFps by remember { mutableStateOf(prefs.getBoolean("show_fps", false)) }
 
         val accentColors = listOf(
             MaterialTheme.colorScheme.primary,
@@ -307,6 +308,16 @@ fun OverlayScreen(
                         onCheckedChange = { 
                             showBatteryPercent = it
                             prefs.edit().putBoolean("show_battery_percent", it).apply()
+                            notifyService()
+                        }
+                    )
+                    OverlayToggleItem(
+                        icon = Icons.Default.SlowMotionVideo,
+                        title = stringResource(com.ivarna.mkm.R.string.fps_monitor),
+                        checked = showFps,
+                        onCheckedChange = {
+                            showFps = it
+                            prefs.edit().putBoolean("show_fps", it).apply()
                             notifyService()
                         }
                     )
@@ -878,7 +889,8 @@ fun ComponentOrderDialog(
         "power_usage" to ("Power Usage" to Icons.Default.FlashOn),
         "cpu_temp" to ("CPU Temperature" to Icons.Default.Thermostat),
         "battery_temp" to ("Battery Temperature" to Icons.Default.BatteryChargingFull),
-        "battery_percent" to ("Battery Percentage" to Icons.Default.BatteryStd)
+        "battery_percent" to ("Battery Percentage" to Icons.Default.BatteryStd),
+        "fps" to ("FPS Monitor" to Icons.Default.SlowMotionVideo)
     )
     
     Dialog(onDismissRequest = onDismiss) {

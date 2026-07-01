@@ -9,7 +9,7 @@ class MkmApplication : Application() {
     companion object {
         init {
             // Set settings before the main shell can be created
-            Shell.enableVerboseLogging = true // Force verbose logging for now
+            Shell.enableVerboseLogging = true
             Shell.setDefaultBuilder(
                 Shell.Builder.create()
                     .setFlags(Shell.FLAG_REDIRECT_STDERR)

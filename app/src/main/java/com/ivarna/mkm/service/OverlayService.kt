@@ -44,8 +44,10 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.ivarna.mkm.data.SystemRepository
 import com.ivarna.mkm.data.HomeData
 import com.ivarna.mkm.data.provider.PowerCalibrationManager
+import com.ivarna.mkm.utils.FpsMonitor
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.roundToInt
 
 class OverlayService : Service() {
@@ -87,6 +89,9 @@ class OverlayService : Service() {
     private var absGpuState by mutableStateOf(true)
     private var absRamState by mutableStateOf(true)
     private var absSwapState by mutableStateOf(true)
+    private var showFpsState by mutableStateOf(false)
+    private val _fpsState = MutableStateFlow(FpsMonitor.FpsResult(0f, 0))
+    private val fpsState = _fpsState.asStateFlow()
 
     // History for Sparklines: Map of metric key to list of values
     private val metricHistory = mutableStateMapOf<String, List<Float>>()
@@ -164,8 +169,11 @@ class OverlayService : Service() {
         isGridViewState = prefs.getBoolean("is_grid_view", false)
         gridColumnsState = prefs.getInt("grid_columns", 2)
         isHorizontalState = prefs.getBoolean("is_horizontal", false)
-        val defaultOrder = "cpu_usage,cpu_freq,gpu_usage,ram_usage,swap_usage,power_usage,cpu_temp,battery_temp,battery_percent"
-        componentOrderState = (prefs.getString("component_order", defaultOrder) ?: defaultOrder).split(",")
+        val defaultOrder = "cpu_usage,cpu_freq,gpu_usage,ram_usage,swap_usage,power_usage,cpu_temp,battery_temp,battery_percent,fps"
+        val savedOrder = (prefs.getString("component_order", defaultOrder) ?: defaultOrder).split(",")
+        // Ensure any newly added default items (e.g. "fps") are included
+        val defaultItems = defaultOrder.split(",")
+        componentOrderState = (savedOrder + defaultItems.filter { it !in savedOrder }).distinct()
         Log.d("OverlayService", "Loaded component order: ${componentOrderState.joinToString(",")}")
         isMovableState = prefs.getBoolean("movable", true)
         attachPositionState = prefs.getString("attach_position", "top_center") ?: "top_center"
@@ -180,6 +188,7 @@ class OverlayService : Service() {
         absGpuState = prefs.getBoolean("abs_gpu", true)
         absRamState = prefs.getBoolean("abs_ram", true)
         absSwapState = prefs.getBoolean("abs_swap", true)
+        showFpsState = prefs.getBoolean("show_fps", false)
     }
 
     private fun updateSettings() {
@@ -269,6 +278,17 @@ class OverlayService : Service() {
                     updateHistory("cpu_temp", (h.cpuTemp / 100f).coerceIn(0f, 1f))
                     updateHistory("battery_temp", (h.batteryTemp / 100f).coerceIn(0f, 1f))
                     updateHistory("battery_percent", h.power.batteryPercent / 100f)
+                }
+                
+                // Read FPS (gfxinfo for per-app, Choreographer fallback)
+                if (showFpsState) {
+                    FpsMonitor.initChoreographer()
+                    val fpsResult = withContext(Dispatchers.IO) { FpsMonitor.readFps() }
+                    _fpsState.value = fpsResult
+                    val maxRate = FpsMonitor.getDisplayRefreshRate().coerceAtLeast(60f)
+                    updateHistory("fps", (fpsResult.fps / maxRate).coerceIn(0f, 1f))
+                } else {
+                    FpsMonitor.stopChoreographer()
                 }
                 
                 delay(maxOf(updateIntervalState, 3000L))
@@ -446,6 +466,15 @@ class OverlayService : Service() {
                             if (showBatteryPercentState) metricsMap["battery_percent"] = {
                                 CompactMetric("BAT", "${homeData.power.batteryPercent}%", homeData.power.batteryPercent / 100f, showProgressBarsState, Icons.Default.BatteryStd, showIconsOnlyState, metricHistory["battery_percent"])
                             }
+                            metricsMap["fps"] = {
+                                if (showFpsState) {
+                                    val currentFps by fpsState.collectAsState()
+                                    val maxRate = FpsMonitor.getDisplayRefreshRate().coerceAtLeast(60f)
+                                    val fpsDisplay = if (currentFps.fps > 0f) String.format("%.0f", currentFps.fps) else "0"
+                                    val progress = (currentFps.fps / maxRate).coerceIn(0f, 1f)
+                                    CompactMetric("FPS", "${fpsDisplay} FPS", progress, showProgressBarsState, Icons.Default.SlowMotionVideo, showIconsOnlyState, metricHistory["fps"])
+                                }
+                            }
 
                             val metrics = componentOrderState.mapNotNull { metricsMap[it] }
 
@@ -607,6 +636,7 @@ class OverlayService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        FpsMonitor.stopChoreographer()
         if (::lifecycleOwner.isInitialized) {
             (lifecycleOwner.lifecycle as LifecycleRegistry).currentState = Lifecycle.State.DESTROYED
         }
