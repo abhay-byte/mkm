@@ -118,7 +118,7 @@ object FpsMonitor {
             lastFrameSeenAtMs = SystemClock.elapsedRealtime()
         }
 
-        val nowNs = System.nanoTime()
+        val nowNs = SystemClock.elapsedRealtimeNanos()
         val iterator = frameTimestamps.iterator()
         while (iterator.hasNext()) {
             if (nowNs - iterator.next() > ONE_SECOND_NS) iterator.remove()
