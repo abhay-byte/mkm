@@ -63,15 +63,14 @@ object FpsMonitor {
 
     fun readFps(): FpsResult {
         if (ShellManager.hasElevatedAccess()) {
-            val appResult = readAppFps()
-            if (appResult.fps >= 0f) return appResult
+            return readAppFps()
         }
         return FpsResult(choreoFps, 0)
     }
 
     private fun readAppFps(): FpsResult {
-        val pkg = foregroundPackage() ?: return FpsResult(-1f, 0)
-        if (pkg.contains("com.ivarna.mkm", ignoreCase = true)) return FpsResult(-1f, 0)
+        val pkg = foregroundPackage() ?: return FpsResult(0f, 0)
+        if (pkg.contains("com.ivarna.mkm", ignoreCase = true)) return FpsResult(0f, 0)
 
         if (pkg != trackedPackage) {
             trackedPackage = pkg
@@ -79,7 +78,7 @@ object FpsMonitor {
             lastProcessedTimestamp = 0L
             frameCompletedColumn = -1
             ShellManager.exec("dumpsys gfxinfo $pkg reset")
-            return FpsResult(-1f, 0)
+            return FpsResult(0f, 0)
         }
 
         val output = ShellManager.exec("dumpsys gfxinfo $pkg framestats").stdout
@@ -91,12 +90,12 @@ object FpsMonitor {
                 frameCompletedColumn = -1
                 ShellManager.exec("dumpsys gfxinfo $pkg reset")
             }
-            return FpsResult(-1f, 0)
+            return FpsResult(0f, 0)
         }
 
         if (frameCompletedColumn == -1) {
             frameCompletedColumn = parseColumnIndex(output)
-            if (frameCompletedColumn == -1) return FpsResult(-1f, 0)
+            if (frameCompletedColumn == -1) return FpsResult(0f, 0)
         }
 
         var maxTimestamp = lastProcessedTimestamp
@@ -124,8 +123,7 @@ object FpsMonitor {
             if (nowNs - iterator.next() > ONE_SECOND_NS) iterator.remove()
         }
 
-        return if (frameTimestamps.isEmpty()) FpsResult(-1f, 0)
-               else FpsResult(frameTimestamps.size.toFloat(), 0)
+        return FpsResult(frameTimestamps.size.toFloat(), 0)
     }
 
     private fun parseColumnIndex(output: String): Int {
