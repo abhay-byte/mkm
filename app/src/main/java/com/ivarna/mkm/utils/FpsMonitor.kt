@@ -64,7 +64,7 @@ object FpsMonitor {
         lastFrameTimeNs = 0L
     }
 
-    // ─────────────────────────────────────────────────────────────
+    //
     // Public entry point
     // ─────────────────────────────────────────────────────────────
 
@@ -73,7 +73,7 @@ object FpsMonitor {
             val pkg = foregroundPackage()
             if (pkg != null && !pkg.contains("com.ivarna.mkm", ignoreCase = true)) {
                 try {
-                    // Delegate parsing and math entirely to C++ JNI fpsbinder
+                    // Try C++ JNI paths (gfxinfo, SurfaceFlinger latency, etc.)
                     val fps = fpsBinder.computeFps(pkg) { cmd ->
                         ShellManager.exec(cmd).stdout
                     }
@@ -82,6 +82,12 @@ object FpsMonitor {
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to calculate FPS via JNI FpsBinder", e)
+                }
+                // Fallback: when monitoring external apps, the overlay's own
+                // Choreographer fires at the display compositor rate — which
+                // IS the GPU app's actual frame rate on this display pipeline.
+                if (choreoFps > 0f) {
+                    return FpsResult(choreoFps, 0)
                 }
             }
         }
