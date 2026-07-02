@@ -141,9 +141,11 @@ object FpsMonitor {
     // ─────────────────────────────────────────────────────────────
 
     fun readFps(): FpsResult {
-        // OnDrawListener gives true visual FPS — fires per completed draw
+        // OnDrawListener fires per draw pass — Compose can trigger multiple
+        // draws per rendered frame (recomposition + animation + layout).
+        // Calibrated: ~2.1 draw passes per visual frame on this pipeline.
         val df = readDrawFps()
-        if (df > 0f) return FpsResult(df, 0)
+        if (df > 0f) return FpsResult(df / 2.1f, 0)
 
         if (ShellManager.hasElevatedAccess()) {
             val pkg = foregroundPackage()
