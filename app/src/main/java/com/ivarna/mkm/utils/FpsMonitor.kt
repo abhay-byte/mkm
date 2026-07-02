@@ -19,7 +19,12 @@ object FpsMonitor {
     @Volatile private var choreoRunning = false
     private var frameCallback: Choreographer.FrameCallback? = null
 
-    // Per-app FPS via dumpsys gfxinfo framestats
+    // SurfaceFlinger frame counter (primary)
+    private var sfPackage: String? = null
+    private var sfLastCount = 0L
+    private var sfLastTimeMs = 0L
+
+    // Per-app FPS via dumpsys gfxinfo framestats (fallback)
     private var trackedPackage: String? = null
     private val frameTimestamps = ArrayList<Long>()
     private var lastProcessedTimestamp = 0L
@@ -63,14 +68,82 @@ object FpsMonitor {
 
     fun readFps(): FpsResult {
         if (ShellManager.hasElevatedAccess()) {
-            return readAppFps()
+            // Try SurfaceFlinger frame counter first (tracks all frames at SF level)
+            val sfResult = readSfFps()
+            if (sfResult.fps > 0f) return sfResult
+
+            // Fall back to gfxinfo framestats (tracks HWUI View frames)
+            val gfxResult = readGfxFps()
+            if (gfxResult.fps >= 0f) return gfxResult
         }
         return FpsResult(choreoFps, 0)
     }
 
-    private fun readAppFps(): FpsResult {
-        val pkg = foregroundPackage() ?: return FpsResult(0f, 0)
-        if (pkg.contains("com.ivarna.mkm", ignoreCase = true)) return FpsResult(0f, 0)
+    // ── SurfaceFlinger frame counter ──────────────────────────
+
+    private val sfFrameRegex = Regex("""frame=(\d+)""")
+
+    private fun readSfFps(): FpsResult {
+        val pkg = foregroundPackage() ?: return FpsResult(-1f, 0)
+        if (pkg.contains("com.ivarna.mkm", ignoreCase = true)) return FpsResult(-1f, 0)
+
+        if (pkg != sfPackage) {
+            sfPackage = pkg
+            sfLastCount = 0L
+            sfLastTimeMs = 0L
+            return FpsResult(-1f, 0)
+        }
+
+        val result = ShellManager.exec("dumpsys SurfaceFlinger 2>/dev/null")
+        if (!result.isSuccess) return FpsResult(-1f, 0)
+
+        // Find the visible surface layer matching this package
+        // Format: "visible reason= buffer=XXXX frame=NNN"
+        var frameCount = 0L
+        val lines = result.stdout.lines()
+        var inLayer = false
+        for (line in lines) {
+            if (line.contains(pkg, ignoreCase = true)) {
+                inLayer = true
+                continue
+            }
+            if (inLayer && "visible" in line) {
+                val match = sfFrameRegex.find(line)
+                if (match != null) {
+                    frameCount = match.groupValues[1].toLongOrNull() ?: 0L
+                    break
+                }
+            }
+            if (inLayer && (line.isBlank() || !line.startsWith(" "))) {
+                inLayer = false
+            }
+        }
+
+        if (frameCount == 0L) return FpsResult(-1f, 0)
+
+        val nowMs = SystemClock.elapsedRealtime()
+
+        if (sfLastCount == 0L) {
+            sfLastCount = frameCount
+            sfLastTimeMs = nowMs
+            return FpsResult(-1f, 0)
+        }
+
+        val delta = frameCount - sfLastCount
+        val dt = nowMs - sfLastTimeMs
+        sfLastCount = frameCount
+        sfLastTimeMs = nowMs
+
+        if (delta <= 0 || dt <= 0) return FpsResult(-1f, 0)
+
+        return FpsResult(delta * 1000f / dt, 0)
+    }
+
+    // ── gfxinfo framestats fallback ──────────────────────────
+
+    private fun readGfxFps(): FpsResult {
+        val pkg = foregroundPackage() ?: return FpsResult(-1f, 0)
+        if (pkg.contains("com.ivarna.mkm", ignoreCase = true)) return FpsResult(-1f, 0)
 
         if (pkg != trackedPackage) {
             trackedPackage = pkg
@@ -78,7 +151,7 @@ object FpsMonitor {
             lastProcessedTimestamp = 0L
             frameCompletedColumn = -1
             ShellManager.exec("dumpsys gfxinfo $pkg reset")
-            return FpsResult(0f, 0)
+            return FpsResult(-1f, 0)
         }
 
         val output = ShellManager.exec("dumpsys gfxinfo $pkg framestats").stdout
@@ -90,12 +163,12 @@ object FpsMonitor {
                 frameCompletedColumn = -1
                 ShellManager.exec("dumpsys gfxinfo $pkg reset")
             }
-            return FpsResult(0f, 0)
+            return FpsResult(-1f, 0)
         }
 
         if (frameCompletedColumn == -1) {
             frameCompletedColumn = parseColumnIndex(output)
-            if (frameCompletedColumn == -1) return FpsResult(0f, 0)
+            if (frameCompletedColumn == -1) return FpsResult(-1f, 0)
         }
 
         var maxTimestamp = lastProcessedTimestamp
