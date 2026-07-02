@@ -112,8 +112,15 @@ object FpsMonitor {
                             if (displayRefreshRate == 60f && deltaMs < 12f)
                                 displayRefreshRate = 1000f / deltaMs
                             val instant = 1000f / deltaMs
-                            choreoFps = if (choreoFps == 0f) instant
-                                        else choreoFps * 0.7f + instant * 0.3f
+                            // When instant drops more than 20% below current, snap to
+                            // it immediately (compositor throttled). Otherwise smooth.
+                            if (choreoFps > 0f && instant < choreoFps * 0.8f) {
+                                choreoFps = instant
+                            } else if (choreoFps == 0f) {
+                                choreoFps = instant
+                            } else {
+                                choreoFps = choreoFps * 0.5f + instant * 0.5f
+                            }
                         }
                     }
                     lastFrameTimeNs = frameTimeNanos
@@ -141,11 +148,11 @@ object FpsMonitor {
     // ─────────────────────────────────────────────────────────────
 
     fun readFps(): FpsResult {
-        // OnDrawListener fires per draw pass — Compose can trigger multiple
-        // draws per rendered frame (recomposition + animation + layout).
-        // Calibrated: ~2.1 draw passes per visual frame on this pipeline.
-        val df = readDrawFps()
-        if (df > 0f) return FpsResult(df / 2.1f, 0)
+        // choreoFps tracks inter-callback deltas — when compositor
+        // throttles vsync delivery, this drops to the real rate.
+        if (choreoFps > 0f) {
+            return FpsResult(choreoFps, 0)
+        }
 
         if (ShellManager.hasElevatedAccess()) {
             val pkg = foregroundPackage()
