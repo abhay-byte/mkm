@@ -528,6 +528,7 @@ class OverlayService : Service() {
         }
 
         windowManager.addView(composeView, params)
+        FpsMonitor.initDrawFps(composeView)
     }
 
     @OptIn(ExperimentalMaterial3ExpressiveApi::class)
