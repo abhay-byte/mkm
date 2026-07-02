@@ -206,6 +206,9 @@ class OverlayService : Service() {
 
         val params = (composeView.layoutParams as WindowManager.LayoutParams).apply {
             this.flags = flags
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                preferredRefreshRate = if (showFpsState) getPreferredRefreshRate() else 0f
+            }
             if (isMovableState) {
                 // If switching back to movable from a fixed position, reset to a default point
                 if (x == 0 && (gravity == (Gravity.TOP or Gravity.CENTER_HORIZONTAL) || 
@@ -285,13 +288,18 @@ class OverlayService : Service() {
                     FpsMonitor.initChoreographer()
                     val fpsResult = withContext(Dispatchers.IO) { FpsMonitor.readFps() }
                     _fpsState.value = fpsResult
-                    val maxRate = FpsMonitor.getDisplayRefreshRate().coerceAtLeast(60f)
+                    val maxRate = getActiveRefreshRate().coerceAtLeast(60f)
                     updateHistory("fps", (fpsResult.fps / maxRate).coerceIn(0f, 1f))
                 } else {
                     FpsMonitor.stopChoreographer()
                 }
                 
-                delay(maxOf(updateIntervalState, 3000L))
+                val interval = if (showFpsState) {
+                    updateIntervalState.coerceAtLeast(500L)
+                } else {
+                    updateIntervalState.coerceAtLeast(1000L)
+                }
+                delay(interval)
             }
         }
     }
@@ -323,6 +331,9 @@ class OverlayService : Service() {
             flags,
             PixelFormat.TRANSLUCENT
         ).apply {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                preferredRefreshRate = if (showFpsState) getPreferredRefreshRate() else 0f
+            }
             if (isMovableState) {
                 gravity = Gravity.TOP or Gravity.START
                 x = 100
@@ -469,7 +480,7 @@ class OverlayService : Service() {
                             metricsMap["fps"] = {
                                 if (showFpsState) {
                                     val currentFps by fpsState.collectAsState()
-                                    val maxRate = FpsMonitor.getDisplayRefreshRate().coerceAtLeast(60f)
+                                    val maxRate = getActiveRefreshRate().coerceAtLeast(60f)
                                     val fpsDisplay = if (currentFps.fps > 0f) String.format("%.0f", currentFps.fps) else "0"
                                     val progress = (currentFps.fps / maxRate).coerceIn(0f, 1f)
                                     CompactMetric("FPS", "${fpsDisplay} FPS", progress, showProgressBarsState, Icons.Default.SlowMotionVideo, showIconsOnlyState, metricHistory["fps"])
@@ -652,6 +663,36 @@ class OverlayService : Service() {
         }
         isRunning = false
         super.onDestroy()
+    }
+
+    private fun getPreferredRefreshRate(): Float {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                val displayManager = getSystemService(Context.DISPLAY_SERVICE) as android.hardware.display.DisplayManager
+                val defaultDisplay = displayManager.getDisplay(android.view.Display.DEFAULT_DISPLAY)
+                val maxFps = defaultDisplay?.supportedModes?.map { it.refreshRate }?.maxOrNull()
+                if (maxFps != null && maxFps > 60f) {
+                    return maxFps
+                }
+            } catch (e: Exception) {
+                Log.w("OverlayService", "Failed to query supported refresh rates", e)
+            }
+        }
+        return 0f
+    }
+
+    private fun getActiveRefreshRate(): Float {
+        try {
+            val displayManager = getSystemService(Context.DISPLAY_SERVICE) as android.hardware.display.DisplayManager
+            val defaultDisplay = displayManager.getDisplay(android.view.Display.DEFAULT_DISPLAY)
+            val activeRate = defaultDisplay?.mode?.refreshRate
+            if (activeRate != null && activeRate > 0f) {
+                return activeRate
+            }
+        } catch (e: Exception) {
+            Log.w("OverlayService", "Failed to query active refresh rate", e)
+        }
+        return 60f
     }
 }
 

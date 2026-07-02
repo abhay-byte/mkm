@@ -1,18 +1,21 @@
 # FPS Monitoring on Android
 
-How to read accurate FPS from apps and games on Android devices — covering ADB shell methods, tools, and on-device apps.
+How to read accurate FPS from apps and games on Android devices — covering ADB shell methods,
+native Binder IPC, tools, and on-device apps.
 
 ---
 
 ## Methods Overview
 
-| Method | Accuracy | Root Needed | PC Needed | Best For |
-|--------|----------|-------------|-----------|----------|
-| `SurfaceFlinger --latency` | High | No | Yes (ADB) | Games, SurfaceView apps |
-| `dumpsys gfxinfo` | High | No | Yes (ADB) | Standard View UI apps |
-| GetFPS scripts | High | No | Yes (ADB) | Automated/scripted monitoring |
-| GameBench FPS Monitor | High | No | No | Quick sessions, charts |
-| Scene (omarea) | High | Yes | No | Full device perf management |
+| Method | Accuracy | Root Needed | PC Needed | Native Code | Best For |
+|--------|----------|-------------|-----------|-------------|----------|
+| `SurfaceFlinger --latency` | High | No | Yes (ADB) | No | Games, SurfaceView apps |
+| `dumpsys gfxinfo framestats` | High | No | Yes (ADB) | No | Standard View UI apps |
+| Native Binder IPC (Scene) | High | Yes | No | Yes (C++ .so exec) | Direct system-level monitoring |
+| Shell + JNI parsing (MKM) | High | Yes (Shizuku) | No | Yes (C++ JNI) | In-app monitoring with Shizuku |
+| GetFPS scripts | High | No | Yes (ADB) | No | Automated/scripted monitoring |
+| GameBench FPS Monitor | High | No | No | No | Quick sessions, charts |
+| Scene (omarea/vtools_en) | High | Yes | No | Yes (binder .so) | Full device perf management |
 
 ---
 
@@ -51,6 +54,11 @@ From the timestamps:
 - **FPS** = 1,000,000,000 / average(frame time)
 - **Jank** detected when `ceil((C − A) / refresh_period)` changes between frames
 
+### Known regression (Android 15/16)
+
+On some Android 15+ devices, `SurfaceFlinger --latency` returns only the refresh period line
+with no frame data (`SoloX#303` regression). MKM detects this and falls back to gfxinfo.
+
 ### Automated script
 
 Push the GetFPS scripts to the device:
@@ -87,13 +95,57 @@ For apps using standard Android View hierarchy (not SurfaceView/OpenGL):
 adb shell dumpsys gfxinfo <package> framestats
 ```
 
-Returns detailed per-frame timing data. Calculate FPS from the number of frames divided by the time window.
+Returns detailed per-frame timing data in CSV format. The `FrameCompleted` column (index 17)
+contains nanosecond timestamps for each frame. Calculate FPS by counting timestamps in the
+last 1-second window.
 
 **Limitation:** Does not work for games/SurfaceView apps — they don't report to gfxinfo.
 
 ---
 
-## 3. On-Device Apps (No PC Needed)
+## 3. Native Binder IPC (Scene / vtools_en Approach)
+
+Scene bundles **native ELF executables** as `.so` files in `assets/toolkit/` — one per Android
+API level (`binder12.so` through `binder15.so`). These are standalone binaries that:
+
+1. Connect to the Android Binder service manager via `defaultServiceManager()`
+2. Register a custom `SceneService` (a `BBinder` subclass) with the system
+3. Implement a native `android::Dumpsys` class that talks to SurfaceFlinger directly
+4. Call `ISurfaceComposer` methods to read frame data as structured Parcels
+
+### Key symbols decoded
+
+```
+binder_connect()              → Main entry — connects to servicemanager
+addService()                  → Registers SceneService with the system
+Dumpsys::fpsLimit(id, fps)    → Set display refresh rate cap
+Dumpsys::displayMode(mode)    → Switch display modes
+Dumpsys::startDumpThread()    → Background SurfaceFlinger monitoring thread
+Dumpsys::writeDump()          → Read frame data from SF via Binder
+SceneService::onTransact()    → Custom Binder transaction handler
+```
+
+### Architecture comparison
+
+| Aspect | Shell dumpsys | Native Binder |
+|--------|--------------|---------------|
+| Process | Forks `/system/bin/dumpsys` | `exec()`s native binary |
+| Communication | Text through stdio pipe | Binder IPC (Parcel) |
+| Elevation | Inherits shell UID | Needs own root/UID 2000 |
+| Overhead | Process fork + text serialization | Direct method call |
+| Parsing | String/regex on text output | Structured Parcel data |
+| Portability | Works on all devices | API-level-specific .so files |
+
+### Why MKM chose shell-over-JNI instead
+
+MKM uses **Shizuku** for elevated access. Shizuku elevates commands through its own service
+process — not the app process. A native Binder executable can't use Shizuku's elevation path.
+MKM's approach passes raw `dumpsys` text from Shizuku-invoked shell commands to a C++ JNI
+library (`libfpsbinder.so`) for parsing, which keeps the privilege boundary clean.
+
+---
+
+## 4. On-Device Apps (No PC Needed)
 
 ### GameBench FPS Monitor
 
@@ -104,12 +156,15 @@ Returns detailed per-frame timing data. Calculate FPS from the number of frames 
 - Android 11+
 - [Play Store](https://play.google.com/store/apps/details?id=com.gamebench.fpsmonitor)
 
-### Scene (omarea)
+### Scene (omarea/vtools_en)
 
-- **Open source**, requires root
+- **Open source** ([ramabondanp/vtools_en](https://github.com/ramabondanp/vtools_en), tag 4.7.1)
+- Requires root
 - Full device performance management
-- Includes FPS monitoring overlay
+- Includes FPS monitoring overlay with session recording
+- Native Binder binaries for direct SurfaceFlinger communication
 - Also covers: governors, ZRAM/SWAP, Magisk/Xposed, backup
+- FPS stack: `gfxinfo framestats` → FPSGO (`/sys/kernel/fpsgo/`) → `service call SF 1013`
 - [APKPure](https://apkpure.net/scene/com.omarea.vtools/download)
 
 ### Real-time FPS Monitor
@@ -126,11 +181,9 @@ Returns detailed per-frame timing data. Calculate FPS from the number of frames 
 
 ---
 
-## 4. Building In-App FPS Monitoring
+## 5. Building In-App FPS Monitoring
 
-To add FPS monitoring directly into an app:
-
-### Choreographer (Compose / View)
+### Option A: Choreographer (Compose / View) — no root needed
 
 ```kotlin
 Choreographer.getInstance().postFrameCallback { frameTimeNanos ->
@@ -138,11 +191,31 @@ Choreographer.getInstance().postFrameCallback { frameTimeNanos ->
 }
 ```
 
-### SurfaceFlinger (system-level)
+Only measures **your own app's** UI frames. Not per-app.
 
-Use `SurfaceControl` APIs (requires system permissions or root) to query `SurfaceFlinger` timestamps for any window.
+### Option B: Shell + JNI parsing (MKM approach) — requires Shizuku/root
 
-### FrameMetrics (Android 7+)
+```
+Shizuku → shellExec("dumpsys gfxinfo <pkg> framestats")
+    → raw text → JNI (libfpsbinder.so) → parsed FPS
+```
+
+Privilege boundary: Kotlin handles shell elevation, C++ handles fast text parsing.
+
+### Option C: Native Binder (Scene approach) — requires root
+
+```
+exec("binder14.so") → direct Binder IPC → structured frame data
+```
+
+Requires the native binary to run with elevated privileges itself.
+
+### Option D: SurfaceFlinger (system-level)
+
+Use `SurfaceControl` APIs (requires system permissions or root) to query `SurfaceFlinger`
+timestamps for any window.
+
+### Option E: FrameMetrics (Android 7+)
 
 ```kotlin
 window.addOnFrameMetricsAvailableListener({ _, frameMetrics, _ ->
@@ -162,6 +235,9 @@ adb shell dumpsys SurfaceFlinger --latency SurfaceView[com.example.game/...]#0 |
 
 # gfxinfo for regular apps
 adb shell dumpsys gfxinfo com.example.app framestats
+
+# Service call for global frame counter (may not work on Android 15+)
+adb shell service call SurfaceFlinger 1013
 
 # GetFPS one-liner
 adb shell <<'EOF'

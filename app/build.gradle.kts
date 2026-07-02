@@ -17,12 +17,25 @@ android {
         targetSdk = 36
         versionCode = 8
         versionName = "1.7"
-        ndkVersion = "29.0.0"
+        ndkVersion = "29.0.14206865"
         resConfigs("en", "zh-rCN")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+
+        externalNativeBuild {
+            cmake {
+                cppFlags("-std=c++17")
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
         }
     }
 

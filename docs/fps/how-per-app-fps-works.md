@@ -14,9 +14,10 @@ OpenGL/Vulkan apps using SurfaceView.
 
 ---
 
-## Method 1: `dumpsys gfxinfo <pkg> framestats` (vtools approach)
+## Method 1: `dumpsys gfxinfo <pkg> framestats` (vtools/Scene approach)
 
-**Source:** [ramabondanp/vtools_en](https://github.com/ramabondanp/vtools_en)
+**Source:** [ramabondanp/vtools_en](https://github.com/ramabondanp/vtools_en) (analyzed at tag 4.7.1),
+Scene APK 9.3.5 (decompiled)
 
 ### How it works
 
@@ -28,9 +29,27 @@ OpenGL/Vulkan apps using SurfaceView.
 6. Count frames in the last 1-second window → FPS = count
 7. When foreground app changes, run `dumpsys gfxinfo $packageName reset` to clear stats
 
+### Implementation in vtools_en
+
+The vtools_en source has a layered FPS stack:
+
+```
+FloatFpsWatch.kt (overlay UI → updates every 1s)
+  └── SurfaceFlingerFpsUtils2.kt (orchestrator)
+        ├── GfxInfoFpsUtils.kt (primary: gfxinfo framestats)
+        ├── FPSGO kernel module: /sys/kernel/fpsgo/fstb/fpsgo_status
+        └── service call SurfaceFlinger 1013 (legacy fallback)
+```
+
+**Key detail from `GfxInfoFpsUtils.kt`:** Uses `KeepShell` for persistent root shell sessions
+to avoid shell-spawn overhead on every FPS read. Has a 2-second staleness timeout that resets
+stats when no new frames arrive.
+
+**Key detail from `SurfaceFlingerFpsUtils2.kt`:** Takes the maximum FPS across all threads
+matching a package in `fpsgo_status`. Falls through gfxinfo → fpsgo → service call chain.
+
 ### CSV Format
 
-Header:
 ```
 Flags,FrameTimelineVsyncId,IntendedVsync,Vsync,InputEventId,HandleInputStart,AnimationStart,
 PerformTraversalsStart,DrawStart,FrameDeadline,FrameStartTime,FrameInterval,WorkloadTarget,
@@ -141,7 +160,60 @@ require specific kernel/driver support or an older Android version.
 
 ---
 
-## Method 3: Kernel Sysfs `measured_fps` (device-dependent)
+## Method 3: Scene's Native Binder Approach (Scene 9.3.5)
+
+### What it is
+
+Scene bundles **native ELF executables** (`binder12.so` through `binder15.so`, one per Android
+API level) in `assets/toolkit/`. These are NOT shared libraries — they are standalone native
+executables that:
+
+1. Connect to the Android Binder service manager directly (`defaultServiceManager()`)
+2. Register a custom `SceneService` (extending `BBinder`) with the system
+3. Implement a native `android::Dumpsys` class that talks to SurfaceFlinger via Binder IPC
+4. Expose `fpsLimit(int displayId, float fps)` to set display refresh rate
+5. Expose `displayMode(int mode)` to switch display modes
+6. Expose `startDumpThread` / `stopDumpThread` for background SurfaceFlinger monitoring
+
+### Binder .so symbols (from strings analysis)
+
+```
+_ZN7android7Dumpsys4mainEiPKPc...   → Dumpsys::main(int, char**, string&)
+_ZN7android7Dumpsys8fpsLimitEif     → Dumpsys::fpsLimit(int, float)
+_ZN7android7Dumpsys11displayModeEi  → Dumpsys::displayMode(int)
+_ZN7android7Dumpsys15startDumpThreadEiRKNS_8String16ERKNS_6VectorIS1_EE
+_ZNK7android7Dumpsys9writeDump...
+_ZN12SceneService10onTransact...    → SceneService (custom BBinder subclass)
+_Z14binder_connectv                 → binder_connect() — main entry
+_Z10addServicev                     → addService() — registers with service manager
+main
+```
+
+### How the binder binaries differ from shell-based measurement
+
+Instead of spawning `dumpsys` as a shell command (which forks a process and marshals text
+through stdio), these native binaries:
+
+- **Talk directly to SurfaceFlinger** via Binder IPC (method call on `ISurfaceComposer`)
+- **Avoid shell overhead** — no `/system/bin/sh` fork, no text parsing of dumpsys output
+- **Get structured Parcel data** from the Binder transaction, not text
+- **Run as a separate process** (`exec()`'d by the app), so they need their own UID elevation
+
+This is architecturally similar to what `service call SurfaceFlinger 1013` does (which
+serializes the same Binder transaction to hex text), but without the double-transcoding
+(Binder→Parcel text→parsing→usable data vs. Binder→structured data directly).
+
+### Why MKM chose shell-over-JNI instead of native binder executables
+
+MKM uses Shizuku for elevated shell access. Shizuku elevates commands **through its own
+service process**, not the app process. A native binder executable can't use Shizuku — it
+would need its own root/shell elevation path. MKM's approach passes `dumpsys` text from
+Shizuku-invoked shell commands to a JNI library for parsing, keeping the privilege boundary
+clean.
+
+---
+
+## Method 4: Kernel Sysfs `measured_fps` (device-dependent)
 
 ### Paths checked
 
@@ -162,7 +234,7 @@ find /sys -name fps 2>/dev/null | grep crtc
 
 ---
 
-## Method 4: `service call SurfaceFlinger 1013` (vtools fallback)
+## Method 5: `service call SurfaceFlinger 1013` (vtools fallback)
 
 Returns a global frame counter (not per-app). Parses hex from Parcel output:
 ```
@@ -173,7 +245,7 @@ Not available on Android 16 (no output). Service codes change between Android ve
 
 ---
 
-## Method 5: FPSGO Kernel Module (MediaTek devices)
+## Method 6: FPSGO Kernel Module (MediaTek devices)
 
 Path: `/sys/kernel/fpsgo/fstb/fpsgo_status`
 
@@ -183,6 +255,9 @@ tid  name         currentFPS  ...
 1234 surfaceflinger  60
 5678 com.game       45
 ```
+
+vtools_en's `SurfaceFlingerFpsUtils2` parses this by matching `name` column against the
+foreground package name and taking the maximum FPS across all matching threads.
 
 Not available on this device.
 
@@ -211,27 +286,31 @@ scene frames. SurfaceFlinger-based approaches don't work on this Android 16 devi
 
 ## Recommendation for MKM
 
-**Use Method 1 (`dumpsys gfxinfo framestats`) as the primary approach.**
+**Use `dumpsys gfxinfo framestats` as the primary approach (Method 1), with
+`SurfaceFlinger --latency` as a fallback for SurfaceView apps when available (Method 2).**
 
-For 95% of apps users monitor, it's accurate. GPU game FPS requires SurfaceFlinger tracking
-which isn't available on Android 16 — the Choreographer fallback already handles MKM's own
-UI FPS.
+For 95% of apps users monitor, gfxinfo is accurate. GPU game FPS requires SurfaceFlinger
+tracking which isn't available on Android 16 — the Choreographer fallback already handles
+MKM's own UI FPS.
 
-### Fallback chain (implemented in `FpsMonitor.kt`)
+### Implemented fallback chain
 
 ```
-hasElevatedAccess? → dumpsys gfxinfo $pkg framestats → parse FrameCompleted → count 1s window
-    ↓ (no access / no data)
-Choreographer (MKM's own UI FPS)
+hasElevatedAccess? → dumpsys gfxinfo $pkg framestats (C++ JNI parses → fps_binder.cpp)
+    ↓ (no data from gfxinfo)
+SurfaceFlinger --latency (C++ JNI parses → fps_binder.cpp)
+    ↓ (no elevated access / no data)
+Choreographer (MKM's own UI FPS — pure Kotlin)
 ```
 
 ---
 
 ## References
 
-| Source | Approach | Works on Device? |
-|--------|----------|------------------|
-| [vtools_en](https://github.com/ramabondanp/vtools_en) | `gfxinfo framestats` | Yes |
-| Scene 8.3.7 APK | Native daemon + `gfxinfo framestats` / `SF --latency` | gfxinfo: Yes, SF: No |
-| FPS Monitor 2.1.1 (rikka) | Native .so library (black box) | Unknown |
-| [Scene7_ExtremeGT](https://github.com/AmirulAndalib/Scene7_ExtremeGT) | Thermal bypass, not FPS measurement | N/A |
+| Source | Approach | Works on Device? | Native Code? |
+|--------|----------|------------------|--------------|
+| [vtools_en](https://github.com/ramabondanp/vtools_en) 4.7.1 | `gfxinfo framestats` + FPSGO + SF service call | gfxinfo: Yes | `libnative-lib.so` (kernel prop reads) + `binder*.so` (native Binder dumpsys executables) |
+| Scene 9.3.5 APK | Same chain as vtools_en + native Binder | gfxinfo: Yes, SF: No | `libnative-lib.so` + `binder12-15.so` (versioned for Android API levels) |
+| **MKM (libfpsbinder.so v2)** | gfxinfo + SF latency, text-in parsing via C++ JNI | gfxinfo: Yes, SF: Partial | `fps_binder.cpp` (787 lines, C++17, links `liblog` only) |
+| FPS Monitor 2.1.1 (rikka) | Native .so library (black box) | Unknown | Native .so |
+| [Scene7_ExtremeGT](https://github.com/AmirulAndalib/Scene7_ExtremeGT) | Thermal bypass, not FPS measurement | N/A | N/A |
