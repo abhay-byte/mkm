@@ -49,12 +49,19 @@ class FpsBinder {
 
     // ── High-level API ──────────────────────────────────────────────────
     fun computeFps(pkg: String, shellExec: (String) -> String): Double {
+        // Tracks whether SF --list found a layer for this app.
+        // If yes and --latency/--latency-frameinfo still returned no data,
+        // that means SF sees the app but can't provide GPU timeline — the
+        // exact pattern for GPU apps on broken Android 15/16 devices.
+        var sfLayerFound = false
+
         // ── Strategy 1: SurfaceFlinger --latency (real GPU frames) ───────
         try {
             val listOutput = shellExec("dumpsys SurfaceFlinger --list")
             if (listOutput.isNotBlank()) {
                 val layer = nativeFindLayerForPackage(listOutput, pkg)
                 if (layer.isNotBlank()) {
+                    sfLayerFound = true
                     val latency = shellExec("dumpsys SurfaceFlinger --latency '$layer'")
                     if (latency.isNotBlank()) {
                         val fps = nativeFpsFromLatencyText(latency)
@@ -78,17 +85,23 @@ class FpsBinder {
             Log.w(TAG, "SurfaceFlinger paths failed", e)
         }
 
-        // ── Strategy 3: gfxinfo framestats (gpu-app calibrated) ─────────
-        // Reaching here means SurfaceFlinger paths returned nothing — this
-        // only happens on GPU/OpenGL apps where gfxinfo inflates FPS.
+        // ── Strategy 3: gfxinfo framestats ──────────────────────────────
         try {
             val gfxinfo = shellExec("dumpsys gfxinfo $pkg framestats")
             if (gfxinfo.isNotBlank()) {
                 val rawFps = nativeFpsFromGfxinfoText(gfxinfo)
                 if (rawFps > 0) {
-                    val calibrated = Math.max(0.0, (rawFps - 30.0) * 0.85)
-                    Log.i(TAG, "FPS via gfxinfo (calibrated): raw=$rawFps → $calibrated")
-                    return calibrated
+                    // Only calibrate when SF found the app but produced no
+                    // usable frame data — genuine GPU-rendered apps on
+                    // broken-Android-15/16 devices. UI apps where SF simply
+                    // has no layer get raw gfxinfo (which is accurate).
+                    if (sfLayerFound) {
+                        val calibrated = Math.max(0.0, (rawFps - 30.0) * 0.85)
+                        Log.i(TAG, "FPS via gfxinfo (calibrated): raw=$rawFps → $calibrated")
+                        return calibrated
+                    }
+                    Log.i(TAG, "FPS via gfxinfo framestats: $rawFps")
+                    return rawFps
                 }
             }
         } catch (e: Exception) {
