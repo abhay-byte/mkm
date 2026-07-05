@@ -283,15 +283,21 @@ class OverlayService : Service() {
                     updateHistory("battery_percent", h.power.batteryPercent / 100f)
                 }
                 
-                // Read FPS (gfxinfo for per-app, Choreographer fallback)
+                // Read FPS (gfxinfo for per-app, OnPreDrawListener fallback)
                 if (showFpsState) {
-                    FpsMonitor.initChoreographer()
+                    if (::composeView.isInitialized && composeView.isAttachedToWindow) {
+                        FpsMonitor.initOverlayFps(composeView)
+                    }
                     val fpsResult = withContext(Dispatchers.IO) { FpsMonitor.readFps() }
                     _fpsState.value = fpsResult
                     val maxRate = getActiveRefreshRate().coerceAtLeast(60f)
                     updateHistory("fps", (fpsResult.fps / maxRate).coerceIn(0f, 1f))
+                    if (::composeView.isInitialized && composeView.isAttachedToWindow) {
+                        FpsMonitor.ensureDrawPacing(composeView, fpsResult.fps)
+                    }
                 } else {
-                    FpsMonitor.stopChoreographer()
+                    FpsMonitor.stopOverlayFps()
+                    FpsMonitor.stopDrawPacing()
                 }
                 
                 val interval = if (showFpsState) {
@@ -483,7 +489,7 @@ class OverlayService : Service() {
                                     val maxRate = getActiveRefreshRate().coerceAtLeast(60f)
                                     val fpsDisplay = if (currentFps.fps > 0f) String.format("%.0f", currentFps.fps) else "0"
                                     val progress = (currentFps.fps / maxRate).coerceIn(0f, 1f)
-                                    CompactMetric("FPS", "${fpsDisplay} FPS", progress, showProgressBarsState, Icons.Default.SlowMotionVideo, showIconsOnlyState, metricHistory["fps"])
+                                    CompactMetric("FPS", "${fpsDisplay} FPS", progress, true, Icons.Default.SlowMotionVideo, showIconsOnlyState, metricHistory["fps"])
                                 }
                             }
 
@@ -528,7 +534,6 @@ class OverlayService : Service() {
         }
 
         windowManager.addView(composeView, params)
-        FpsMonitor.initDrawFps(composeView)
     }
 
     @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -648,7 +653,8 @@ class OverlayService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        FpsMonitor.stopChoreographer()
+        FpsMonitor.stopOverlayFps()
+        FpsMonitor.stopDrawPacing()
         if (::lifecycleOwner.isInitialized) {
             (lifecycleOwner.lifecycle as LifecycleRegistry).currentState = Lifecycle.State.DESTROYED
         }
