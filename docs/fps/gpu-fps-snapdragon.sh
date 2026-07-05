@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # gpu-fps-snapdragon.sh — Adreno GPU per-app FPS via ftrace
 #
-# Primary: kgsl/syncpoint_fence (stable 4:1 ratio, no heuristics).
-# Fallback: adreno_cmdbatch_retired (gap-burst, gap > 5ms = new frame).
+# Method: adreno_cmdbatch_submitted inflight counter.
+# inflight rises 3→4→5 within a frame, then drops = new frame.
+# Counts drops as frame boundaries. Works at ALL frame rates.
 #
 # Requires: root on device, kgsl ftrace support
 set -euo pipefail
@@ -26,12 +27,14 @@ DEVICE=$(detect_snapdragon)
 [[ -z "$DEVICE" ]] && { echo "ERROR: No Snapdragon device found."; adb devices; exit 1; }
 
 TRACE=/sys/kernel/tracing
+DMA_EVENT="dma_fence/dma_fence_signaled"
+SUBMIT_EVENT="kgsl/adreno_cmdbatch_submitted"
+
 cleanup() {
     adb -s "$DEVICE" shell "
         echo 0 > $TRACE/tracing_on 2>/dev/null
-        echo 0 > $TRACE/events/dma_fence/dma_fence_signaled/enable 2>/dev/null
-        echo 0 > $TRACE/events/kgsl/syncpoint_fence/enable 2>/dev/null
-        echo 0 > $TRACE/events/kgsl/adreno_cmdbatch_retired/enable 2>/dev/null
+        echo 0 > $TRACE/events/$DMA_EVENT/enable 2>/dev/null
+        echo 0 > $TRACE/events/$SUBMIT_EVENT/enable 2>/dev/null
     " 2>/dev/null || true
 }
 trap cleanup EXIT
@@ -51,17 +54,16 @@ fg_info() {
     echo "$pkg $pid"
 }
 
-# Discover KGSL context IDs for this PID via dma_fence timeline names
 discover_ctxs() {
     local pfx="$1"
     adb -s "$DEVICE" shell "
         echo 0 > $TRACE/tracing_on
         echo > $TRACE/trace
-        echo 1 > $TRACE/events/dma_fence/dma_fence_signaled/enable
+        echo 1 > $TRACE/events/$DMA_EVENT/enable
         echo 1 > $TRACE/tracing_on
         sleep 0.5
         echo 0 > $TRACE/tracing_on
-        echo 0 > $TRACE/events/dma_fence/dma_fence_signaled/enable
+        echo 0 > $TRACE/events/$DMA_EVENT/enable
         grep 'driver=kgsl-timeline.*(${pfx}' $TRACE/trace 2>/dev/null \
             | grep -o 'kgsl-3d0_[0-9]*' \
             | sed 's/kgsl-3d0_//' \
@@ -69,26 +71,75 @@ discover_ctxs() {
     " 2>/dev/null | tr -d '\r' | xargs
 }
 
+# Count frames from inflight drops on cmdbatch_submitted
+# inflight rises within a frame, drops = frame boundary
+count_inflight_frames() {
+    local ctx_ids="$1" ctrace="${TRACE}/trace"
+    local ctx_grep=""
+    for c in $ctx_ids; do
+        [[ -n "$ctx_grep" ]] && ctx_grep="$ctx_grep|"
+        ctx_grep="${ctx_grep}ctx=${c}[^0-9]"
+    done
+
+    adb -s "$DEVICE" shell "
+        echo 0 > $TRACE/tracing_on
+        echo 0 > $TRACE/events/$DMA_EVENT/enable
+        echo > $ctrace
+        echo 1 > $TRACE/events/$SUBMIT_EVENT/enable
+        echo 1 > $TRACE/tracing_on
+    " 2>/dev/null
+
+    t0=$(adb -s "$DEVICE" shell "cat /proc/uptime" | awk '{print $1}')
+    sleep "$POLL"
+
+    local data
+    data=$(adb -s "$DEVICE" shell "
+        echo 0 > $TRACE/tracing_on
+        echo 0 > $TRACE/events/$SUBMIT_EVENT/enable
+        cat /proc/uptime | awk '{print \$1}'
+        grep -E '(${ctx_grep})' $ctrace 2>/dev/null \
+            | awk '{for(i=1;i<=NF;i++) if(\$i ~ /^inflight=/) {sub(/inflight=/,\"\",\$i); print \$i}}'
+    " 2>/dev/null | tr -d '\r' || echo "0")
+
+    local uptime_end=$(echo "$data" | head -1)
+    local inflight_vals=$(echo "$data" | tail -n +2)
+    local events=$(echo "$inflight_vals" | wc -l)
+
+    if [[ "$events" -lt 3 ]]; then
+        echo "0 0 0 0"
+        return
+    fi
+
+    # Count inflight drops = frame boundaries
+    local frames=$(echo "$inflight_vals" | awk '
+    NR==1 { prev=$1; f=1; next }
+    { if ($1 < prev) f++; prev=$1 }
+    END { print f + 0 }
+    ')
+
+    local span=$(awk "BEGIN {printf \"%.3f\", $uptime_end - $t0}")
+    echo "$span $events $frames"
+}
+
 adb -s "$DEVICE" shell "echo 16384 > $TRACE/buffer_size_kb" 2>/dev/null || true
-adb -s "$DEVICE" shell "[ -f $TRACE/events/dma_fence/dma_fence_signaled/enable ]" 2>/dev/null \
+adb -s "$DEVICE" shell "[ -f $TRACE/events/$DMA_EVENT/enable ]" 2>/dev/null \
     || { echo "ERROR: ftrace not available."; exit 1; }
 
-echo "====== GPU-FPS Snapdragon ======"
+echo "====== GPU-FPS Snapdragon (inflight drop) ======"
 echo "Device: $DEVICE | Poll: ${POLL}s | Ctrl+C to stop"
-echo "Primary: syncpoint_fence (4:1 ratio) | Fallback: cmdbatch_retired (gap-burst)"
-printf "%-10s %-8s %-8s %-8s %-8s %s\n" "TIME" "FPS" "EVENTS" "FRAMEMS" "MODE" "APP(PID)"
+echo "Method: cmdbatch_submitted inflight drops = frame boundaries"
+printf "%-10s %-8s %-8s %-8s %-8s %s\n" "TIME" "FPS" "EVENTS" "FRAMEMS" "CTXS" "APP(PID)"
 echo "--------------------------------------------------------"
 
 LAST_PID=""
 CTX_IDS=""
 CTX_COUNT=0
-MODE=""
 
 while true; do
     info=$(fg_info)
     if [[ -z "$info" ]]; then
         printf "%-10s %-8s (no fg app)\n" "$(date +%H:%M:%S)" "---"
-        LAST_PID=""; CTX_IDS=""; MODE=""
+        LAST_PID=""; CTX_IDS=""
         sleep 1; continue
     fi
 
@@ -99,7 +150,6 @@ while true; do
     if [[ "$PID" != "$LAST_PID" ]]; then
         CTX_IDS=$(discover_ctxs "$pfx")
         CTX_COUNT=$(echo "$CTX_IDS" | wc -w)
-        MODE=""
         LAST_PID="$PID"
     fi
 
@@ -112,108 +162,22 @@ while true; do
         fi
     fi
 
-    # Probe syncpoint_fence first (0.4s burst)
-    if [[ -z "$MODE" ]]; then
-        sp=$(adb -s "$DEVICE" shell "
-            echo 0 > $TRACE/tracing_on
-            echo > $TRACE/trace
-            echo 1 > $TRACE/events/kgsl/syncpoint_fence/enable
-            echo 1 > $TRACE/tracing_on
-            sleep 0.4
-            echo 0 > $TRACE/tracing_on
-            echo 0 > $TRACE/events/kgsl/syncpoint_fence/enable
-            grep -c 'syncpoint_fence.*(${pfx}' $TRACE/trace 2>/dev/null || echo 0
-        " 2>/dev/null | tr -d '\r' | awk '{print $1}')
-        sp=${sp:-0}
-        if [ "$sp" -ge 4 ] 2>/dev/null; then
-            MODE="sync"
-        else
-            MODE="gap"
-        fi
+    result=$(count_inflight_frames "$CTX_IDS")
+    span=$(echo "$result" | awk '{print $1}')
+    events=$(echo "$result" | awk '{print $2}')
+    frames=$(echo "$result" | awk '{print $3}')
+    events="${events:-0}"
+    frames="${frames:-0}"
+    span="${span:-0}"
+
+    if [[ "$frames" -lt 2 ]]; then
+        printf "%-10s %-8s (idle, %s/%s)\n" "$(date +%H:%M:%S)" "---" "$PKG" "$PID"
+        continue
     fi
 
-    t0=$(adb -s "$DEVICE" shell "cat /proc/uptime" | awk '{print $1}')
-
-    if [[ "$MODE" == "sync" ]]; then
-        # syncpoint_fence ratio mode: events / (ctx_count * 2)
-        adb -s "$DEVICE" shell "
-            echo 0 > $TRACE/tracing_on
-            echo 0 > $TRACE/events/dma_fence/dma_fence_signaled/enable
-            echo > $TRACE/trace
-            echo 1 > $TRACE/events/kgsl/syncpoint_fence/enable
-            echo 1 > $TRACE/tracing_on
-        " 2>/dev/null
-        sleep "$POLL"
-        data=$(adb -s "$DEVICE" shell "
-            echo 0 > $TRACE/tracing_on
-            echo 0 > $TRACE/events/kgsl/syncpoint_fence/enable
-            cat /proc/uptime | awk '{print \$1}'
-            grep -c 'syncpoint_fence.*(${pfx}' $TRACE/trace 2>/dev/null || echo 0
-        " 2>/dev/null | tr -d '\r' || echo "0 0")
-
-        t1=$(echo "$data" | head -1)
-        events=$(echo "$data" | tail -1)
-        events=${events:-0}
-
-        if [[ "$events" -lt 4 ]]; then
-            printf "%-10s %-8s (idle, %s/%s)\n" "$(date +%H:%M:%S)" "---" "$PKG" "$PID"
-            continue
-        fi
-
-        sp_per_frame=$((CTX_COUNT * 2))
-        frames=$((events / sp_per_frame))
-        span=$(awk "BEGIN {printf \"%.3f\", $t1 - $t0}")
-        fps=$(awk "BEGIN {printf \"%.1f\", $frames / $span}")
-        framems=$(awk "BEGIN {printf \"%.1f\", 1000.0/($frames/$span)}")
-        mode_label="sync"
-
-    else
-        # cmdbatch_retired gap-burst mode
-        ctx_grep=""
-        for c in $CTX_IDS; do
-            [[ -n "$ctx_grep" ]] && ctx_grep="$ctx_grep|"
-            ctx_grep="${ctx_grep}ctx=${c} "
-        done
-
-        adb -s "$DEVICE" shell "
-            echo 0 > $TRACE/tracing_on
-            echo 0 > $TRACE/events/dma_fence/dma_fence_signaled/enable
-            echo > $TRACE/trace
-            echo 1 > $TRACE/events/kgsl/adreno_cmdbatch_retired/enable
-            echo 1 > $TRACE/tracing_on
-        " 2>/dev/null
-        sleep "$POLL"
-
-        data=$(adb -s "$DEVICE" shell "
-            echo 0 > $TRACE/tracing_on
-            echo 0 > $TRACE/events/kgsl/adreno_cmdbatch_retired/enable
-            cat /proc/uptime | awk '{print \$1}'
-            grep -E '(${ctx_grep})' $TRACE/trace 2>/dev/null | awk '{print \$4}' | sed 's/://'
-        " 2>/dev/null | tr -d '\r' || echo "0")
-
-        t1=$(echo "$data" | head -1)
-        timestamps=$(echo "$data" | tail -n +2)
-        events=$(echo "$timestamps" | grep -c '[0-9]' || echo 0)
-
-        if [[ "$events" -lt 4 ]]; then
-            printf "%-10s %-8s (idle, %s/%s)\n" "$(date +%H:%M:%S)" "---" "$PKG" "$PID"
-            continue
-        fi
-
-        # Gap > 5ms and < 1000ms (ignore clock jumps) = frame boundary
-        frames=$(awk '
-        { ts = $1 + 0 }
-        NR == 1 { f = 1; prev = ts; next }
-        { d = (ts - prev) * 1000; if (d > 5 && d < 1000) f++; prev = ts }
-        END { print f + 0 }
-        ' <<< "$timestamps")
-
-        span=$(awk "BEGIN {printf \"%.3f\", $t1 - $t0}")
-        fps=$(awk "BEGIN {printf \"%.1f\", $frames / $span}")
-        framems=$(awk "BEGIN {printf \"%.1f\", 1000.0/($frames/$span)}")
-        mode_label="gap"
-    fi
+    fps=$(awk "BEGIN {printf \"%.1f\", $frames / $span}")
+    framems=$(awk "BEGIN {printf \"%.1f\", 1000.0/($frames/$span)}")
 
     printf "%-10s %-8s %-8s %-8s %-8s %s/%s\n" \
-        "$(date +%H:%M:%S)" "$fps" "$events" "${framems}ms" "$mode_label" "$PKG" "$PID"
+        "$(date +%H:%M:%S)" "$fps" "$events" "${framems}ms" "$CTX_COUNT" "$PKG" "$PID"
 done
