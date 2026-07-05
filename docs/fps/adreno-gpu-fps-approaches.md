@@ -13,7 +13,16 @@ Device: Snapdragon 8 Gen 3 (pineapple), Android 15, kernel `kgsl` ftrace availab
 ## Tier 1 — Ftrace: Direct GPU Events
 
 ### ⚠️ `kgsl/adreno_cmdbatch_submitted` — Gap-burst detection
-**Current method.** Fires 5-6× per frame in sub-command bursts. Uses gap detection (>12ms = new frame) across merged app contexts. Problem: multi-queue async compute and frame pipelining cause bursts to merge or split incorrectly. ~60% accuracy — not production-viable.
+**Old method.** Fires 5-6× per frame in sub-command bursts. ~60% accuracy. Superseded.
+
+### ⚠️ `kgsl/adreno_cmdbatch_queued` — Gap-burst detection
+**Tested.** Same burst pattern as submitted but fires slightly earlier. Gap-burst with 14ms threshold matches syncpoint_fence exactly (28.4 FPS). Requires gap heuristic, which can break at high frame rates. Prefer syncpoint_fence below.
+
+### ✅ `kgsl/syncpoint_fence` — Ratio-based (4:1)
+**Current method.** Fires 4 events per frame (2 KGSL syncobj contexts × 2 syncpoints per context). Ratio is stable across scenes — tested 252→63, 248→62, 344→86, all matching gap-burst ground truth within ±1 frame. No heuristic thresholds — just `events / (unique_ctx_count * 2) / seconds`. **This is the winner.**
+```
+grep "syncpoint_fence.*(APP_PFX" trace | wc -l  →  events / (ctx_count * 2) / seconds = FPS
+```
 
 ### ❌ `kgsl/adreno_cmdbatch_submitted` — Raw counting
 ~200+ FPS for a 24 FPS scene. Garbage.
@@ -43,8 +52,8 @@ Gave 37-52 FPS for a 24 FPS scene. Ratio varies by workload.
 ### ❌ `dma_fence/dma_fence_init` (kgsl-timeline)
 **Tested.** 532 init events vs 536 signaled events in 2s. Same ratio (~2.2 fences per vsync) as `signaled`. Same calibration problem. No advantage.
 
-### 🔬 `kgsl/kgsl_timeline_signal`
-Untested. Same data as dma_fence_signaled but pre-filtered to KGSL only. Might have same ratio problem.
+### ❌ `kgsl/kgsl_timeline_signal`
+**Tested.** Zero events fire. Format exists (`id=` `seqno=`) but never emitted on this kernel.
 
 ---
 
@@ -56,8 +65,8 @@ Untested. Same data as dma_fence_signaled but pre-filtered to KGSL only. Might h
 ### ✅ `dma_fence/dma_fence_signaled` — `driver=sde_fence:conn*`
 **Tested.** Same rate as crtc. No additional value.
 
-### 🔬 `drm/drm_vblank_event` / `drm_vblank_event_delivered`
-Untested. Standard DRM vsync path.
+### ❌ `drm/drm_vblank_event` / `drm_vblank_event_delivered`
+**Tested.** Zero events fire. Format exists (`crtc=` `seq=` `time=`) but never emitted. `sde_fence:crtc` is the working display vsync path.
 
 ---
 
@@ -94,7 +103,9 @@ Keys app timing off `AChoreographer_vsyncCallback`. 3DMark's uncapped Vulkan loo
 
 | Method | Tested | Result |
 |--------|--------|--------|
-| `adreno_cmdbatch_submitted` (gap-burst) | Yes | ⚠️ ~60% accuracy |
+| `adreno_cmdbatch_submitted` (gap-burst) | Yes | ⚠️ ~60% — superseded |
+| `syncpoint_fence` (4:1 ratio) | Yes | ✅ 28.4 FPS — stable ratio |
+| `adreno_cmdbatch_queued` (gap-burst) | Yes | ✅ 28.4 FPS — matches syncpoint |
 | `adreno_cmdbatch_submitted` (raw) | Yes | ❌ Garbage |
 | `adreno_cmdbatch_retired` | Yes | ❌ Too few events |
 | `adreno_cmdbatch_done` | Yes | ❌ Same burst pattern as submitted |
@@ -110,8 +121,8 @@ Keys app timing off `AChoreographer_vsyncCallback`. 3DMark's uncapped Vulkan loo
 | `dumpsys SurfaceFlinger --latency` | Yes | ❌ Measures SF, not GPU |
 | Choreographer callbacks | Yes | ❌ Bypassed by native/Vulkan |
 | Perfetto FrameTimeline | Yes | ❌ No Choreographer = no data |
-| `kgsl_timeline_signal` | No | 🔬 Untested |
-| `drm_vblank_event` | No | 🔬 Untested |
+| `kgsl_timeline_signal` | Yes | ❌ Zero events |
+| `drm_vblank_event` | Yes | ❌ Zero events |
 | `gpu_clock_stats` | No | 🔬 Untested |
 
 ---

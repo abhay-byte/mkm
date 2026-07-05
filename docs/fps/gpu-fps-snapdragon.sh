@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # gpu-fps-snapdragon.sh — Adreno GPU per-app FPS via ftrace
 #
-# Uses adreno_cmdbatch_submitted events. Discovers app's KGSL context
-# IDs via dma_fence timeline names. Merges all app contexts sorted by
-# timestamp, then counts gap-based BURSTS (gap > 12ms = new frame).
+# Uses kgsl/syncpoint_fence events. Pattern: 4 events per frame
+# (2 KGSL contexts × 2 syncpoints per context). Stable across scenes.
 #
-# Requires: root on device, CONFIG_DMA_FENCE_TRACE in kernel
+# Requires: root on device, kgsl ftrace support
 set -euo pipefail
 
 if [[ "${1:-}" =~ ^[0-9]+$ ]]; then
@@ -37,14 +36,12 @@ DEVICE=$(detect_snapdragon)
 [[ -z "$DEVICE" ]] && { echo "ERROR: No Snapdragon device found."; adb devices; exit 1; }
 
 TRACE="/sys/kernel/tracing"
-DMA_EVENT="dma_fence/dma_fence_signaled"
-ADR_EVENT="kgsl/adreno_cmdbatch_submitted"
+EVENT="kgsl/syncpoint_fence"
 
 cleanup() {
     [[ -n "${DEVICE:-}" ]] && adb -s "$DEVICE" shell "
         echo 0 > $TRACE/tracing_on 2>/dev/null
-        echo 0 > $TRACE/events/$DMA_EVENT/enable 2>/dev/null
-        echo 0 > $TRACE/events/$ADR_EVENT/enable 2>/dev/null
+        echo 0 > $TRACE/events/$EVENT/enable 2>/dev/null
     " 2>/dev/null || true
 }
 trap cleanup EXIT
@@ -62,46 +59,35 @@ fg_pid() {
     adb -s "$DEVICE" shell "pidof '$fg'" 2>/dev/null | tr -d '\r' | awk '{print $1}'
 }
 
-# Discover adreno ctx IDs for this PID via dma_fence timeline parsing
-discover_ctx_ids() {
+# Discover unique syncobj context IDs for this PID from syncpoint_fence trace
+# Each unique ctx = one syncobj context contributing 2 events per frame
+discover_ctx_count() {
     local pid_prefix="$1"
     adb -s "$DEVICE" shell "
         echo 0 > $TRACE/tracing_on
         echo > $TRACE/trace
-        echo 1 > $TRACE/events/$DMA_EVENT/enable
+        echo 1 > $TRACE/events/$EVENT/enable
         echo 1 > $TRACE/tracing_on
         sleep 0.5
         echo 0 > $TRACE/tracing_on
-        echo 0 > $TRACE/events/$DMA_EVENT/enable
-        grep 'dma_fence_signaled.*driver=kgsl-timeline.*(${pid_prefix}' $TRACE/trace 2>/dev/null \
-            | sed -E 's/.*timeline=kgsl-3d0_([0-9]+)-.*/\1/' \
-            | sort -nu | tr '\n' ' '
-    " 2>/dev/null | tr -d '\r' || echo ""
+        grep 'syncpoint_fence.*(${pid_prefix}' $TRACE/trace 2>/dev/null \
+            | sed 's/.*ctx=\\([0-9]*\\).*/\\1/' \
+            | sort -nu | wc -l
+    " 2>/dev/null | tr -d '\r' || echo "0"
 }
 
-# Count bursts: gap > GAP_THRESHOLD ms between consecutive timestamps = new frame
-count_bursts() {
-    local gap_ms="${2:-12}"
-    awk -v gap="$gap_ms" '
-    { ts = $1 + 0; if (ts == 0) next }
-    NR == 1 || restart { frames = 1; prev = ts; restart = 0; next }
-    { if ((ts - prev) * 1000 > gap) frames++; prev = ts }
-    END { print frames + 0 }
-    ' <<< "$1"
-}
-
-adb -s "$DEVICE" shell "[ -f $TRACE/events/$DMA_EVENT/enable ]" 2>/dev/null \
-  || { echo "ERROR: ftrace $DMA_EVENT not found. Kernel lacks CONFIG_DMA_FENCE_TRACE."; exit 1; }
+adb -s "$DEVICE" shell "[ -f $TRACE/events/$EVENT/enable ]" 2>/dev/null \
+  || { echo "ERROR: ftrace $EVENT not found."; exit 1; }
 
 adb -s "$DEVICE" shell "echo 16384 > $TRACE/buffer_size_kb" 2>/dev/null || true
 
-echo "====== GPU-FPS Snapdragon (Adreno burst-detect) ======"
+echo "====== GPU-FPS Snapdragon (syncpoint_fence) ======"
 echo "Device: $DEVICE | Poll: ${POLL}s | Ctrl+C to stop"
-echo "Metric: adreno_cmdbatch_submitted (gap-based frame bursts)"
+echo "Metric: kgsl/syncpoint_fence (4 events/frame, ratio-based)"
 printf "%-10s %-8s %-8s %-8s %-8s %s\n" "TIME" "FPS" "EVENTS" "FRAMEMS" "CTXS" "APP(PID)"
 echo "--------------------------------------------------------"
 
-CTX_IDS=""
+CTX_COUNT=0
 REFRESH=0
 LAST_PID=""
 
@@ -109,71 +95,64 @@ while true; do
     PID=$(fg_pid)
     if [[ -z "$PID" ]]; then
         printf "%-10s %-8s (no fg app)\n" "$(date +%H:%M:%S)" "---"
-        CTX_IDS=""; sleep 1; continue
+        CTX_COUNT=0; sleep 1; continue
     fi
 
     pfx="${PID:0:3}"
 
-    # Refresh context IDs on PID change or every 15 polls
+    # Refresh context count on PID change or every 15 polls
     if [[ "$PID" != "$LAST_PID" ]] || [[ $REFRESH -eq 0 ]] || [[ $((REFRESH % 15)) -eq 0 ]]; then
-        CTX_IDS=$(discover_ctx_ids "$pfx")
+        new_ctx=$(discover_ctx_count "$pfx")
+        if [[ "$new_ctx" -gt 0 ]]; then
+            CTX_COUNT="$new_ctx"
+        fi
         REFRESH=1; LAST_PID="$PID"
     else
         REFRESH=$((REFRESH + 1))
     fi
 
-    if [[ -z "$CTX_IDS" ]]; then
-        # Retry once immediately — context may not be visible in the first 0.5s probe
-        CTX_IDS=$(discover_ctx_ids "$pfx")
-        if [[ -z "$CTX_IDS" ]]; then
+    if [[ "$CTX_COUNT" -eq 0 ]]; then
+        CTX_COUNT=$(discover_ctx_count "$pfx")
+        if [[ "$CTX_COUNT" -eq 0 ]]; then
             printf "%-10s %-8s (no ctx, PID %s)\n" "$(date +%H:%M:%S)" "---" "$PID"
             sleep 1; continue
         fi
     fi
 
-    # Build grep pattern for all app contexts
-    ctx_grep=""
-    for c in $CTX_IDS; do
-        [[ -n "$ctx_grep" ]] && ctx_grep="$ctx_grep|"
-        ctx_grep="${ctx_grep}ctx=${c} "
-    done
-
-    # Start trace, capture for POLL seconds
+    # Start trace
     adb -s "$DEVICE" shell "
         echo 0 > $TRACE/tracing_on
-        echo 0 > $TRACE/events/$DMA_EVENT/enable
         echo > $TRACE/trace
-        echo 1 > $TRACE/events/$ADR_EVENT/enable
+        echo 1 > $TRACE/events/$EVENT/enable
         echo 1 > $TRACE/tracing_on
     " 2>/dev/null
 
     t0=$(adb -s "$DEVICE" shell "cat /proc/uptime" | awk '{print $1}')
     sleep "$POLL"
 
-    # Stop trace and pull raw data
-    trace_data=$(adb -s "$DEVICE" shell "
+    data=$(adb -s "$DEVICE" shell "
         echo 0 > $TRACE/tracing_on
-        echo 0 > $TRACE/events/$ADR_EVENT/enable
+        echo 0 > $TRACE/events/$EVENT/enable
         cat /proc/uptime | awk '{print \$1}'
-        grep -E '(${ctx_grep})' $TRACE/trace 2>/dev/null \
-            | awk '{print \$4}' \
-            | sed 's/://'
-    " 2>/dev/null | tr -d '\r' || echo "0")
+        grep -c 'syncpoint_fence.*(${pfx}' $TRACE/trace 2>/dev/null || echo 0
+    " 2>/dev/null | tr -d '\r' || echo "0 0")
 
-    t1=$(echo "$trace_data" | head -1 | tr -d '\r')
-    timestamps=$(echo "$trace_data" | tail -n +2 | tr -d '\r')
-    event_count=$(echo "$timestamps" | wc -l)
-    if [[ "$event_count" -lt 2 ]]; then
+    t1=$(echo "$data" | head -1)
+    events=$(echo "$data" | tail -1)
+    events="${events:-0}"
+
+    if [[ "$events" -eq 0 ]]; then
         printf "%-10s %-8s (idle, PID %s)\n" "$(date +%H:%M:%S)" "---" "$PID"
         continue
     fi
 
-    burst_count=$(count_bursts "$timestamps" 12)
-
+    # 4 events per frame: 2 contexts × 2 syncpoints per context
+    sp_per_frame=$((CTX_COUNT * 2))
+    frames=$((events / sp_per_frame))
     span=$(awk "BEGIN {printf \"%.3f\", $t1 - $t0}")
-    fps=$(awk "BEGIN {printf \"%.1f\", $burst_count / $span}")
-    framems=$(awk "BEGIN {printf \"%.1f\", 1000.0/($burst_count/$span)}")
+    fps=$(awk "BEGIN {printf \"%.1f\", $frames / $span}")
+    framems=$(awk "BEGIN {printf \"%.1f\", 1000.0/($frames/$span)}")
 
     printf "%-10s %-8s %-8s %-8s %-8s PID %s\n" \
-        "$(date +%H:%M:%S)" "$fps" "$event_count" "${framems}ms" "$(echo "$CTX_IDS" | tr '\n' ' ')" "$PID"
+        "$(date +%H:%M:%S)" "$fps" "$events" "${framems}ms" "$CTX_COUNT" "$PID"
 done
