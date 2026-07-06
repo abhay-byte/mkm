@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # gpu-fps-snapdragon.sh — Adreno GPU per-app FPS via ftrace
 #
-# Method: adreno_cmdbatch_submitted inflight counter.
-# inflight rises 3→4→5 within a frame, then drops = new frame.
-# Counts drops as frame boundaries. Works at ALL frame rates.
+# Method: adreno_cmdbatch_submitted burst grouping.
+# Adreno submits several cmdbatches per frame. At high FPS, inflight is queue
+# depth, not a frame boundary, so counting inflight drops aliases low.
 #
 # Requires: root on device, kgsl ftrace support
 set -euo pipefail
 
 POLL="${1:-2}"
+FRAME_GAP_MS="${FRAME_GAP_MS:-3.0}"
 
 detect_snapdragon() {
     local s chip
@@ -41,12 +42,12 @@ trap cleanup EXIT
 
 fg_info() {
     local pkg pid
-    pkg=$(adb -s "$DEVICE" shell "dumpsys activity activities 2>/dev/null" \
-        | grep -m1 -E 'mResumedActivity|topResumedActivity' \
+    pkg=$(adb -s "$DEVICE" shell "dumpsys window 2>/dev/null" \
+        | grep -m1 'mCurrentFocus' | grep -v 'null' \
         | sed -nE 's/.*u0 *([^ /}]+).*/\1/p' | tr -d '\r')
     [[ -z "$pkg" || "$pkg" == "null" ]] && \
-        pkg=$(adb -s "$DEVICE" shell "dumpsys window 2>/dev/null" \
-            | grep -m1 'mCurrentFocus' | grep -v 'null' \
+        pkg=$(adb -s "$DEVICE" shell "dumpsys activity activities 2>/dev/null" \
+            | grep -m1 -E 'mResumedActivity|topResumedActivity' \
             | sed -nE 's/.*u0 *([^ /}]+).*/\1/p' | tr -d '\r')
     [[ -z "$pkg" || "$pkg" == "null" ]] && { echo ""; return; }
     pid=$(adb -s "$DEVICE" shell "pidof '$pkg'" 2>/dev/null | tr -d '\r' | awk '{print $1}')
