@@ -80,29 +80,43 @@ class BootApplyService : Service() {
                 delay(1000L)
             }
 
-            val failures = applyAllSettings()
-            updateNotificationDone(failures)
+            val summary = applyAllSettings()
+            updateNotificationDone(summary)
             delay(3000L)
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
     }
 
-    private suspend fun applyAllSettings(): List<String> {
+    private data class ApplySummary(
+        val failures: List<String> = emptyList(),
+        val adjustments: List<String> = emptyList()
+    )
+
+    private suspend fun applyAllSettings(): ApplySummary {
         val failures = mutableListOf<String>()
+        val adjustments = mutableListOf<String>()
         withContext(Dispatchers.IO) {
             // CPU
             if (BootSettingsManager.isCpuEnabled(this@BootApplyService)) {
                 val policies = BootSettingsManager.loadCpuPolicies(this@BootApplyService)
                 policies.forEach { policy ->
-                    if (policy.governor.isNotBlank() && CpuProvider.applyGovernor(policy.policyId, policy.governor) is ApplyResult.Failed) {
-                        failures += "CPU policy${policy.policyId} governor"
+                    if (policy.governor.isNotBlank()) {
+                        when (val result = CpuProvider.applyGovernor(policy.policyId, policy.governor)) {
+                            is ApplyResult.Failed -> failures += "CPU policy${policy.policyId} governor"
+                            is ApplyResult.Adjusted -> adjustments += "CPU policy${policy.policyId} governor (${result.actual})"
+                            is ApplyResult.Applied -> Unit
+                        }
                     }
                     val min = policy.minFreq.toLongOrNull()
                     val max = policy.maxFreq.toLongOrNull()
                     if (min != null || max != null) {
                         val result = CpuProvider.applyRange(policy.policyId, min, max)
-                        if (result is ApplyResult.Failed) failures += "CPU policy${policy.policyId} frequency"
+                        when (result) {
+                            is ApplyResult.Failed -> failures += "CPU policy${policy.policyId} frequency"
+                            is ApplyResult.Adjusted -> adjustments += "CPU policy${policy.policyId} frequency (${result.actual})"
+                            is ApplyResult.Applied -> Unit
+                        }
                     }
                 }
             }
@@ -110,17 +124,30 @@ class BootApplyService : Service() {
             // GPU
             if (BootSettingsManager.isGpuEnabled(this@BootApplyService)) {
                 BootSettingsManager.loadGpuSettings(this@BootApplyService)?.let { gpu ->
-                    if (gpu.governor.isNotBlank() && GpuProvider.applyGovernor(gpu.governor) is ApplyResult.Failed) {
-                        failures += "GPU governor"
+                    if (gpu.governor.isNotBlank()) {
+                        when (val result = GpuProvider.applyGovernor(gpu.governor)) {
+                            is ApplyResult.Failed -> failures += "GPU governor"
+                            is ApplyResult.Adjusted -> adjustments += "GPU governor (${result.actual})"
+                            is ApplyResult.Applied -> Unit
+                        }
                     }
                     val min = gpu.minFreq.toLongOrNull()
                     val max = gpu.maxFreq.toLongOrNull()
                     if (min != null || max != null) {
                         val result = GpuProvider.applyRange(min, max)
-                        if (result is ApplyResult.Failed) failures += "GPU frequency"
+                        when (result) {
+                            is ApplyResult.Failed -> failures += "GPU frequency"
+                            is ApplyResult.Adjusted -> adjustments += "GPU frequency (${result.actual})"
+                            is ApplyResult.Applied -> Unit
+                        }
                     }
-                    val target = gpu.targetFreq.toLongOrNull()
-                    if (target != null && GpuProvider.applyTarget(target) is ApplyResult.Failed) failures += "GPU target frequency"
+                    gpu.targetFreq.toLongOrNull()?.let { target ->
+                        when (val result = GpuProvider.applyTarget(target)) {
+                            is ApplyResult.Failed -> failures += "GPU target frequency"
+                            is ApplyResult.Adjusted -> adjustments += "GPU target frequency (${result.actual})"
+                            is ApplyResult.Applied -> Unit
+                        }
+                    }
                 }
             }
 
@@ -151,7 +178,7 @@ class BootApplyService : Service() {
                 }
             }
         }
-        return failures
+        return ApplySummary(failures = failures, adjustments = adjustments)
     }
 
     // ------------------------------------------------------------------
@@ -202,12 +229,17 @@ class BootApplyService : Service() {
         nm.notify(NOTIFICATION_ID, notification)
     }
 
-    private fun updateNotificationDone(failures: List<String>) {
+    private fun updateNotificationDone(summary: ApplySummary) {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val text = when {
+            summary.failures.isNotEmpty() -> "Some settings failed: ${summary.failures.joinToString()}"
+            summary.adjustments.isNotEmpty() -> "Settings adjusted by kernel: ${summary.adjustments.joinToString()}"
+            else -> "Settings applied successfully."
+        }
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_battery)
             .setContentTitle("MKM Boot Settings")
-            .setContentText(if (failures.isEmpty()) "Settings applied successfully." else "Some settings failed: ${failures.joinToString()}")
+            .setContentText(text)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(false)
             .setOnlyAlertOnce(true)
