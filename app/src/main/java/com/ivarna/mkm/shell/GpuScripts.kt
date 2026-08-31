@@ -5,16 +5,40 @@ object GpuScripts {
     /** Lists real vendor frequency-table nodes for the discovery adapter. */
     fun discoverGpuFrequencyPaths(path: String): String {
         return """
+            # Use explicit table/pwrlevel patterns. Recursively following a
+            # devfreq class link can walk into unrelated subsystem devices
+            # (for example UFS) and pollute the GPU OPP list.
             for root in "$path" "/sys/class/kgsl/kgsl-3d0" "/sys/class/misc/mali0/device"; do
-                if [ -e "${'$'}root" ]; then
-                    find "${'$'}root" -type f \( \
-                        -name 'available_frequencies' -o -name 'time_in_state' -o \
-                        -name 'freq_table_mhz' -o -name 'gpu_available_frequencies' -o \
-                        -name 'frequency_table' -o -name 'operating-points' -o \
-                        -name 'opp-hz' -o -name 'opp-frequency' -o -name 'freq' -o \
-                        -name 'frequency' -o -name 'clock_mhz' \
-                    \) -print 2>/dev/null
-                fi
+                for candidate in \
+                    "${'$'}root/available_frequencies" \
+                    "${'$'}root/stats/time_in_state" \
+                    "${'$'}root/time_in_state" \
+                    "${'$'}root/freq_table_mhz" \
+                    "${'$'}root/gpu_available_frequencies" \
+                    "${'$'}root/frequency_table" \
+                    "${'$'}root/operating-points" \
+                    "${'$'}root/opp-hz" \
+                    "${'$'}root/opp-frequency" \
+                    "${'$'}root"/pwrlevels/*/freq \
+                    "${'$'}root"/pwrlevels/*/frequency \
+                    "${'$'}root"/pwrlevels/*/clock_mhz; do
+                    [ -e "${'$'}candidate" ] && echo "${'$'}candidate"
+                done
+            done
+
+            # Probe canonical platform nodes by GPU device name only; do not
+            # recursively scan arbitrary device links.
+            for root in ${'$'}(
+                find /sys/devices/platform -xdev -maxdepth 6 -type d \( \
+                    -name 'kgsl-3d0' -o -name '*mali*' -o -name '*rgx*' -o -name '*pvr*' \
+                \) -print 2>/dev/null
+            ); do
+                for candidate in "${'$'}root/freq_table_mhz" "${'$'}root/gpu_available_frequencies" \
+                    "${'$'}root/frequency_table" "${'$'}root/operating-points" "${'$'}root/opp-hz" \
+                    "${'$'}root/opp-frequency" "${'$'}root"/pwrlevels/*/freq \
+                    "${'$'}root"/pwrlevels/*/frequency "${'$'}root"/pwrlevels/*/clock_mhz; do
+                    [ -e "${'$'}candidate" ] && echo "${'$'}candidate"
+                done
             done
         """.trimIndent()
     }

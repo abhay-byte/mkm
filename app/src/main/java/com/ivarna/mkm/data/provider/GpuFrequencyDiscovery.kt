@@ -102,7 +102,10 @@ object GpuFrequencyDiscovery {
     }
 
     private fun normalize(raw: String, source: String): List<Long> {
-        val values = if (source.contains("time_in_state", ignoreCase = true)) {
+        val firstColumnOnly = source.contains("time_in_state", ignoreCase = true) ||
+            source.endsWith("operating-points", ignoreCase = true) ||
+            source.endsWith("opp-frequency", ignoreCase = true)
+        val values = if (firstColumnOnly) {
             raw.lines().mapNotNull { line -> parseValue(line.trim().split(Regex("[\\s,;]+")).firstOrNull()) }
         } else {
             raw.lines().flatMap { line ->

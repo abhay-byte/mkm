@@ -55,6 +55,18 @@ class GpuFrequencyDiscoveryTest {
         assertEquals(listOf(opp), result.sources.map { it.source })
     }
 
+    @Test fun operatingPointsUseFrequencyColumnAndIgnoreVoltage() {
+        val path = "/sys/class/devfreq/gpu"
+        val operatingPoints = "$path/opp_table/operating-points"
+        val result = discover(
+            path,
+            mapOf(operatingPoints to "315000000 700000\n680000000 800000"),
+            extra = listOf(operatingPoints)
+        )
+
+        assertEquals(FrequencyCapability.Discrete(listOf(315000000L, 680000000L)), result.capability)
+    }
+
     @Test fun malformedAndDuplicateValuesAreRemoved() {
         val path = "/sys/class/devfreq/gpu"
         val result = discover(
