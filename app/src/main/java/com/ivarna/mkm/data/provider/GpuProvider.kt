@@ -297,8 +297,11 @@ object GpuProvider {
                 stats,
                 legacyStats
             ),
-            rangeMin = currentMin,
-            rangeMax = currentMax,
+            // min_freq/max_freq are the current policy constraints, not
+            // proof that every integer between them is a valid GPU OPP.
+            // Without an actual table, validate only observed points.
+            rangeMin = null,
+            rangeMax = null,
             knownPoints = listOf(
                 currentMin,
                 currentMax,
