@@ -148,6 +148,14 @@ class GameBoostManager(
             store.clear()
             return GameBoostRegistry.publish(GameBoostState.Off)
         }
+        val owned = snapshot.applied + snapshot.attempted
+        val alreadyRestored = owned.all { component ->
+            runCatching { backend.isRestored(snapshot, component) }.getOrDefault(false)
+        }
+        if (alreadyRestored && (snapshot.phase == "ENABLING" || snapshot.phase == "RECOVERY" || snapshot.phase == "ACTIVE" || snapshot.phase == "THERMAL_LIMITED")) {
+            store.clear()
+            return GameBoostRegistry.publish(GameBoostState.Off)
+        }
         val checkable = snapshot.applied - snapshot.thermallyReleased
         val mismatch = checkable.firstOrNull { !runCatching { backend.isApplied(snapshot, it) }.getOrDefault(false) }
         if (mismatch != null || snapshot.phase == "RECOVERY" || snapshot.phase == "ENABLING") {

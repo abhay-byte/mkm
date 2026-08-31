@@ -14,7 +14,9 @@ import com.ivarna.mkm.data.model.GameBoostState
 import com.ivarna.mkm.data.model.GpuBoostSnapshot
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -90,6 +92,23 @@ class GameBoostManagerTest {
     }
 
     @Test
+    fun restoreFailureRetainsSnapshotUntilRetrySucceeds() {
+        runBlocking {
+            val backend = FakeBackend().apply { cpuGovernorRestoreResult = ApplyResult.Failed("restore failed") }
+            val manager = GameBoostManager(context, backend)
+            assertTrue(manager.enable() is GameBoostTransitionResult.Success)
+
+            assertTrue(manager.disable() is GameBoostTransitionResult.Failure)
+            assertTrue(GameBoostRegistry.state.value is GameBoostState.RecoveryRequired)
+            assertTrue(GameBoostSnapshotStore(context).load() != null)
+
+            backend.cpuGovernorRestoreResult = ApplyResult.Applied("restore", "restore")
+            assertTrue(manager.retryRecovery() is GameBoostTransitionResult.Success)
+            assertEquals(null, GameBoostSnapshotStore(context).load())
+        }
+    }
+
+    @Test
     fun severeThermalReleasesOnlyMaximumLocksWithoutRelocking() {
         runBlocking {
             val backend = FakeBackend()
@@ -104,11 +123,70 @@ class GameBoostManagerTest {
         }
     }
 
+    @Test
+    fun sameBootSnapshotRehydratesActiveState() {
+        val backend = FakeBackend()
+        val snapshot = backend.captureSnapshot(backend.probe()).copy(
+            bootCount = GameBoostSnapshotStore(context).currentIdentity().first,
+            bootId = GameBoostSnapshotStore(context).currentIdentity().second,
+            phase = "ACTIVE",
+            applied = setOf(GameBoostComponent.CPU_GOVERNOR)
+        )
+        assumeTrue(snapshot.bootCount != null || snapshot.bootId != null)
+        GameBoostSnapshotStore(context).save(snapshot)
+
+        GameBoostManager(context, backend)
+
+        val state = GameBoostRegistry.state.value as GameBoostState.Active
+        assertEquals(setOf(GameBoostComponent.CPU_GOVERNOR), state.applied)
+        assertTrue(GameBoostSnapshotStore(context).load() != null)
+    }
+
+    @Test
+    fun sameBootAlreadyRestoredSnapshotIsClearedSafely() {
+        val backend = FakeBackend().apply { restored = true }
+        val identity = GameBoostSnapshotStore(context).currentIdentity()
+        val snapshot = backend.captureSnapshot(backend.probe()).copy(
+            bootCount = identity.first,
+            bootId = identity.second,
+            phase = "ACTIVE",
+            attempted = setOf(GameBoostComponent.CPU_GOVERNOR),
+            applied = setOf(GameBoostComponent.CPU_GOVERNOR)
+        )
+        assumeTrue(snapshot.bootCount != null || snapshot.bootId != null)
+        GameBoostSnapshotStore(context).save(snapshot)
+
+        GameBoostManager(context, backend)
+
+        assertTrue(GameBoostRegistry.state.value is GameBoostState.Off)
+        assertEquals(null, GameBoostSnapshotStore(context).load())
+    }
+
+    @Test
+    fun newBootSnapshotIsDiscardedWithoutReapplying() {
+        val backend = FakeBackend()
+        val identity = GameBoostSnapshotStore(context).currentIdentity()
+        val snapshot = backend.captureSnapshot(backend.probe()).copy(
+            bootCount = identity.first?.plus(1),
+            bootId = "different-boot",
+            phase = "ACTIVE",
+            applied = setOf(GameBoostComponent.CPU_GOVERNOR)
+        )
+        GameBoostSnapshotStore(context).save(snapshot)
+
+        GameBoostManager(context, backend)
+
+        assertTrue(GameBoostRegistry.state.value is GameBoostState.Off)
+        assertEquals(null, GameBoostSnapshotStore(context).load())
+        assertFalse(backend.calls.any { it.startsWith("apply") })
+    }
+
     private class FakeBackend : GameBoostTuningBackend {
         val calls = mutableListOf<String>()
         val unsupported = mutableSetOf<GameBoostComponent>()
         var cpuMaxResult: ApplyResult = ApplyResult.Applied("cpu max", "cpu max")
         var cpuGovernorRestoreResult: ApplyResult = ApplyResult.Applied("restore", "restore")
+        var restored: Boolean = false
 
         override fun probe() = GameBoostCapabilities(
             GameBoostComponent.values().associateWith { component ->
@@ -130,5 +208,6 @@ class GameBoostManagerTest {
         override fun restoreGpuGovernor(snapshot: GameBoostSnapshot): ApplyResult { calls += "gpuGovernorRestore"; return ApplyResult.Applied("gpu", "gpu") }
         override fun restoreGpuRange(snapshot: GameBoostSnapshot): ApplyResult { calls += "gpuRangeRestore"; return ApplyResult.Applied("range", "range") }
         override fun isApplied(snapshot: GameBoostSnapshot, component: GameBoostComponent) = true
+        override fun isRestored(snapshot: GameBoostSnapshot, component: GameBoostComponent) = restored
     }
 }

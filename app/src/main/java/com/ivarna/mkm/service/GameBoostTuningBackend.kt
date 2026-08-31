@@ -23,6 +23,7 @@ interface GameBoostTuningBackend {
     fun restoreGpuGovernor(snapshot: GameBoostSnapshot): ApplyResult
     fun restoreGpuRange(snapshot: GameBoostSnapshot): ApplyResult
     fun isApplied(snapshot: GameBoostSnapshot, component: GameBoostComponent): Boolean
+    fun isRestored(snapshot: GameBoostSnapshot, component: GameBoostComponent): Boolean
 }
 
 /** Adapter over the existing provider transactions; Game Boost has no raw sysfs stack of its own. */
@@ -98,6 +99,29 @@ class ProductionGameBoostTuningBackend(private val context: Context) : GameBoost
             GameBoostComponent.GPU_MAX_LOCK -> snapshot.gpu?.let { target ->
                 val max = target.targetFreq ?: target.maxFreq
                 gpuPathMatches(target.path) && gpu.rawMinFreq == max.toString() && gpu.rawMaxFreq == max.toString()
+            } == true
+        }
+    }
+
+    override fun isRestored(snapshot: GameBoostSnapshot, component: GameBoostComponent): Boolean {
+        val cpu = CpuProvider.getCpuStatus()
+        val gpu = GpuProvider.getGpuStatus()
+        return when (component) {
+            GameBoostComponent.CPU_GOVERNOR -> snapshot.cpu.all { saved ->
+                cpu.clusters.firstOrNull { it.id == saved.policyId && it.policyPath == saved.path }
+                    ?.governor == saved.governor
+            }
+            GameBoostComponent.CPU_MAX_LOCK -> snapshot.cpu.all { saved ->
+                cpu.clusters.firstOrNull { it.id == saved.policyId && it.policyPath == saved.path }?.let {
+                    it.rawMinFreq == saved.minFreq.toString() && it.rawMaxFreq == saved.maxFreq.toString()
+                } == true
+            }
+            GameBoostComponent.GPU_GOVERNOR -> snapshot.gpu?.let { saved ->
+                gpuPathMatches(saved.path) && gpu.governor == saved.governor
+            } == true
+            GameBoostComponent.GPU_MAX_LOCK -> snapshot.gpu?.let { saved ->
+                gpuPathMatches(saved.path) &&
+                    gpu.rawMinFreq == saved.minFreq.toString() && gpu.rawMaxFreq == saved.maxFreq.toString()
             } == true
         }
     }
