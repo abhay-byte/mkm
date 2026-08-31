@@ -9,6 +9,10 @@ import com.ivarna.mkm.data.model.FrequencyCapabilityParser
 import com.ivarna.mkm.data.model.FrequencyRangePlanner
 import com.ivarna.mkm.data.model.GpuStatus
 import com.ivarna.mkm.data.model.GpuTuningCapabilities
+import com.ivarna.mkm.data.model.RangeReadback
+import com.ivarna.mkm.data.model.RangeTransactionResult
+import com.ivarna.mkm.data.model.RangeWriteTransaction
+import com.ivarna.mkm.data.model.ScalarReadbackVerifier
 import com.ivarna.mkm.shell.GpuScripts
 import com.ivarna.mkm.shell.ShellManager
 import com.ivarna.mkm.shell.SysfsTuningExecutor
@@ -26,7 +30,9 @@ object GpuProvider {
         cachedGpuModel = null
     }
 
-    fun getGpuStatus(): GpuStatus {
+    fun getGpuStatus(): GpuStatus = getGpuStatus(allowRedetection = true)
+
+    private fun getGpuStatus(allowRedetection: Boolean): GpuStatus {
         val path = getPath().first
         if (path.isEmpty()) return GpuStatus(capabilityReason = "GPU devfreq device was not detected")
 
@@ -36,6 +42,14 @@ object GpuProvider {
             ShellManager.exec(GpuScripts.getGpuInfo(path), ShellManager.PrivilegeRequirement.ELEVATED_SYSFS)
         } else {
             ShellManager.exec(GpuScripts.getGpuInfo(path))
+        }
+        if (!result.isSuccess && !hasTuningNode(path)) {
+            // A cached devfreq directory can survive after its driver nodes
+            // disappear. Force one redetection rather than presenting stale
+            // capabilities or attempting writes against the old device.
+            cachedPath = null
+            return if (allowRedetection) getGpuStatus(allowRedetection = false)
+            else GpuStatus(capabilityReason = "GPU devfreq device disappeared while reading its capabilities")
         }
         var load = 0f
         var curFreq = 0L
@@ -138,8 +152,11 @@ object GpuProvider {
         val result = SysfsTuningExecutor.write("$path/governor", governor)
         if (!result.isSuccess) return failed("governor", result)
         val after = SysfsTuningExecutor.read("$path/governor")
-        val outcome = if (after == governor) ApplyResult.Applied(governor, after)
-        else ApplyResult.Adjusted(governor, after, "GPU driver selected a different governor.")
+        val outcome = ScalarReadbackVerifier.verify(
+            requested = governor,
+            actual = after,
+            adjustedReason = "GPU driver selected a different governor."
+        )
         Log.i(TAG, "domain=GPU path=$path vendor=${classifyGpuPath(path)} request=governor:$governor before=$before backend=${result.backend} after=$after result=${outcome::class.simpleName}")
         return outcome
     }
@@ -166,27 +183,45 @@ object GpuProvider {
         }
         val before = "min=$currentMin,max=$currentMax"
         val writeLog = mutableListOf<String>()
-        for (step in plan.steps) {
-            val file = if (step.isMin) "min_freq" else "max_freq"
-            val result = SysfsTuningExecutor.write("$path/$file", step.value.toString())
-            if (!result.isSuccess) return failed(file, result)
-            writeLog += "$file=OK(${result.backend})"
+        var lastWriteResult: ShellManager.CommandResult? = null
+        val transaction = RangeWriteTransaction.execute(
+            plan = plan,
+            write = { step ->
+                val file = if (step.isMin) "min_freq" else "max_freq"
+                lastWriteResult = SysfsTuningExecutor.write("$path/$file", step.value.toString())
+                if (lastWriteResult!!.isSuccess) writeLog += "$file=OK(${lastWriteResult!!.backend})"
+                lastWriteResult!!.isSuccess
+            },
+            readImmediate = { readRange(path) },
+            readFinal = {
+                Thread.sleep(150L)
+                readRange(path)
+            }
+        )
+        if (transaction is RangeTransactionResult.Failed) {
+            val step = transaction.failedStep
+            val file = step?.let { if (it.isMin) "min_freq" else "max_freq" } ?: "read-back"
+            val writeResult = lastWriteResult
+            val stderr = writeResult?.stderr?.takeIf { it.isNotBlank() }
+                ?: transaction.readback?.let { "readback=min=${it.min},max=${it.max}" }
+            return if (writeResult != null && !writeResult.isSuccess) {
+                failed(file, writeResult)
+            } else {
+                ApplyResult.Failed("GPU frequency $file failed: ${transaction.reason}", stderr)
+            }
         }
-        val first = readRange(path)
-        Thread.sleep(150L)
-        val after = readRange(path)
-        if (after.first <= 0L || after.second <= 0L || after.first > after.second) {
-            return ApplyResult.Failed("GPU driver returned an invalid frequency range", "after=$after")
-        }
+        val verified = transaction as RangeTransactionResult.Verified
+        val first = verified.immediate
+        val after = verified.final
         val requested = "min=${plan.min},max=${plan.max}"
         val outcome = when {
-            after.first != plan.min || after.second != plan.max -> ApplyResult.Adjusted(
-                requested, "min=${after.first},max=${after.second}", "GPU driver clamped or overrode the requested range."
+            after.min != plan.min || after.max != plan.max -> ApplyResult.Adjusted(
+                requested, "min=${after.min},max=${after.max}", "GPU driver clamped or overrode the requested range."
             )
             plan.adjusted -> ApplyResult.Adjusted(requested, requested, plan.adjustmentReason ?: "Range adjusted")
             else -> ApplyResult.Applied(requested, requested)
         }
-        Log.i(TAG, "domain=GPU path=$path vendor=${classifyGpuPath(path)} request=$requested before=$before plan=${plan.steps.joinToString { if (it.isMin) "min=${it.value}" else "max=${it.value}" }} writes=${writeLog.joinToString()} after=$after result=${outcome::class.simpleName}")
+        Log.i(TAG, "domain=GPU path=$path vendor=${classifyGpuPath(path)} request=$requested before=$before plan=${plan.steps.joinToString { if (it.isMin) "min=${it.value}" else "max=${it.value}" }} writes=${writeLog.joinToString()} afterFirst=$first after=$after result=${outcome::class.simpleName}")
         return outcome
     }
 
@@ -202,8 +237,12 @@ object GpuProvider {
         val result = SysfsTuningExecutor.write("$path/target_freq", freq.toString())
         if (!result.isSuccess) return failed("target_freq", result)
         val actual = SysfsTuningExecutor.read("$path/target_freq").toLongOrNull() ?: 0L
-        val outcome = if (actual == freq) ApplyResult.Applied(freq.toString(), actual.toString())
-        else ApplyResult.Adjusted(freq.toString(), actual.toString(), "GPU driver selected a different target frequency.")
+        if (actual <= 0L) return ApplyResult.Failed("GPU target frequency read-back unavailable")
+        val outcome = ScalarReadbackVerifier.verify(
+            requested = freq.toString(),
+            actual = actual.toString(),
+            adjustedReason = "GPU driver selected a different target frequency."
+        )
         Log.i(TAG, "domain=GPU path=$path vendor=${classifyGpuPath(path)} request=target:$freq backend=${result.backend} after=$actual result=${outcome::class.simpleName}")
         return outcome
     }
@@ -223,7 +262,7 @@ object GpuProvider {
 
     private fun getPath(): Pair<String, String> {
         cachedPath?.let { path ->
-            if (File(path).exists() || SysfsTuningExecutor.read("$path/governor").isNotBlank()) return path to "Using cached path"
+            if (hasTuningNode(path)) return path to "Using cached path"
             cachedPath = null
         }
         val result = if (ShellManager.hasRoot() || ShellManager.hasShizuku()) {
@@ -273,8 +312,17 @@ object GpuProvider {
         is FrequencyCapability.Unavailable -> false
     }
 
-    private fun readRange(path: String): Pair<Long, Long> =
-        (SysfsTuningExecutor.readLong("$path/min_freq") ?: 0L) to (SysfsTuningExecutor.readLong("$path/max_freq") ?: 0L)
+    private fun readRange(path: String): RangeReadback = RangeReadback(
+        min = SysfsTuningExecutor.readLong("$path/min_freq") ?: 0L,
+        max = SysfsTuningExecutor.readLong("$path/max_freq") ?: 0L
+    )
+
+    private fun hasTuningNode(path: String): Boolean {
+        if (!SysfsTuningExecutor.isSafeSysfsPath(path)) return false
+        return File(path).exists() && listOf(
+            "governor", "cur_freq", "cur_frequency", "available_frequencies"
+        ).any { SysfsTuningExecutor.exists("$path/$it") }
+    }
 
     private fun failed(path: String, result: ShellManager.CommandResult): ApplyResult {
         Log.e(TAG, "domain=GPU path=$path backend=${result.backend} exit=${result.exitCode} stderr=${result.stderr}")

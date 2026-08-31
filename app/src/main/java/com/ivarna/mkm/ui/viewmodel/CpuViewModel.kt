@@ -90,14 +90,22 @@ class CpuViewModel(application: Application) : AndroidViewModel(application) {
             val result = tuningMutex.withLock {
                 _pendingControlId.value = controlId
                 try {
-                    val applied = withContext(Dispatchers.IO) { operation() }
-                    publishState()
-                    applied
+                    withContext(Dispatchers.IO) { operation() }
                 } catch (error: CancellationException) {
                     throw error
                 } catch (error: Exception) {
                     ApplyResult.Failed(error.message ?: "CPU tuning operation failed")
                 } finally {
+                    // A failed ordered transaction may have changed its first
+                    // bound before the second write failed. Publish the
+                    // verified kernel state for both success and failure.
+                    try {
+                        publishState()
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        android.util.Log.e("CpuViewModel", "Failed to refresh after CPU tuning", error)
+                    }
                     _pendingControlId.value = null
                 }
             }

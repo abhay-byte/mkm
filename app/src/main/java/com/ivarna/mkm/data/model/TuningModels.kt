@@ -56,6 +56,58 @@ data class RangeWritePlan(
 
 data class RangeWriteStep(val isMin: Boolean, val value: Long)
 
+data class RangeReadback(val min: Long, val max: Long) {
+    val isValid: Boolean get() = min > 0L && max > 0L && min <= max
+}
+
+sealed interface RangeTransactionResult {
+    data class Verified(val immediate: RangeReadback, val final: RangeReadback) : RangeTransactionResult
+    data class Failed(
+        val reason: String,
+        val failedStep: RangeWriteStep? = null,
+        val readback: RangeReadback? = null
+    ) : RangeTransactionResult
+}
+
+/** Executes an ordered range plan and requires both read-back checkpoints. */
+object RangeWriteTransaction {
+    fun execute(
+        plan: RangeWritePlan,
+        write: (RangeWriteStep) -> Boolean,
+        readImmediate: () -> RangeReadback,
+        readFinal: () -> RangeReadback
+    ): RangeTransactionResult {
+        for (step in plan.steps) {
+            if (!write(step)) {
+                return RangeTransactionResult.Failed("Range write failed", failedStep = step)
+            }
+        }
+
+        val immediate = runCatching { readImmediate() }.getOrElse {
+            return RangeTransactionResult.Failed("Immediate range read-back failed")
+        }
+        if (!immediate.isValid) {
+            return RangeTransactionResult.Failed("Immediate range read-back is invalid", readback = immediate)
+        }
+
+        val final = runCatching { readFinal() }.getOrElse {
+            return RangeTransactionResult.Failed("Final range read-back failed", readback = immediate)
+        }
+        if (!final.isValid) {
+            return RangeTransactionResult.Failed("Final range read-back is invalid", readback = final)
+        }
+        return RangeTransactionResult.Verified(immediate, final)
+    }
+}
+
+object ScalarReadbackVerifier {
+    fun verify(requested: String, actual: String, adjustedReason: String): ApplyResult = when {
+        actual.isBlank() -> ApplyResult.Failed("Read-back unavailable for requested value")
+        actual == requested -> ApplyResult.Applied(requested, actual)
+        else -> ApplyResult.Adjusted(requested, actual, adjustedReason)
+    }
+}
+
 object FrequencyRangePlanner {
     fun forMax(currentMin: Long, currentMax: Long, requestedMax: Long): RangeWritePlan {
         val finalMin = minOf(currentMin, requestedMax)

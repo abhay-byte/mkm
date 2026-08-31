@@ -9,6 +9,10 @@ import com.ivarna.mkm.data.model.ApplyResult
 import com.ivarna.mkm.data.model.FrequencyCapability
 import com.ivarna.mkm.data.model.FrequencyCapabilityParser
 import com.ivarna.mkm.data.model.FrequencyRangePlanner
+import com.ivarna.mkm.data.model.RangeReadback
+import com.ivarna.mkm.data.model.RangeTransactionResult
+import com.ivarna.mkm.data.model.RangeWriteTransaction
+import com.ivarna.mkm.data.model.ScalarReadbackVerifier
 import com.ivarna.mkm.utils.ShellUtils
 import com.ivarna.mkm.shell.SysfsTuningExecutor
 import java.io.File
@@ -46,8 +50,15 @@ object CpuProvider {
             val maxFreq = readSystemFile("${policy.absolutePath}/scaling_max_freq").toLongOrNull() ?: 0L
             
             // Get hardware min/max for accurate usage calculation
-            val hwMinFreq = readSystemFile("${policy.absolutePath}/cpuinfo_min_freq").toLongOrNull() ?: minFreq
-            val hwMaxFreq = readSystemFile("${policy.absolutePath}/cpuinfo_max_freq").toLongOrNull() ?: maxFreq
+            val hwMinFreq = readSystemFile("${policy.absolutePath}/cpuinfo_min_freq").toLongOrNull()
+                ?.takeIf { it > 0L }
+            val hwMaxFreq = readSystemFile("${policy.absolutePath}/cpuinfo_max_freq").toLongOrNull()
+                ?.takeIf { it > 0L }
+            // The active scaling bounds are useful telemetry, but are not
+            // hardware limits. Only expose a Range capability when the kernel
+            // actually reports both cpuinfo endpoints.
+            val telemetryMinFreq = hwMinFreq ?: minFreq
+            val telemetryMaxFreq = hwMaxFreq ?: maxFreq
             
             val rawMinFreq = readSystemFile("${policy.absolutePath}/scaling_min_freq")
             val rawMaxFreq = readSystemFile("${policy.absolutePath}/scaling_max_freq")
@@ -61,8 +72,8 @@ object CpuProvider {
                 .lines().mapNotNull { it.trim().split(Regex("\\s+")).firstOrNull() }
             val frequencyCapability = FrequencyCapabilityParser.fromDiscreteSources(
                 sources = listOf(availableFrequenciesRaw, timeInState),
-                rangeMin = hwMinFreq.takeIf { it > 0L },
-                rangeMax = hwMaxFreq.takeIf { it > 0L },
+                rangeMin = hwMinFreq,
+                rangeMax = hwMaxFreq,
                 knownPoints = listOf(curFreq, minFreq, maxFreq)
             )
             val availableFrequencies = FrequencyCapabilityParser.valuesForUi(frequencyCapability)
@@ -78,10 +89,10 @@ object CpuProvider {
                 // If not available, fallback to frequency-based calculation (already handled by the provider)
                 val usage = perCoreUsage[coreId] ?: run {
                     // Additional fallback if core not in map: calculate from frequency
-                    if (hwMaxFreq > hwMinFreq && coreCurFreq >= hwMinFreq) {
-                        ((coreCurFreq - hwMinFreq).toFloat() / (hwMaxFreq - hwMinFreq)).coerceIn(0f, 1f)
-                    } else if (coreCurFreq > 0 && hwMaxFreq > 0) {
-                        (coreCurFreq.toFloat() / hwMaxFreq).coerceIn(0f, 1f)
+                    if (telemetryMaxFreq > telemetryMinFreq && coreCurFreq >= telemetryMinFreq) {
+                        ((coreCurFreq - telemetryMinFreq).toFloat() / (telemetryMaxFreq - telemetryMinFreq)).coerceIn(0f, 1f)
+                    } else if (coreCurFreq > 0 && telemetryMaxFreq > 0) {
+                        (coreCurFreq.toFloat() / telemetryMaxFreq).coerceIn(0f, 1f)
                     } else {
                         0f
                     }
@@ -120,8 +131,8 @@ object CpuProvider {
                 maxFreq = ShellUtils.formatFreq(maxFreq),
                 rawMinFreq = rawMinFreq,
                 rawMaxFreq = rawMaxFreq,
-                hwMinFreq = hwMinFreq.toString(),
-                hwMaxFreq = hwMaxFreq.toString(),
+                hwMinFreq = hwMinFreq?.toString() ?: "",
+                hwMaxFreq = hwMaxFreq?.toString() ?: "",
                 availableGovernors = availableGovernors,
                 availableFrequencies = availableFrequencies,
                 frequencyCapability = frequencyCapability,
@@ -137,8 +148,8 @@ object CpuProvider {
                     supportedGovernors = availableGovernors,
                     minFreq = minFreq,
                     maxFreq = maxFreq,
-                    hwMinFreq = hwMinFreq.takeIf { it > 0L },
-                    hwMaxFreq = hwMaxFreq.takeIf { it > 0L },
+                    hwMinFreq = hwMinFreq,
+                    hwMaxFreq = hwMaxFreq,
                     frequencyCapability = frequencyCapability
                 ),
                 cores = cores
@@ -238,8 +249,11 @@ object CpuProvider {
         val result = SysfsTuningExecutor.write("$path/scaling_governor", governor)
         if (!result.isSuccess) return failed("CPU", "policy$policyId", "governor", result)
         val after = readSystemFile("$path/scaling_governor")
-        val outcome = if (after == governor) ApplyResult.Applied(governor, after)
-        else ApplyResult.Adjusted(governor, after, "Kernel selected a different governor.")
+        val outcome = ScalarReadbackVerifier.verify(
+            requested = governor,
+            actual = after,
+            adjustedReason = "Kernel selected a different governor."
+        )
         android.util.Log.i("CpuProvider", "domain=CPU policy=policy$policyId request=governor:$governor before=$before backend=${result.backend} after=$after result=${outcome::class.simpleName}")
         return outcome
     }
@@ -267,22 +281,40 @@ object CpuProvider {
         }
         val before = "min=$currentMin,max=$currentMax"
         val writeLog = mutableListOf<String>()
-        for (step in plan.steps) {
-            val file = if (step.isMin) "scaling_min_freq" else "scaling_max_freq"
-            val result = SysfsTuningExecutor.write("$path/$file", step.value.toString())
-            if (!result.isSuccess) return failed("CPU", "policy$policyId", file, result)
-            writeLog += "$file=OK(${result.backend})"
+        var lastWriteResult: com.ivarna.mkm.shell.ShellManager.CommandResult? = null
+        val transaction = RangeWriteTransaction.execute(
+            plan = plan,
+            write = { step ->
+                val file = if (step.isMin) "scaling_min_freq" else "scaling_max_freq"
+                lastWriteResult = SysfsTuningExecutor.write("$path/$file", step.value.toString())
+                if (lastWriteResult!!.isSuccess) writeLog += "$file=OK(${lastWriteResult!!.backend})"
+                lastWriteResult!!.isSuccess
+            },
+            readImmediate = { readRange(path) },
+            readFinal = {
+                Thread.sleep(150L)
+                readRange(path)
+            }
+        )
+        if (transaction is RangeTransactionResult.Failed) {
+            val step = transaction.failedStep
+            val file = step?.let { if (it.isMin) "scaling_min_freq" else "scaling_max_freq" } ?: "read-back"
+            val writeResult = lastWriteResult
+            val stderr = writeResult?.stderr?.takeIf { it.isNotBlank() }
+                ?: transaction.readback?.let { "readback=min=${it.min},max=${it.max}" }
+            return if (writeResult != null && !writeResult.isSuccess) {
+                failed("CPU", "policy$policyId", file, writeResult)
+            } else {
+                ApplyResult.Failed("CPU policy range $file failed: ${transaction.reason}", stderr)
+            }
         }
-        val afterFirst = readRange(path)
-        Thread.sleep(150L)
-        val after = readRange(path)
-        if (after.first <= 0L || after.second <= 0L || after.first > after.second) {
-            return ApplyResult.Failed("Kernel returned an invalid CPU range", "after=$after")
-        }
+        val verified = transaction as RangeTransactionResult.Verified
+        val afterFirst = verified.immediate
+        val after = verified.final
         val requestedText = "min=${plan.min},max=${plan.max}"
         val outcome = when {
-            after.first != plan.min || after.second != plan.max -> ApplyResult.Adjusted(
-                requestedText, "min=${after.first},max=${after.second}", "Kernel clamped or overrode the requested range."
+            after.min != plan.min || after.max != plan.max -> ApplyResult.Adjusted(
+                requestedText, "min=${after.min},max=${after.max}", "Kernel clamped or overrode the requested range."
             )
             plan.adjusted -> ApplyResult.Adjusted(requestedText, requestedText, plan.adjustmentReason ?: "Range adjusted")
             else -> ApplyResult.Applied(requestedText, requestedText)
@@ -321,16 +353,19 @@ object CpuProvider {
         return if (SysfsTuningExecutor.read("$path/scaling_min_freq").isNotBlank() || SysfsTuningExecutor.exists(path)) path else null
     }
 
-    private fun policyCapability(path: String, currentMin: Long, currentMax: Long): FrequencyCapability =
-        FrequencyCapabilityParser.fromDiscreteSources(
+    private fun policyCapability(path: String, currentMin: Long, currentMax: Long): FrequencyCapability {
+        val hardwareMin = readSystemFile("$path/cpuinfo_min_freq").toLongOrNull()?.takeIf { it > 0L }
+        val hardwareMax = readSystemFile("$path/cpuinfo_max_freq").toLongOrNull()?.takeIf { it > 0L }
+        return FrequencyCapabilityParser.fromDiscreteSources(
             sources = listOf(
                 readSystemFile("$path/scaling_available_frequencies").split(Regex("\\s+")),
                 readSystemFile("$path/stats/time_in_state").lines().mapNotNull { it.trim().split(Regex("\\s+")).firstOrNull() }
             ),
-            rangeMin = readSystemFile("$path/cpuinfo_min_freq").toLongOrNull() ?: currentMin,
-            rangeMax = readSystemFile("$path/cpuinfo_max_freq").toLongOrNull() ?: currentMax,
+            rangeMin = hardwareMin,
+            rangeMax = hardwareMax,
             knownPoints = listOf(currentMin, currentMax)
         )
+    }
 
     private fun isSupportedFrequency(value: Long, capability: FrequencyCapability): Boolean = when (capability) {
         is FrequencyCapability.Discrete -> value in capability.values
@@ -338,9 +373,10 @@ object CpuProvider {
         is FrequencyCapability.Unavailable -> false
     }
 
-    private fun readRange(path: String): Pair<Long, Long> =
-        (readSystemFile("$path/scaling_min_freq").toLongOrNull() ?: 0L) to
-            (readSystemFile("$path/scaling_max_freq").toLongOrNull() ?: 0L)
+    private fun readRange(path: String): RangeReadback = RangeReadback(
+        min = readSystemFile("$path/scaling_min_freq").toLongOrNull() ?: 0L,
+        max = readSystemFile("$path/scaling_max_freq").toLongOrNull() ?: 0L
+    )
 
     private fun failed(domain: String, target: String, path: String, result: com.ivarna.mkm.shell.ShellManager.CommandResult): ApplyResult {
         android.util.Log.e("CpuProvider", "domain=$domain target=$target path=$path backend=${result.backend} exit=${result.exitCode} stderr=${result.stderr}")
