@@ -7,6 +7,7 @@ import android.os.Build
 import com.ivarna.mkm.service.BatteryMonitorService
 import com.ivarna.mkm.service.BootApplyService
 import com.ivarna.mkm.service.BootSettingsManager
+import com.ivarna.mkm.service.GameBoostSnapshotStore
 
 /**
  * Restarts the battery monitor foreground service after device boot
@@ -17,6 +18,13 @@ class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
+
+        // Game Boost is deliberately never auto-enabled. Remove a previous-boot
+        // ownership snapshot so a reboot cannot replay stale tuning.
+        val gameBoostStore = GameBoostSnapshotStore(context)
+        gameBoostStore.load()?.let { snapshot ->
+            if (!gameBoostStore.isSameBoot(snapshot)) gameBoostStore.clear()
+        }
 
         // --- Battery monitor (existing behaviour) ---
         val batteryPrefs = context.getSharedPreferences(

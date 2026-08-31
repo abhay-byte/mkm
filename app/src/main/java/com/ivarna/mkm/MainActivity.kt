@@ -68,6 +68,7 @@ import com.ivarna.mkm.ui.screens.DischargingNotificationSettingsScreen
 import com.ivarna.mkm.ui.screens.MonitoringNotificationSettingsScreen
 import com.ivarna.mkm.ui.screens.CpuScreen
 import com.ivarna.mkm.ui.screens.GpuScreen
+import com.ivarna.mkm.ui.screens.GameBoostScreen
 import com.ivarna.mkm.ui.screens.HomeScreen
 import com.ivarna.mkm.ui.screens.PowerScreen
 import com.ivarna.mkm.ui.screens.RamScreen
@@ -255,6 +256,7 @@ fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewMode
             composable(Screen.RAM.route) { RamScreen(onOpenDrawer = openDrawer) }
             composable(Screen.CPU.route) { CpuScreen(onOpenDrawer = openDrawer) }
             composable(Screen.GPU.route) { GpuScreen(onOpenDrawer = openDrawer) }
+            composable(Screen.GameBoost.route) { GameBoostScreen(onOpenDrawer = openDrawer) }
             composable(Screen.Storage.route) { StorageScreen(onOpenDrawer = openDrawer) }
             composable(Screen.Power.route) { PowerScreen(onOpenDrawer = openDrawer) }
             composable(Screen.Battery.route) {

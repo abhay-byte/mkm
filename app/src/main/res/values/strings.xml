@@ -506,4 +506,23 @@
     <string name="current_fps">Current</string>
     <string name="clear_recording">Clear</string>
     <string name="fps_recording_disabled_overlay_off">Start Overlay first to record FPS</string>
+    <string name="game_boost">Game Boost</string>
+    <string name="game_boost_toggle">Game Boost</string>
+    <string name="game_boost_desc">A single global performance session that safely coordinates CPU and GPU governor and maximum-clock controls. It does not launch or detect games.</string>
+    <string name="game_boost_disclosure_title">Before enabling Game Boost</string>
+    <string name="game_boost_disclosure">Game Boost can increase heat and battery use. Android and kernel thermal protection remain enabled. MKM may release maximum-clock locks during severe thermal stress. No FPS increase is promised.</string>
+    <string name="continue_text">Continue</string>
+    <string name="game_boost_status">Status</string>
+    <string name="game_boost_cpu_governor">CPU governor</string>
+    <string name="game_boost_cpu_max">CPU maximum lock</string>
+    <string name="game_boost_gpu_governor">GPU governor</string>
+    <string name="game_boost_gpu_max">GPU maximum lock</string>
+    <string name="game_boost_applied">Applied</string>
+    <string name="game_boost_not_applied">Not applied</string>
+    <string name="game_boost_unsupported">Unsupported</string>
+    <string name="game_boost_enabling">Applying: %s</string>
+    <string name="game_boost_thermal_limited">Severe thermal status: maximum-clock locks were released and will not be relocked automatically.</string>
+    <string name="game_boost_recovery_required">Recovery required. Restore the saved tuning state before disabling.</string>
+    <string name="game_boost_retry_recovery">Retry recovery</string>
+    <string name="game_boost_managed_reason">Managed by Game Boost. Disable Game Boost to edit.</string>
 </resources>

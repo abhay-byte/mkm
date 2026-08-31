@@ -31,7 +31,8 @@ fun ThermalCard(
     status: ThermalStatus,
     isLoading: Boolean = false,
     onSetLimit: (Int) -> Unit,
-    onDisableThrottling: () -> Unit
+    onDisableThrottling: () -> Unit,
+    controlsEnabled: Boolean = true
 ) {
     var expanded by remember { mutableStateOf(false) }
     var showWarningDialog by remember { mutableStateOf(false) }
@@ -140,6 +141,7 @@ fun ThermalCard(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
                             onClick = { showLimitDialog = true },
+                            enabled = controlsEnabled,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -153,6 +155,7 @@ fun ThermalCard(
 
                         Button(
                             onClick = { showWarningDialog = true },
+                            enabled = controlsEnabled,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.errorContainer,
                                 contentColor = MaterialTheme.colorScheme.onErrorContainer

@@ -11,6 +11,7 @@ import com.ivarna.mkm.data.provider.CpuProvider
 import com.ivarna.mkm.data.provider.ThermalProvider
 import com.ivarna.mkm.data.provider.ThermalStatus
 import com.ivarna.mkm.service.BootSettingsManager
+import com.ivarna.mkm.service.GameBoostRegistry
 import com.ivarna.mkm.util.AppVisibilityMonitor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -55,9 +56,15 @@ class CpuViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setGovernor(policyId: Int, governor: String, onResult: (ApplyResult) -> Unit = {}) =
-        mutate("cpu-policy-$policyId-governor", { CpuProvider.applyGovernor(policyId, governor) }, onResult)
+        if (GameBoostRegistry.ownsTuning()) {
+            onResult(ApplyResult.Failed("Managed by Game Boost. Disable Game Boost to edit."))
+        } else mutate("cpu-policy-$policyId-governor", { CpuProvider.applyGovernor(policyId, governor) }, onResult)
 
     fun setFrequency(policyId: Int, freqKhz: String, isMax: Boolean, onResult: (ApplyResult) -> Unit = {}) {
+        if (GameBoostRegistry.ownsTuning()) {
+            onResult(ApplyResult.Failed("Managed by Game Boost. Disable Game Boost to edit."))
+            return
+        }
         val value = freqKhz.toLongOrNull()
         mutate("cpu-policy-$policyId-${if (isMax) "max" else "min"}", {
             if (value == null) ApplyResult.Failed("Invalid CPU frequency")
@@ -115,6 +122,7 @@ class CpuViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setThermalLimit(limit: Int) {
+        if (GameBoostRegistry.ownsTuning()) return
         viewModelScope.launch {
             tuningCoordinator.withObservation {
                 withContext(Dispatchers.IO) { if (ThermalProvider.setThermalLimit(limit)) cachedLimit = limit }
@@ -124,6 +132,7 @@ class CpuViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun disableThrottling() {
+        if (GameBoostRegistry.ownsTuning()) return
         viewModelScope.launch {
             tuningCoordinator.withObservation {
                 withContext(Dispatchers.IO) { ThermalProvider.disableThrottling() }
@@ -133,6 +142,7 @@ class CpuViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleBootEnabled(enabled: Boolean) {
+        if (GameBoostRegistry.ownsTuning()) return
         BootSettingsManager.setCpuEnabled(getApplication(), enabled)
         _bootEnabled.value = enabled
         if (enabled) saveCurrentCpuSettings()

@@ -32,6 +32,7 @@ import com.ivarna.mkm.ui.components.ThermalCard
 import com.ivarna.mkm.ui.viewmodel.CpuViewModel
 import com.ivarna.mkm.utils.ShellUtils
 import com.ivarna.mkm.ui.components.BootToggleCard
+import com.ivarna.mkm.service.GameBoostRegistry
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +40,8 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
     val cpuStatus by viewModel.cpuStatus.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val bootEnabled by viewModel.bootEnabled.collectAsState()
+    val gameBoostOwned by GameBoostRegistry.state.collectAsState()
+    val tuningOwned = gameBoostOwned !is com.ivarna.mkm.data.model.GameBoostState.Off
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     var selectedPolicyForGovernor by remember { mutableStateOf<Int?>(null) }
@@ -115,7 +118,8 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                         status = thermalStatus,
                         isLoading = isRefreshing && thermalStatus.zones.isEmpty(), // Only show specific loading if empty
                         onSetLimit = { limit -> viewModel.setThermalLimit(limit) },
-                        onDisableThrottling = { viewModel.disableThrottling() }
+                        onDisableThrottling = { viewModel.disableThrottling() },
+                        controlsEnabled = !tuningOwned
                     )
                 }
             }
@@ -125,7 +129,9 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                 Spacer(modifier = Modifier.height(16.dp))
                 BootToggleCard(
                     enabled = bootEnabled,
-                    onToggle = { viewModel.toggleBootEnabled(it) }
+                    onToggle = { viewModel.toggleBootEnabled(it) },
+                    interactive = !tuningOwned,
+                    subtitle = if (tuningOwned) stringResource(com.ivarna.mkm.R.string.game_boost_managed_reason) else stringResource(com.ivarna.mkm.R.string.apply_on_boot_desc)
                 )
             }
 
@@ -136,6 +142,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
             items(cpuStatus.clusters) { cluster ->
                 CpuClusterCard(
                     cluster = cluster,
+                    controlsEnabled = !tuningOwned,
                     onGovernorClick = { selectedPolicyForGovernor = cluster.id },
                     onMaxFreqClick = { selectedPolicyForMaxFreq = cluster.id },
                     onMinFreqClick = { selectedPolicyForMinFreq = cluster.id }
@@ -237,6 +244,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
 @Composable
 fun CpuClusterCard(
     cluster: CpuCluster,
+    controlsEnabled: Boolean = true,
     onGovernorClick: () -> Unit,
     onMaxFreqClick: () -> Unit,
     onMinFreqClick: () -> Unit
@@ -284,22 +292,22 @@ fun CpuClusterCard(
                     label = stringResource(com.ivarna.mkm.R.string.governor),
                     value = cluster.governor,
                     onClick = onGovernorClick,
-                    enabled = cluster.governorWritable && cluster.availableGovernors.isNotEmpty(),
-                    disabledReason = cluster.governorReason
+                    enabled = controlsEnabled && cluster.governorWritable && cluster.availableGovernors.isNotEmpty(),
+                    disabledReason = if (!controlsEnabled) "Managed by Game Boost. Disable Game Boost to edit." else cluster.governorReason
                 )
                 SettingRow(
                     label = stringResource(com.ivarna.mkm.R.string.max_frequency),
                     value = cluster.maxFreq,
                     onClick = onMaxFreqClick,
-                    enabled = cluster.maxWritable && cluster.availableFrequencies.isNotEmpty(),
-                    disabledReason = cluster.maxReason
+                    enabled = controlsEnabled && cluster.maxWritable && cluster.availableFrequencies.isNotEmpty(),
+                    disabledReason = if (!controlsEnabled) "Managed by Game Boost. Disable Game Boost to edit." else cluster.maxReason
                 )
                 SettingRow(
                     label = stringResource(com.ivarna.mkm.R.string.min_frequency),
                     value = cluster.minFreq,
                     onClick = onMinFreqClick,
-                    enabled = cluster.minWritable && cluster.availableFrequencies.isNotEmpty(),
-                    disabledReason = cluster.minReason
+                    enabled = controlsEnabled && cluster.minWritable && cluster.availableFrequencies.isNotEmpty(),
+                    disabledReason = if (!controlsEnabled) "Managed by Game Boost. Disable Game Boost to edit." else cluster.minReason
                 )
                 InfoRow(
                     label = stringResource(com.ivarna.mkm.R.string.current_clock_speed),

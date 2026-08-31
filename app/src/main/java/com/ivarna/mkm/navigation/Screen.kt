@@ -26,6 +26,7 @@ sealed class Screen(val route: String, val labelResId: Int, val selectedIcon: Im
     object RAM : Screen("ram", com.ivarna.mkm.R.string.ram, Icons.Filled.Memory, Icons.Outlined.Memory)
     object CPU : Screen("cpu", com.ivarna.mkm.R.string.cpu, Icons.Filled.DeveloperBoard, Icons.Outlined.DeveloperBoard)
     object GPU : Screen("gpu", com.ivarna.mkm.R.string.gpu, Icons.Filled.VideogameAsset, Icons.Outlined.VideogameAsset)
+    object GameBoost : Screen("game_boost", com.ivarna.mkm.R.string.game_boost, Icons.Filled.VideogameAsset, Icons.Outlined.VideogameAsset)
     object Storage : Screen("storage", com.ivarna.mkm.R.string.storage, Icons.Filled.SdStorage, Icons.Outlined.SdStorage)
     object Power : Screen("power", com.ivarna.mkm.R.string.power, Icons.Filled.Bolt, Icons.Outlined.Bolt)
     object Battery : Screen("battery", com.ivarna.mkm.R.string.battery, Icons.Filled.BatteryFull, Icons.Outlined.BatteryFull)
@@ -43,6 +44,7 @@ val navItems = listOf(
     Screen.RAM,
     Screen.CPU,
     Screen.GPU,
+    Screen.GameBoost,
     Screen.Storage,
     Screen.Power,
     Screen.Battery,

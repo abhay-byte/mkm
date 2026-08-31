@@ -329,6 +329,7 @@ fun BootToggleCard(
     subtitle: String = stringResource(com.ivarna.mkm.R.string.apply_on_boot_desc),
     enabled: Boolean,
     onToggle: (Boolean) -> Unit,
+    interactive: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     ElevatedCard(
@@ -371,7 +372,8 @@ fun BootToggleCard(
             }
             Switch(
                 checked = enabled,
-                onCheckedChange = onToggle
+                onCheckedChange = onToggle,
+                enabled = interactive
             )
         }
     }

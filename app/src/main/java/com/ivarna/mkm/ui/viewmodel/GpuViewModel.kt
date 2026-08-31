@@ -9,6 +9,7 @@ import com.ivarna.mkm.data.model.TuningMutationCoordinator
 import com.ivarna.mkm.data.model.TuningPersistencePolicy
 import com.ivarna.mkm.data.provider.GpuProvider
 import com.ivarna.mkm.service.BootSettingsManager
+import com.ivarna.mkm.service.GameBoostRegistry
 import com.ivarna.mkm.util.AppVisibilityMonitor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
@@ -45,9 +46,15 @@ class GpuViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setGovernor(governor: String, onResult: (ApplyResult) -> Unit = {}) =
-        mutate("gpu-governor", { GpuProvider.applyGovernor(governor) }, onResult)
+        if (GameBoostRegistry.ownsTuning()) {
+            onResult(ApplyResult.Failed("Managed by Game Boost. Disable Game Boost to edit."))
+        } else mutate("gpu-governor", { GpuProvider.applyGovernor(governor) }, onResult)
 
     fun setFrequency(freq: String, type: Int, onResult: (ApplyResult) -> Unit = {}) {
+        if (GameBoostRegistry.ownsTuning()) {
+            onResult(ApplyResult.Failed("Managed by Game Boost. Disable Game Boost to edit."))
+            return
+        }
         val value = freq.toLongOrNull()
         mutate("gpu-${when (type) { 0 -> "min"; 1 -> "max"; else -> "target" }}", {
             if (value == null) ApplyResult.Failed("Invalid GPU frequency")
@@ -90,6 +97,7 @@ class GpuViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleBootEnabled(enabled: Boolean) {
+        if (GameBoostRegistry.ownsTuning()) return
         BootSettingsManager.setGpuEnabled(getApplication(), enabled)
         _bootEnabled.value = enabled
         _gpuStatus.value = _gpuStatus.value.copy(setOnBoot = enabled)

@@ -26,6 +26,7 @@ import com.ivarna.mkm.ui.components.*
 import com.ivarna.mkm.ui.viewmodel.GpuViewModel
 import com.ivarna.mkm.utils.ShellUtils
 import com.ivarna.mkm.ui.components.BootToggleCard
+import com.ivarna.mkm.service.GameBoostRegistry
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,6 +34,8 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
     val gpuStatus by viewModel.gpuStatus.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val bootEnabled by viewModel.bootEnabled.collectAsState()
+    val gameBoostState by GameBoostRegistry.state.collectAsState()
+    val tuningOwned = gameBoostState !is com.ivarna.mkm.data.model.GameBoostState.Off
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     var showGovernorSheet by remember { mutableStateOf(false) }
@@ -98,7 +101,9 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
             Spacer(modifier = Modifier.height(16.dp))
             BootToggleCard(
                 enabled = bootEnabled,
-                onToggle = { viewModel.toggleBootEnabled(it) }
+                onToggle = { viewModel.toggleBootEnabled(it) },
+                interactive = !tuningOwned,
+                subtitle = if (tuningOwned) stringResource(com.ivarna.mkm.R.string.game_boost_managed_reason) else stringResource(com.ivarna.mkm.R.string.apply_on_boot_desc)
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -162,32 +167,32 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                         label = stringResource(com.ivarna.mkm.R.string.gpu_governor),
                         value = gpuStatus.governor,
                         onClick = { showGovernorSheet = true },
-                        enabled = gpuStatus.governorWritable && gpuStatus.availableGovernors.isNotEmpty(),
-                        disabledReason = gpuStatus.governorReason
+                        enabled = !tuningOwned && gpuStatus.governorWritable && gpuStatus.availableGovernors.isNotEmpty(),
+                        disabledReason = if (tuningOwned) "Managed by Game Boost. Disable Game Boost to edit." else gpuStatus.governorReason
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingRow(
                         label = stringResource(com.ivarna.mkm.R.string.maximum_frequency),
                         value = gpuStatus.maxFreq,
                         onClick = { showMaxFreqSheet = true },
-                        enabled = gpuStatus.maxWritable && gpuStatus.availableFrequencies.isNotEmpty(),
-                        disabledReason = gpuStatus.maxReason
+                        enabled = !tuningOwned && gpuStatus.maxWritable && gpuStatus.availableFrequencies.isNotEmpty(),
+                        disabledReason = if (tuningOwned) "Managed by Game Boost. Disable Game Boost to edit." else gpuStatus.maxReason
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingRow(
                         label = stringResource(com.ivarna.mkm.R.string.minimum_frequency),
                         value = gpuStatus.minFreq,
                         onClick = { showMinFreqSheet = true },
-                        enabled = gpuStatus.minWritable && gpuStatus.availableFrequencies.isNotEmpty(),
-                        disabledReason = gpuStatus.minReason
+                        enabled = !tuningOwned && gpuStatus.minWritable && gpuStatus.availableFrequencies.isNotEmpty(),
+                        disabledReason = if (tuningOwned) "Managed by Game Boost. Disable Game Boost to edit." else gpuStatus.minReason
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingRow(
                         label = stringResource(com.ivarna.mkm.R.string.target_frequency),
                         value = gpuStatus.targetFreq,
                         onClick = { showTargetFreqSheet = true },
-                        enabled = gpuStatus.targetWritable && gpuStatus.availableFrequencies.isNotEmpty(),
-                        disabledReason = gpuStatus.targetReason
+                        enabled = !tuningOwned && gpuStatus.targetWritable && gpuStatus.availableFrequencies.isNotEmpty(),
+                        disabledReason = if (tuningOwned) "Managed by Game Boost. Disable Game Boost to edit." else gpuStatus.targetReason
                     )
                 }
             }

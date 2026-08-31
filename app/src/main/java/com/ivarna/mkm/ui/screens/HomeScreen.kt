@@ -290,6 +290,7 @@ fun QuickAccessCard(
         QuickAccessItem(stringResource(com.ivarna.mkm.R.string.ram), "ram", Icons.Default.Dns),
         QuickAccessItem(stringResource(com.ivarna.mkm.R.string.cpu), "cpu", Icons.Default.DeveloperBoard),
         QuickAccessItem(stringResource(com.ivarna.mkm.R.string.gpu), "gpu", Icons.Default.VideogameAsset),
+        QuickAccessItem(stringResource(com.ivarna.mkm.R.string.game_boost), "game_boost", Icons.Default.VideogameAsset),
         QuickAccessItem(stringResource(com.ivarna.mkm.R.string.storage), "storage", Icons.Default.SdStorage),
         QuickAccessItem(stringResource(com.ivarna.mkm.R.string.power), "power", Icons.Default.Bolt),
         QuickAccessItem(stringResource(com.ivarna.mkm.R.string.battery), "battery", Icons.Default.BatteryFull),

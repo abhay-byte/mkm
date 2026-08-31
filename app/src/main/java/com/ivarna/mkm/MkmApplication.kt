@@ -2,6 +2,7 @@ package com.ivarna.mkm
 
 import android.app.Application
 import com.ivarna.mkm.shell.ShizukuManager
+import com.ivarna.mkm.service.GameBoostRegistry
 import com.ivarna.mkm.util.AppVisibilityMonitor
 import com.topjohnwu.superuser.Shell
 
@@ -26,5 +27,6 @@ class MkmApplication : Application() {
         
         ShizukuManager.init(this)
         AppVisibilityMonitor.init(this)
+        GameBoostRegistry.manager(this)
     }
 }

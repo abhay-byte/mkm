@@ -506,4 +506,23 @@
     <string name="current_fps">当前</string>
     <string name="clear_recording">清除</string>
     <string name="fps_recording_disabled_overlay_off">请先启动覆盖层以录制 FPS</string>
+    <string name="game_boost">游戏加速</string>
+    <string name="game_boost_toggle">游戏加速</string>
+    <string name="game_boost_desc">单一全局性能会话，安全协调 CPU 和 GPU 调度器及最高频率控制。不启动或检测游戏。</string>
+    <string name="game_boost_disclosure_title">启用游戏加速前</string>
+    <string name="game_boost_disclosure">游戏加速可能增加发热和耗电。Android 和内核热保护保持启用。严重过热时 MKM 可能释放最高频率锁定。不承诺提高 FPS。</string>
+    <string name="continue_text">继续</string>
+    <string name="game_boost_status">状态</string>
+    <string name="game_boost_cpu_governor">CPU 调度器</string>
+    <string name="game_boost_cpu_max">CPU 最高频率锁定</string>
+    <string name="game_boost_gpu_governor">GPU 调度器</string>
+    <string name="game_boost_gpu_max">GPU 最高频率锁定</string>
+    <string name="game_boost_applied">已应用</string>
+    <string name="game_boost_not_applied">未应用</string>
+    <string name="game_boost_unsupported">不支持</string>
+    <string name="game_boost_enabling">正在应用：%s</string>
+    <string name="game_boost_thermal_limited">严重过热：最高频率锁定已释放，冷却后不会自动重新锁定。</string>
+    <string name="game_boost_recovery_required">需要恢复。请先恢复保存的调优状态。</string>
+    <string name="game_boost_retry_recovery">重试恢复</string>
+    <string name="game_boost_managed_reason">由游戏加速管理。请先关闭游戏加速再编辑。</string>
 </resources>

@@ -62,6 +62,16 @@
                 android:value="Applies saved kernel settings after device boot with a countdown notification." />
         </service>
 
+        <service
+            android:name=".service.GameBoostService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps verified global CPU and GPU Game Boost tuning active with thermal safety monitoring." />
+        </service>
+
         <!-- Restarts battery notification service after reboot -->
         <receiver
             android:name=".receiver.BootReceiver"
