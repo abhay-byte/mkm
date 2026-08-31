@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ivarna.mkm.data.model.ApplyResult
 import com.ivarna.mkm.data.model.GpuStatus
+import com.ivarna.mkm.data.model.TuningMutationCoordinator
 import com.ivarna.mkm.data.model.TuningPersistencePolicy
 import com.ivarna.mkm.data.provider.GpuProvider
 import com.ivarna.mkm.service.BootSettingsManager
@@ -15,8 +16,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 class GpuViewModel(application: Application) : AndroidViewModel(application) {
@@ -31,7 +30,7 @@ class GpuViewModel(application: Application) : AndroidViewModel(application) {
     private val _lastApplyResult = MutableStateFlow<ApplyResult?>(null)
     val lastApplyResult = _lastApplyResult.asStateFlow()
 
-    private val tuningMutex = Mutex()
+    private val tuningCoordinator = TuningMutationCoordinator()
     private var freezeValues = false
 
     init { startMonitoring() }
@@ -39,7 +38,7 @@ class GpuViewModel(application: Application) : AndroidViewModel(application) {
     private fun startMonitoring() {
         viewModelScope.launch {
             while (true) {
-                if (AppVisibilityMonitor.isForeground.value) tuningMutex.withLock { publishState() }
+                if (AppVisibilityMonitor.isForeground.value) tuningCoordinator.withObservation { publishState() }
                 delay(1000L)
             }
         }
@@ -63,9 +62,7 @@ class GpuViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun mutate(controlId: String, operation: () -> ApplyResult, onResult: (ApplyResult) -> Unit) {
         viewModelScope.launch {
-            val result = tuningMutex.withLock {
-                _pendingControlId.value = controlId
-                try {
+            val result = tuningCoordinator.withMutation(controlId, { _pendingControlId.value = it }) {
                     val applied = try {
                         withContext(Dispatchers.IO) { operation() }
                     } catch (error: CancellationException) {
@@ -86,9 +83,6 @@ class GpuViewModel(application: Application) : AndroidViewModel(application) {
                         saveCurrentGpuSettings()
                     }
                     applied
-                } finally {
-                    _pendingControlId.value = null
-                }
             }
             _lastApplyResult.value = result
             onResult(result)
@@ -115,7 +109,7 @@ class GpuViewModel(application: Application) : AndroidViewModel(application) {
     fun refresh() {
         viewModelScope.launch {
             _isRefreshing.value = true
-            try { tuningMutex.withLock { publishState() } }
+            try { tuningCoordinator.withObservation { publishState() } }
             finally { _isRefreshing.value = false }
         }
     }

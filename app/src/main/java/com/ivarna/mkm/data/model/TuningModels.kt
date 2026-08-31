@@ -1,5 +1,8 @@
 package com.ivarna.mkm.data.model
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
 /** A frequency list or range that was actually observed on the device. */
 sealed interface FrequencyCapability {
     data class Discrete(val values: List<Long>) : FrequencyCapability
@@ -280,6 +283,26 @@ sealed interface ApplyResult {
 object TuningPersistencePolicy {
     fun shouldPersist(result: ApplyResult, bootEnabled: Boolean, stateRefreshed: Boolean): Boolean =
         bootEnabled && stateRefreshed && result !is ApplyResult.Failed
+}
+
+/** Serializes tuning mutations with polling/observation of the same state. */
+class TuningMutationCoordinator {
+    private val mutex = Mutex()
+
+    suspend fun <T> withMutation(
+        controlId: String,
+        onPendingChanged: (String?) -> Unit,
+        block: suspend () -> T
+    ): T = mutex.withLock {
+        onPendingChanged(controlId)
+        try {
+            block()
+        } finally {
+            onPendingChanged(null)
+        }
+    }
+
+    suspend fun <T> withObservation(block: suspend () -> T): T = mutex.withLock { block() }
 }
 
 data class CpuPolicyState(
