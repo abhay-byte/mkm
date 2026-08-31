@@ -1,6 +1,7 @@
 package com.ivarna.mkm.ui.components
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -67,5 +68,25 @@ class SelectionBottomSheetTest {
         composeRule.onNodeWithText("performance").performClick()
         composeRule.waitForIdle()
         assertEquals(1, clicks)
+    }
+
+    @Test
+    fun disabledSettingRowDoesNotOpenControl() {
+        var clicks = 0
+        composeRule.setContent {
+            MKMTheme(appTheme = AppTheme.LIGHT) {
+                SettingRow(
+                    label = "GPU maximum",
+                    value = "Unavailable",
+                    onClick = { clicks++ },
+                    enabled = false,
+                    disabledReason = "Kernel node is unavailable"
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("GPU maximum").assertIsNotEnabled()
+        assertEquals(0, clicks)
+        composeRule.onNodeWithText("Kernel node is unavailable").assertIsDisplayed()
     }
 }

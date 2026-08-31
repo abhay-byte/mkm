@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ivarna.mkm.data.model.ApplyResult
 import com.ivarna.mkm.data.model.CpuStatus
+import com.ivarna.mkm.data.model.TuningPersistencePolicy
 import com.ivarna.mkm.data.provider.CpuProvider
 import com.ivarna.mkm.data.provider.ThermalProvider
 import com.ivarna.mkm.data.provider.ThermalStatus
@@ -90,22 +91,27 @@ class CpuViewModel(application: Application) : AndroidViewModel(application) {
             val result = tuningMutex.withLock {
                 _pendingControlId.value = controlId
                 try {
-                    withContext(Dispatchers.IO) { operation() }
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    ApplyResult.Failed(error.message ?: "CPU tuning operation failed")
-                } finally {
-                    // A failed ordered transaction may have changed its first
-                    // bound before the second write failed. Publish the
-                    // verified kernel state for both success and failure.
+                    val applied = try {
+                        withContext(Dispatchers.IO) { operation() }
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        ApplyResult.Failed(error.message ?: "CPU tuning operation failed")
+                    }
+                    var stateRefreshed = false
                     try {
                         publishState()
+                        stateRefreshed = true
                     } catch (error: CancellationException) {
                         throw error
                     } catch (error: Exception) {
                         android.util.Log.e("CpuViewModel", "Failed to refresh after CPU tuning", error)
                     }
+                    if (TuningPersistencePolicy.shouldPersist(applied, _bootEnabled.value, stateRefreshed)) {
+                        saveCurrentCpuSettings()
+                    }
+                    applied
+                } finally {
                     _pendingControlId.value = null
                 }
             }

@@ -23,11 +23,15 @@ object GpuProvider {
     private const val TAG = "GpuProvider"
     private var cachedPath: String? = null
     private var cachedGpuModel: String? = null
+    private var cachedFrequencyDiscoveryPath: String? = null
+    private var cachedFrequencyDiscovery: GpuFrequencyDiscoveryResult? = null
 
     /** Explicit diagnostic/redetection hook; normal refreshes retain identity. */
     fun clearCache() {
         cachedPath = null
         cachedGpuModel = null
+        cachedFrequencyDiscoveryPath = null
+        cachedFrequencyDiscovery = null
     }
 
     fun getGpuStatus(): GpuStatus = getGpuStatus(allowRedetection = true)
@@ -59,7 +63,6 @@ object GpuProvider {
         var targetFreq = 0L
         var governor = "unknown"
         var availableGovernors = emptyList<String>()
-        var availableFrequencies = emptyList<Long>()
         var frequencyAvailable = false
 
         if (result.isSuccess) {
@@ -73,9 +76,6 @@ object GpuProvider {
                     line.startsWith("MIN_FREQ=") -> minFreq = line.removePrefix("MIN_FREQ=").trim().toLongOrNull() ?: 0L
                     line.startsWith("MAX_FREQ=") -> maxFreq = line.removePrefix("MAX_FREQ=").trim().toLongOrNull() ?: 0L
                     line.startsWith("TARGET_FREQ=") -> targetFreq = line.removePrefix("TARGET_FREQ=").trim().toLongOrNull() ?: 0L
-                    line.startsWith("AVAIL_FREQ=") -> availableFrequencies = FrequencyCapabilityParser.normalize(
-                        listOf(line.removePrefix("AVAIL_FREQ="))
-                    )
                     line.startsWith("LOAD=") -> {
                         val raw = line.removePrefix("LOAD=").trim().toFloatOrNull() ?: 0f
                         load = if (raw > 1f) raw / 100f else raw
@@ -85,19 +85,21 @@ object GpuProvider {
         }
 
         val knownPoints = listOf(curFreq, minFreq, maxFreq, targetFreq)
-        val capability = if (availableFrequencies.isNotEmpty()) {
-            FrequencyCapability.Discrete(availableFrequencies)
-        } else {
-            val known = FrequencyCapabilityParser.normalizeLongs(knownPoints)
-            if (known.isNotEmpty()) FrequencyCapability.Discrete(known)
-            else FrequencyCapability.Unavailable("No GPU frequency table is exposed by this kernel")
-        }
+        val discovery = discoverFrequencies(path, knownPoints)
+        val capability = discovery.capability
         val uiFrequencies = FrequencyCapabilityParser.valuesForUi(capability).map(Long::toString)
         val rangeFilesExist = SysfsTuningExecutor.exists("$path/min_freq") && SysfsTuningExecutor.exists("$path/max_freq")
+        val governorAccess = SysfsTuningExecutor.access("$path/governor")
+        val minAccess = SysfsTuningExecutor.access("$path/min_freq")
+        val maxAccess = SysfsTuningExecutor.access("$path/max_freq")
+        val targetAccess = SysfsTuningExecutor.access("$path/target_freq")
+        val rangeWritable = minAccess == SysfsTuningExecutor.SysfsAccess.READ_WRITE &&
+            maxAccess == SysfsTuningExecutor.SysfsAccess.READ_WRITE
         val reason = when {
             !result.isSuccess -> "GPU metrics could not be read: ${result.stderr.ifBlank { "unknown error" }}"
             !rangeFilesExist -> "GPU frequency controls are unavailable on this kernel"
             capability is FrequencyCapability.Unavailable -> capability.reason
+            discovery.knownPointsOnly -> "Only observed GPU frequency points are available; no complete OPP table was exposed by this kernel"
             else -> null
         }
         val sysfsName = File(path).name
@@ -119,24 +121,38 @@ object GpuProvider {
             renderer = renderer,
             sysfsPath = sysfsName,
             frequencyAvailable = frequencyAvailable,
-            freqRequiresRoot = path.isNotEmpty() && !frequencyAvailable,
+            freqRequiresRoot = path.isNotEmpty() && !frequencyAvailable && !ShellManager.hasShizuku(),
             frequencyCapability = capability,
-            governorWritable = SysfsTuningExecutor.canWrite("$path/governor") && availableGovernors.isNotEmpty(),
-            minWritable = SysfsTuningExecutor.canWrite("$path/min_freq") && SysfsTuningExecutor.canWrite("$path/max_freq"),
-            maxWritable = SysfsTuningExecutor.canWrite("$path/min_freq") && SysfsTuningExecutor.canWrite("$path/max_freq"),
-            targetWritable = SysfsTuningExecutor.canWrite("$path/target_freq"),
+            governorWritable = governorAccess == SysfsTuningExecutor.SysfsAccess.READ_WRITE && availableGovernors.isNotEmpty(),
+            minWritable = rangeWritable && uiFrequencies.isNotEmpty(),
+            maxWritable = rangeWritable && uiFrequencies.isNotEmpty(),
+            targetWritable = targetAccess == SysfsTuningExecutor.SysfsAccess.READ_WRITE && uiFrequencies.isNotEmpty(),
+            governorReason = SysfsTuningExecutor.accessReason(governorAccess)
+                ?: if (availableGovernors.isEmpty()) "No supported GPU governors exposed by this driver" else null,
+            minReason = SysfsTuningExecutor.accessReason(maxAccess)
+                ?: SysfsTuningExecutor.accessReason(minAccess)
+                ?: reason,
+            maxReason = SysfsTuningExecutor.accessReason(maxAccess)
+                ?: SysfsTuningExecutor.accessReason(minAccess)
+                ?: reason,
+            targetReason = SysfsTuningExecutor.accessReason(targetAccess)
+                ?: if (!SysfsTuningExecutor.exists("$path/target_freq")) "Target frequency is not exposed by this driver" else null,
             capabilityReason = reason,
             tuningCapabilities = GpuTuningCapabilities(
                 path = path,
                 governors = availableGovernors,
                 frequencies = capability,
-                governorWritable = SysfsTuningExecutor.canWrite("$path/governor") && availableGovernors.isNotEmpty(),
-                minWritable = SysfsTuningExecutor.canWrite("$path/min_freq") && SysfsTuningExecutor.canWrite("$path/max_freq"),
-                maxWritable = SysfsTuningExecutor.canWrite("$path/min_freq") && SysfsTuningExecutor.canWrite("$path/max_freq"),
-                targetWritable = SysfsTuningExecutor.canWrite("$path/target_freq"),
-                requiresRoot = path.isNotEmpty() && !frequencyAvailable,
-                reason = reason
-            )
+                governorWritable = governorAccess == SysfsTuningExecutor.SysfsAccess.READ_WRITE && availableGovernors.isNotEmpty(),
+                minWritable = rangeWritable && uiFrequencies.isNotEmpty(),
+                maxWritable = rangeWritable && uiFrequencies.isNotEmpty(),
+                targetWritable = targetAccess == SysfsTuningExecutor.SysfsAccess.READ_WRITE && uiFrequencies.isNotEmpty(),
+                requiresRoot = path.isNotEmpty() && !ShellManager.hasRoot() && !ShellManager.hasShizuku(),
+                reason = reason,
+                frequencySources = discovery.sources.map { it.source },
+                frequencyTableComplete = !discovery.knownPointsOnly && discovery.sources.isNotEmpty()
+            ),
+            frequencySources = discovery.sources.map { it.source },
+            frequencyTableComplete = !discovery.knownPointsOnly && discovery.sources.isNotEmpty()
         )
     }
 
@@ -186,6 +202,7 @@ object GpuProvider {
         val writeLog = mutableListOf<String>()
         var lastWriteResult: ShellManager.CommandResult? = null
         val transaction = RangeWriteTransaction.execute(
+            original = RangeReadback(currentMin, currentMax),
             plan = plan,
             write = { step ->
                 val file = if (step.isMin) "min_freq" else "max_freq"
@@ -199,17 +216,29 @@ object GpuProvider {
                 readRange(path)
             }
         )
-        if (transaction is RangeTransactionResult.Failed) {
-            val step = transaction.failedStep
-            val file = step?.let { if (it.isMin) "min_freq" else "max_freq" } ?: "read-back"
-            val writeResult = lastWriteResult
-            val stderr = writeResult?.stderr?.takeIf { it.isNotBlank() }
-                ?: transaction.readback?.let { "readback=min=${it.min},max=${it.max}" }
-            return if (writeResult != null && !writeResult.isSuccess) {
-                failed(file, writeResult)
-            } else {
-                ApplyResult.Failed("GPU frequency $file failed: ${transaction.reason}", stderr)
+        when (transaction) {
+            is RangeTransactionResult.FailedRolledBack -> {
+                return ApplyResult.Failed(
+                    "GPU frequency change failed; original values restored " +
+                        "(min=${transaction.restored.min},max=${transaction.restored.max})",
+                    lastWriteResult?.stderr
+                )
             }
+            is RangeTransactionResult.FailedStateChanged -> {
+                return ApplyResult.Failed(
+                    "GPU frequency change failed and kernel state changed " +
+                        "(current min=${transaction.actual.min},max=${transaction.actual.max}; " +
+                        "original min=${transaction.original.min},max=${transaction.original.max})",
+                    lastWriteResult?.stderr
+                )
+            }
+            is RangeTransactionResult.Failed -> {
+                return ApplyResult.Failed(
+                    "GPU frequency transaction could not be verified: ${transaction.reason}",
+                    lastWriteResult?.stderr ?: transaction.actual?.let { "readback=min=${it.min},max=${it.max}" }
+                )
+            }
+            is RangeTransactionResult.Verified -> Unit
         }
         val verified = transaction as RangeTransactionResult.Verified
         val first = verified.immediate
@@ -283,32 +312,39 @@ object GpuProvider {
         return "" to debugLog
     }
 
-    private fun getGpuCapability(path: String, currentMin: Long, currentMax: Long): FrequencyCapability {
-        val available = SysfsTuningExecutor.read("$path/available_frequencies")
-        val stats = SysfsTuningExecutor.read("$path/stats/time_in_state")
-            .lines()
-            .mapNotNull { it.trim().split(Regex("\\s+")).firstOrNull() }
-        val legacyStats = SysfsTuningExecutor.read("$path/time_in_state")
-            .lines()
-            .mapNotNull { it.trim().split(Regex("\\s+")).firstOrNull() }
-        return FrequencyCapabilityParser.fromDiscreteSources(
-            sources = listOf(
-                listOf(available),
-                stats,
-                legacyStats
-            ),
-            // min_freq/max_freq are the current policy constraints, not
-            // proof that every integer between them is a valid GPU OPP.
-            // Without an actual table, validate only observed points.
-            rangeMin = null,
-            rangeMax = null,
-            knownPoints = listOf(
+    private fun getGpuCapability(path: String, currentMin: Long, currentMax: Long): FrequencyCapability =
+        discoverFrequencies(
+            path,
+            listOf(
                 currentMin,
                 currentMax,
                 SysfsTuningExecutor.readLong("$path/cur_freq") ?: 0L,
                 SysfsTuningExecutor.readLong("$path/target_freq") ?: 0L
             )
+        ).capability
+
+    private fun discoverFrequencies(path: String, knownPoints: Iterable<Long>): GpuFrequencyDiscoveryResult {
+        if (cachedFrequencyDiscoveryPath == path) {
+            val cached = cachedFrequencyDiscovery
+            if (cached != null && !cached.knownPointsOnly) return cached
+            if (cached?.knownPointsOnly == true) {
+                val known = FrequencyCapabilityParser.normalizeLongs(knownPoints)
+                return cached.copy(
+                    capability = if (known.isNotEmpty()) FrequencyCapability.Discrete(known)
+                    else FrequencyCapability.Unavailable("No GPU frequency table is exposed by this kernel")
+                )
+            }
+        }
+        val discovered = GpuFrequencyDiscovery.discoverGpuFrequencies(path, knownPoints)
+        cachedFrequencyDiscoveryPath = path
+        cachedFrequencyDiscovery = discovered
+        Log.i(
+            TAG,
+            "GPU frequency discovery path=$path sources=${discovered.sources.map { it.source }} " +
+                "complete=${!discovered.knownPointsOnly && discovered.sources.isNotEmpty()} " +
+                "values=${FrequencyCapabilityParser.valuesForUi(discovered.capability)}"
         )
+        return discovered
     }
 
     private fun supportedFrequency(value: Long, capability: FrequencyCapability): Boolean = when (capability) {
@@ -324,8 +360,8 @@ object GpuProvider {
 
     private fun hasTuningNode(path: String): Boolean {
         if (!SysfsTuningExecutor.isSafeSysfsPath(path)) return false
-        return File(path).exists() && listOf(
-            "governor", "cur_freq", "cur_frequency", "available_frequencies"
+        return SysfsTuningExecutor.exists(path) && listOf(
+            "governor", "cur_freq", "cur_frequency", "available_frequencies", "min_freq", "max_freq"
         ).any { SysfsTuningExecutor.exists("$path/$it") }
     }
 

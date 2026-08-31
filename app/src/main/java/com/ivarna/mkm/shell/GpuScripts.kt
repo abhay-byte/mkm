@@ -2,6 +2,23 @@ package com.ivarna.mkm.shell
 
 object GpuScripts {
 
+    /** Lists real vendor frequency-table nodes for the discovery adapter. */
+    fun discoverGpuFrequencyPaths(path: String): String {
+        return """
+            for root in "$path" "/sys/class/kgsl/kgsl-3d0" "/sys/class/misc/mali0/device"; do
+                if [ -e "${'$'}root" ]; then
+                    find "${'$'}root" -type f \( \
+                        -name 'available_frequencies' -o -name 'time_in_state' -o \
+                        -name 'freq_table_mhz' -o -name 'gpu_available_frequencies' -o \
+                        -name 'frequency_table' -o -name 'operating-points' -o \
+                        -name 'opp-hz' -o -name 'opp-frequency' -o -name 'freq' -o \
+                        -name 'frequency' -o -name 'clock_mhz' \
+                    \) -print 2>/dev/null
+                fi
+            done
+        """.trimIndent()
+    }
+
     /**
      * Script to find the GPU devfreq directory.
      * Returns the directory path.

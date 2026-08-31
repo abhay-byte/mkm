@@ -41,9 +41,9 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
     val bootEnabled by viewModel.bootEnabled.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
-    var selectedClusterForGovernor by remember { mutableStateOf<CpuCluster?>(null) }
-    var selectedClusterForMaxFreq by remember { mutableStateOf<CpuCluster?>(null) }
-    var selectedClusterForMinFreq by remember { mutableStateOf<CpuCluster?>(null) }
+    var selectedPolicyForGovernor by remember { mutableStateOf<Int?>(null) }
+    var selectedPolicyForMaxFreq by remember { mutableStateOf<Int?>(null) }
+    var selectedPolicyForMinFreq by remember { mutableStateOf<Int?>(null) }
     var applyingControl by remember { mutableStateOf<String?>(null) }
     var sheetError by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
@@ -136,9 +136,9 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
             items(cpuStatus.clusters) { cluster ->
                 CpuClusterCard(
                     cluster = cluster,
-                    onGovernorClick = { selectedClusterForGovernor = cluster },
-                    onMaxFreqClick = { selectedClusterForMaxFreq = cluster },
-                    onMinFreqClick = { selectedClusterForMinFreq = cluster }
+                    onGovernorClick = { selectedPolicyForGovernor = cluster.id },
+                    onMaxFreqClick = { selectedPolicyForMaxFreq = cluster.id },
+                    onMinFreqClick = { selectedPolicyForMinFreq = cluster.id }
                 )
             }
 
@@ -155,12 +155,13 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
         }
 
         // Selection sheets
-        selectedClusterForGovernor?.let { cluster ->
+        selectedPolicyForGovernor?.let { policyId ->
+            cpuStatus.clusters.firstOrNull { it.id == policyId }?.let { cluster ->
             SelectionBottomSheet(
                 title = stringResource(com.ivarna.mkm.R.string.select_governor),
                 items = cluster.availableGovernors,
                 selectedItem = cluster.governor,
-                onDismiss = { sheetError = null; selectedClusterForGovernor = null },
+                onDismiss = { sheetError = null; selectedPolicyForGovernor = null },
                 onItemSelected = {
                     sheetError = null
                     applyingControl = "cpu-${cluster.id}-governor"
@@ -168,7 +169,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                         applyingControl = null
                         if (result is com.ivarna.mkm.data.model.ApplyResult.Failed) sheetError = result.message()
                         else {
-                            selectedClusterForGovernor = null
+                            selectedPolicyForGovernor = null
                             if (result is com.ivarna.mkm.data.model.ApplyResult.Adjusted) android.widget.Toast.makeText(context, result.message(), android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
@@ -176,14 +177,16 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                 isApplying = applyingControl == "cpu-${cluster.id}-governor",
                 errorMessage = sheetError
             )
+            }
         }
 
-        selectedClusterForMaxFreq?.let { cluster ->
+        selectedPolicyForMaxFreq?.let { policyId ->
+            cpuStatus.clusters.firstOrNull { it.id == policyId }?.let { cluster ->
             SelectionBottomSheet(
                 title = stringResource(com.ivarna.mkm.R.string.select_max_frequency),
                 items = cluster.availableFrequencies,
                 selectedItem = cluster.rawMaxFreq,
-                onDismiss = { sheetError = null; selectedClusterForMaxFreq = null },
+                onDismiss = { sheetError = null; selectedPolicyForMaxFreq = null },
                 onItemSelected = {
                     sheetError = null
                     applyingControl = "cpu-${cluster.id}-max"
@@ -191,7 +194,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                         applyingControl = null
                         if (result is com.ivarna.mkm.data.model.ApplyResult.Failed) sheetError = result.message()
                         else {
-                            selectedClusterForMaxFreq = null
+                            selectedPolicyForMaxFreq = null
                             if (result is com.ivarna.mkm.data.model.ApplyResult.Adjusted) android.widget.Toast.makeText(context, result.message(), android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
@@ -200,14 +203,16 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                 isApplying = applyingControl == "cpu-${cluster.id}-max",
                 errorMessage = sheetError
             )
+            }
         }
 
-        selectedClusterForMinFreq?.let { cluster ->
+        selectedPolicyForMinFreq?.let { policyId ->
+            cpuStatus.clusters.firstOrNull { it.id == policyId }?.let { cluster ->
             SelectionBottomSheet(
                 title = stringResource(com.ivarna.mkm.R.string.select_min_frequency),
                 items = cluster.availableFrequencies,
                 selectedItem = cluster.rawMinFreq,
-                onDismiss = { sheetError = null; selectedClusterForMinFreq = null },
+                onDismiss = { sheetError = null; selectedPolicyForMinFreq = null },
                 onItemSelected = {
                     sheetError = null
                     applyingControl = "cpu-${cluster.id}-min"
@@ -215,7 +220,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                         applyingControl = null
                         if (result is com.ivarna.mkm.data.model.ApplyResult.Failed) sheetError = result.message()
                         else {
-                            selectedClusterForMinFreq = null
+                            selectedPolicyForMinFreq = null
                             if (result is com.ivarna.mkm.data.model.ApplyResult.Adjusted) android.widget.Toast.makeText(context, result.message(), android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
@@ -224,6 +229,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                 isApplying = applyingControl == "cpu-${cluster.id}-min",
                 errorMessage = sheetError
             )
+            }
         }
     }
 }
@@ -278,19 +284,22 @@ fun CpuClusterCard(
                     label = stringResource(com.ivarna.mkm.R.string.governor),
                     value = cluster.governor,
                     onClick = onGovernorClick,
-                    enabled = cluster.governorWritable && cluster.availableGovernors.isNotEmpty()
+                    enabled = cluster.governorWritable && cluster.availableGovernors.isNotEmpty(),
+                    disabledReason = cluster.governorReason
                 )
                 SettingRow(
                     label = stringResource(com.ivarna.mkm.R.string.max_frequency),
                     value = cluster.maxFreq,
                     onClick = onMaxFreqClick,
-                    enabled = cluster.maxWritable && cluster.availableFrequencies.isNotEmpty()
+                    enabled = cluster.maxWritable && cluster.availableFrequencies.isNotEmpty(),
+                    disabledReason = cluster.maxReason
                 )
                 SettingRow(
                     label = stringResource(com.ivarna.mkm.R.string.min_frequency),
                     value = cluster.minFreq,
                     onClick = onMinFreqClick,
-                    enabled = cluster.minWritable && cluster.availableFrequencies.isNotEmpty()
+                    enabled = cluster.minWritable && cluster.availableFrequencies.isNotEmpty(),
+                    disabledReason = cluster.minReason
                 )
                 InfoRow(
                     label = stringResource(com.ivarna.mkm.R.string.current_clock_speed),

@@ -78,6 +78,14 @@ object CpuProvider {
             )
             val availableFrequencies = FrequencyCapabilityParser.valuesForUi(frequencyCapability)
                 .map(Long::toString)
+            val governorAccess = SysfsTuningExecutor.access("${policy.absolutePath}/scaling_governor")
+            val minAccess = SysfsTuningExecutor.access("${policy.absolutePath}/scaling_min_freq")
+            val maxAccess = SysfsTuningExecutor.access("${policy.absolutePath}/scaling_max_freq")
+            val rangeWritable = minAccess == SysfsTuningExecutor.SysfsAccess.READ_WRITE &&
+                maxAccess == SysfsTuningExecutor.SysfsAccess.READ_WRITE
+            val rangeReason = SysfsTuningExecutor.accessReason(maxAccess)
+                ?: SysfsTuningExecutor.accessReason(minAccess)
+                ?: (frequencyCapability as? FrequencyCapability.Unavailable)?.reason
 
             val cores = policyCores.map { coreId ->
                 val coreCurFreqFile = File("/sys/devices/system/cpu/cpu$coreId/cpufreq/scaling_cur_freq")
@@ -136,9 +144,13 @@ object CpuProvider {
                 availableGovernors = availableGovernors,
                 availableFrequencies = availableFrequencies,
                 frequencyCapability = frequencyCapability,
-                governorWritable = SysfsTuningExecutor.canWrite("${policy.absolutePath}/scaling_governor"),
-                minWritable = SysfsTuningExecutor.canWrite("${policy.absolutePath}/scaling_min_freq"),
-                maxWritable = SysfsTuningExecutor.canWrite("${policy.absolutePath}/scaling_max_freq"),
+                governorWritable = governorAccess == SysfsTuningExecutor.SysfsAccess.READ_WRITE,
+                minWritable = rangeWritable,
+                maxWritable = rangeWritable,
+                governorReason = SysfsTuningExecutor.accessReason(governorAccess)
+                    ?: if (availableGovernors.isEmpty()) "No supported CPU governors exposed by this policy" else null,
+                minReason = rangeReason,
+                maxReason = rangeReason,
                 policyState = CpuPolicyState(
                     policyId = id,
                     path = policy.absolutePath,
@@ -283,6 +295,7 @@ object CpuProvider {
         val writeLog = mutableListOf<String>()
         var lastWriteResult: com.ivarna.mkm.shell.ShellManager.CommandResult? = null
         val transaction = RangeWriteTransaction.execute(
+            original = RangeReadback(currentMin, currentMax),
             plan = plan,
             write = { step ->
                 val file = if (step.isMin) "scaling_min_freq" else "scaling_max_freq"
@@ -296,17 +309,29 @@ object CpuProvider {
                 readRange(path)
             }
         )
-        if (transaction is RangeTransactionResult.Failed) {
-            val step = transaction.failedStep
-            val file = step?.let { if (it.isMin) "scaling_min_freq" else "scaling_max_freq" } ?: "read-back"
-            val writeResult = lastWriteResult
-            val stderr = writeResult?.stderr?.takeIf { it.isNotBlank() }
-                ?: transaction.readback?.let { "readback=min=${it.min},max=${it.max}" }
-            return if (writeResult != null && !writeResult.isSuccess) {
-                failed("CPU", "policy$policyId", file, writeResult)
-            } else {
-                ApplyResult.Failed("CPU policy range $file failed: ${transaction.reason}", stderr)
+        when (transaction) {
+            is RangeTransactionResult.FailedRolledBack -> {
+                return ApplyResult.Failed(
+                    "CPU policy$policyId frequency change failed; original values restored " +
+                        "(min=${transaction.restored.min},max=${transaction.restored.max})",
+                    lastWriteResult?.stderr
+                )
             }
+            is RangeTransactionResult.FailedStateChanged -> {
+                return ApplyResult.Failed(
+                    "CPU policy$policyId frequency change failed and kernel state changed " +
+                        "(current min=${transaction.actual.min},max=${transaction.actual.max}; " +
+                        "original min=${transaction.original.min},max=${transaction.original.max})",
+                    lastWriteResult?.stderr
+                )
+            }
+            is RangeTransactionResult.Failed -> {
+                return ApplyResult.Failed(
+                    "CPU policy$policyId frequency transaction could not be verified: ${transaction.reason}",
+                    lastWriteResult?.stderr ?: transaction.actual?.let { "readback=min=${it.min},max=${it.max}" }
+                )
+            }
+            is RangeTransactionResult.Verified -> Unit
         }
         val verified = transaction as RangeTransactionResult.Verified
         val afterFirst = verified.immediate

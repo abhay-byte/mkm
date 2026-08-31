@@ -215,7 +215,8 @@ fun SettingRow(
     value: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    disabledReason: String? = null
 ) {
     Surface(
         onClick = onClick,
@@ -242,6 +243,13 @@ fun SettingRow(
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
                 )
+                if (!enabled && !disabledReason.isNullOrBlank()) {
+                    Text(
+                        text = disabledReason,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             Icon(
                 imageVector = androidx.compose.material.icons.Icons.Default.ExpandMore,

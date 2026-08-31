@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ivarna.mkm.data.model.ApplyResult
 import com.ivarna.mkm.data.model.GpuStatus
+import com.ivarna.mkm.data.model.TuningPersistencePolicy
 import com.ivarna.mkm.data.provider.GpuProvider
 import com.ivarna.mkm.service.BootSettingsManager
 import com.ivarna.mkm.util.AppVisibilityMonitor
@@ -65,21 +66,27 @@ class GpuViewModel(application: Application) : AndroidViewModel(application) {
             val result = tuningMutex.withLock {
                 _pendingControlId.value = controlId
                 try {
-                    withContext(Dispatchers.IO) { operation() }
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    ApplyResult.Failed(error.message ?: "GPU tuning operation failed")
-                } finally {
-                    // Keep UI state aligned even when the first step of a
-                    // multi-write range succeeded and a later step failed.
+                    val applied = try {
+                        withContext(Dispatchers.IO) { operation() }
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        ApplyResult.Failed(error.message ?: "GPU tuning operation failed")
+                    }
+                    var stateRefreshed = false
                     try {
                         publishState()
+                        stateRefreshed = true
                     } catch (error: CancellationException) {
                         throw error
                     } catch (error: Exception) {
                         android.util.Log.e("GpuViewModel", "Failed to refresh after GPU tuning", error)
                     }
+                    if (TuningPersistencePolicy.shouldPersist(applied, _bootEnabled.value, stateRefreshed)) {
+                        saveCurrentGpuSettings()
+                    }
+                    applied
+                } finally {
                     _pendingControlId.value = null
                 }
             }

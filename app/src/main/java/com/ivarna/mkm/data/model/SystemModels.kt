@@ -50,6 +50,9 @@ data class CpuCluster(
     val governorWritable: Boolean = false,
     val minWritable: Boolean = false,
     val maxWritable: Boolean = false,
+    val governorReason: String? = null,
+    val minReason: String? = null,
+    val maxReason: String? = null,
     val policyState: CpuPolicyState? = null,
     val cores: List<CpuCore> = emptyList()
 )
@@ -86,8 +89,14 @@ data class GpuStatus(
     val minWritable: Boolean = false,
     val maxWritable: Boolean = false,
     val targetWritable: Boolean = false,
+    val governorReason: String? = null,
+    val minReason: String? = null,
+    val maxReason: String? = null,
+    val targetReason: String? = null,
     val capabilityReason: String? = null,
-    val tuningCapabilities: GpuTuningCapabilities? = null
+    val tuningCapabilities: GpuTuningCapabilities? = null,
+    val frequencySources: List<String> = emptyList(),
+    val frequencyTableComplete: Boolean = false
 )
 
 data class SwapDeviceInfo(

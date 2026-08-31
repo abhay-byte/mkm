@@ -62,41 +62,122 @@ data class RangeReadback(val min: Long, val max: Long) {
 
 sealed interface RangeTransactionResult {
     data class Verified(val immediate: RangeReadback, val final: RangeReadback) : RangeTransactionResult
+    data class FailedRolledBack(
+        val reason: String,
+        val restored: RangeReadback
+    ) : RangeTransactionResult
+    data class FailedStateChanged(
+        val reason: String,
+        val original: RangeReadback,
+        val actual: RangeReadback
+    ) : RangeTransactionResult
     data class Failed(
         val reason: String,
-        val failedStep: RangeWriteStep? = null,
-        val readback: RangeReadback? = null
+        val original: RangeReadback? = null,
+        val actual: RangeReadback? = null
     ) : RangeTransactionResult
 }
 
-/** Executes an ordered range plan and requires both read-back checkpoints. */
+/** Executes an ordered range plan and rolls back any failed or unverifiable transaction. */
 object RangeWriteTransaction {
     fun execute(
+        original: RangeReadback,
         plan: RangeWritePlan,
         write: (RangeWriteStep) -> Boolean,
         readImmediate: () -> RangeReadback,
         readFinal: () -> RangeReadback
     ): RangeTransactionResult {
+        var lastKnown: RangeReadback? = null
         for (step in plan.steps) {
             if (!write(step)) {
-                return RangeTransactionResult.Failed("Range write failed", failedStep = step)
+                lastKnown = readSafely(readImmediate)
+                return rollback("Range write failed", original, lastKnown, write, readImmediate, readFinal)
             }
         }
 
-        val immediate = runCatching { readImmediate() }.getOrElse {
-            return RangeTransactionResult.Failed("Immediate range read-back failed")
-        }
+        val immediate = readSafely(readImmediate)
+            ?: return rollback("Immediate range read-back failed", original, lastKnown, write, readImmediate, readFinal)
         if (!immediate.isValid) {
-            return RangeTransactionResult.Failed("Immediate range read-back is invalid", readback = immediate)
+            return rollback("Immediate range read-back is invalid", original, immediate, write, readImmediate, readFinal)
         }
+        lastKnown = immediate
 
-        val final = runCatching { readFinal() }.getOrElse {
-            return RangeTransactionResult.Failed("Final range read-back failed", readback = immediate)
-        }
+        val final = readSafely(readFinal)
+            ?: return rollback("Final range read-back failed", original, lastKnown, write, readImmediate, readFinal)
         if (!final.isValid) {
-            return RangeTransactionResult.Failed("Final range read-back is invalid", readback = final)
+            return rollback("Final range read-back is invalid", original, final, write, readImmediate, readFinal)
         }
         return RangeTransactionResult.Verified(immediate, final)
+    }
+
+    private fun readSafely(reader: () -> RangeReadback): RangeReadback? =
+        runCatching { reader() }.getOrNull()
+
+    private fun rollback(
+        reason: String,
+        original: RangeReadback,
+        actual: RangeReadback?,
+        write: (RangeWriteStep) -> Boolean,
+        readImmediate: () -> RangeReadback,
+        readFinal: () -> RangeReadback
+    ): RangeTransactionResult {
+        val rollbackBase = actual?.takeIf { it.isValid }
+        val rollbackPlan = rollbackBase?.let {
+            runCatching { FrequencyRangePlanner.plan(it.min, it.max, original.min, original.max) }.getOrNull()
+        }
+
+        if (rollbackPlan != null) {
+            for (step in rollbackPlan.steps) {
+                if (!write(step)) {
+                    return rollbackFailure("$reason; rollback write failed", original, actual, readImmediate, readFinal)
+                }
+            }
+        } else {
+            // If a read-back failed, the last range is unknown. Try both valid
+            // orders using the original bounds so a partial write can still be
+            // recovered without relying on an invented frequency.
+            val fallbackPlans = listOf(
+                listOf(RangeWriteStep(true, original.min), RangeWriteStep(false, original.max)),
+                listOf(RangeWriteStep(false, original.max), RangeWriteStep(true, original.min))
+            )
+            for (fallback in fallbackPlans) {
+                if (fallback.all(write)) break
+            }
+        }
+
+        val restoredImmediate = readSafely(readImmediate)
+        val restoredFinal = readSafely(readFinal)
+        if (restoredFinal?.isValid == true && restoredFinal == original) {
+            return RangeTransactionResult.FailedRolledBack(
+                "$reason; original values restored", restoredFinal
+            )
+        }
+
+        val observed = restoredFinal ?: restoredImmediate ?: actual
+        return if (observed?.isValid == true && observed != original) {
+            RangeTransactionResult.FailedStateChanged(
+                "$reason; rollback did not restore the original range", original, observed
+            )
+        } else {
+            RangeTransactionResult.Failed(
+                "$reason; rollback state could not be verified", original, observed
+            )
+        }
+    }
+
+    private fun rollbackFailure(
+        reason: String,
+        original: RangeReadback,
+        actual: RangeReadback?,
+        readImmediate: () -> RangeReadback,
+        readFinal: () -> RangeReadback
+    ): RangeTransactionResult {
+        val observed = readSafely(readFinal) ?: readSafely(readImmediate) ?: actual
+        return if (observed?.isValid == true && observed != original) {
+            RangeTransactionResult.FailedStateChanged(reason, original, observed)
+        } else {
+            RangeTransactionResult.Failed(reason, original, observed)
+        }
     }
 }
 
@@ -119,6 +200,11 @@ object SelectionOrdering {
         }
     }
 }
+
+data class DiscoveredFrequencySource(
+    val source: String,
+    val values: List<Long>
+)
 
 object FrequencyRangePlanner {
     fun forMax(currentMin: Long, currentMax: Long, requestedMax: Long): RangeWritePlan {
@@ -191,6 +277,11 @@ sealed interface ApplyResult {
     }
 }
 
+object TuningPersistencePolicy {
+    fun shouldPersist(result: ApplyResult, bootEnabled: Boolean, stateRefreshed: Boolean): Boolean =
+        bootEnabled && stateRefreshed && result !is ApplyResult.Failed
+}
+
 data class CpuPolicyState(
     val policyId: Int,
     val path: String,
@@ -214,5 +305,7 @@ data class GpuTuningCapabilities(
     val maxWritable: Boolean,
     val targetWritable: Boolean,
     val requiresRoot: Boolean,
-    val reason: String? = null
+    val reason: String? = null,
+    val frequencySources: List<String> = emptyList(),
+    val frequencyTableComplete: Boolean = false
 )

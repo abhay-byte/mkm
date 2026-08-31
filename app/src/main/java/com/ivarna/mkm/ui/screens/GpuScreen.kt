@@ -162,28 +162,32 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                         label = stringResource(com.ivarna.mkm.R.string.gpu_governor),
                         value = gpuStatus.governor,
                         onClick = { showGovernorSheet = true },
-                        enabled = gpuStatus.governorWritable && gpuStatus.availableGovernors.isNotEmpty()
+                        enabled = gpuStatus.governorWritable && gpuStatus.availableGovernors.isNotEmpty(),
+                        disabledReason = gpuStatus.governorReason
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingRow(
                         label = stringResource(com.ivarna.mkm.R.string.maximum_frequency),
                         value = gpuStatus.maxFreq,
                         onClick = { showMaxFreqSheet = true },
-                        enabled = gpuStatus.maxWritable && gpuStatus.availableFrequencies.isNotEmpty()
+                        enabled = gpuStatus.maxWritable && gpuStatus.availableFrequencies.isNotEmpty(),
+                        disabledReason = gpuStatus.maxReason
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingRow(
                         label = stringResource(com.ivarna.mkm.R.string.minimum_frequency),
                         value = gpuStatus.minFreq,
                         onClick = { showMinFreqSheet = true },
-                        enabled = gpuStatus.minWritable && gpuStatus.availableFrequencies.isNotEmpty()
+                        enabled = gpuStatus.minWritable && gpuStatus.availableFrequencies.isNotEmpty(),
+                        disabledReason = gpuStatus.minReason
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingRow(
                         label = stringResource(com.ivarna.mkm.R.string.target_frequency),
                         value = gpuStatus.targetFreq,
                         onClick = { showTargetFreqSheet = true },
-                        enabled = gpuStatus.targetWritable && gpuStatus.availableFrequencies.isNotEmpty()
+                        enabled = gpuStatus.targetWritable && gpuStatus.availableFrequencies.isNotEmpty(),
+                        disabledReason = gpuStatus.targetReason
                     )
                 }
             }
