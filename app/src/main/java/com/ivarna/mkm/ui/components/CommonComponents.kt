@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import com.ivarna.mkm.data.model.CpuCore
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import kotlin.math.sin
 
 // SquigglyLinearProgressIndicator removed in favor of LinearWavyProgressIndicator
@@ -139,8 +141,7 @@ fun SectionHeader(
 
 @Composable
 fun CoreMiniCard(
-    core: CpuCore, 
-    onClick: () -> Unit,
+    core: CpuCore,
     modifier: Modifier = Modifier
 ) {
     val animatedProgress by animateFloatAsState(
@@ -150,7 +151,6 @@ fun CoreMiniCard(
     )
 
     ElevatedCard(
-        onClick = onClick,
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.elevatedCardColors(
@@ -213,10 +213,12 @@ fun SettingRow(
     label: String,
     value: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
     Surface(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.fillMaxWidth(),
         color = Color.Transparent
     ) {
@@ -374,10 +376,17 @@ fun SelectionBottomSheet(
     selectedItem: String,
     onDismiss: () -> Unit,
     onItemSelected: (String) -> Unit,
-    itemLabel: (String) -> String = { it }
+    itemLabel: (String) -> String = { it },
+    isApplying: Boolean = false,
+    errorMessage: String? = null
 ) {
+    val listState = rememberLazyListState()
+    LaunchedEffect(selectedItem, items) {
+        val selectedIndex = items.indexOf(selectedItem)
+        if (selectedIndex >= 0) listState.scrollToItem(selectedIndex)
+    }
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isApplying) onDismiss() },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
@@ -391,17 +400,28 @@ fun SelectionBottomSheet(
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
                 fontWeight = FontWeight.Bold
             )
-            LazyColumn {
-                items(items) { item ->
+            if (isApplying) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            errorMessage?.let {
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                )
+            }
+            LazyColumn(state = listState) {
+                items(items, key = { it }) { item ->
                     ListItem(
                         headlineContent = { Text(itemLabel(item)) },
                         trailingContent = {
                             RadioButton(
                                 selected = item == selectedItem,
-                                onClick = { onItemSelected(item) }
+                                onClick = null
                             )
                         },
-                        modifier = Modifier.clickable { onItemSelected(item) }
+                        modifier = Modifier.clickable(enabled = !isApplying) { onItemSelected(item) }
                     )
                 }
             }

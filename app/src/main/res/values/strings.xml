@@ -437,7 +437,7 @@
     <string name="show_instant_avg_current">Show instant + avg current</string>
     <string name="show_temp_and_voltage_expanded">Show °C and mV</string>
     <string name="gained_percent">Gained %</string>
-    <string name="show_gained_percent_desc">Show % gained since plug-in</string>
+    <string name="show_gained_percent_desc">Show %% gained since plug-in</string>
     <string name="charging_duration">Charging Duration</string>
     <string name="time_since_charger_desc">Time since charger connected</string>
     <string name="est_time_to_full">Est. Time to Full</string>
@@ -482,6 +482,9 @@
     <string name="processors_active_format">%1$d Processors Active</string>
     <string name="cluster_id_format">Cluster %1$d</string>
     <string name="cluster_cores_range_format">Cores %1$d-%2$d</string>
+    <string name="policy_cpus_format">CPUs %1$s</string>
+    <string name="policy_id_format">Policy %1$d</string>
+    <string name="tuning_unavailable_kernel">Unavailable on this kernel</string>
 
     <!-- Overlay FPS Monitor -->
     <string name="fps_monitor">FPS Monitor</string>

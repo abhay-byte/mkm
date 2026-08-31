@@ -12,15 +12,17 @@ object GpuScripts {
             if [ -d "/sys/class/devfreq" ]; then
                 # Priority 1: Adreno (kgsl)
                 for path in /sys/class/devfreq/*; do
-                     if echo "${'$'}path" | grep -q "kgsl"; then
+                     if [ -d "${'$'}path" ] && { [ -e "${'$'}path/governor" ] || [ -e "${'$'}path/cur_freq" ] || [ -e "${'$'}path/available_frequencies" ]; }; then
+                       if echo "${'$'}path" | grep -q "kgsl"; then
                          echo "${'$'}path"
                          exit 0
+                       fi
                      fi
                 done
                 
                 # Priority 2: Mali
                 for path in /sys/class/devfreq/*; do
-                     if echo "${'$'}path" | grep -q "mali"; then
+                     if [ -d "${'$'}path" ] && { [ -e "${'$'}path/governor" ] || [ -e "${'$'}path/cur_freq" ] || [ -e "${'$'}path/available_frequencies" ]; } && echo "${'$'}path" | grep -q "mali"; then
                          echo "${'$'}path"
                          exit 0
                      fi
@@ -28,15 +30,15 @@ object GpuScripts {
                 
                 # Priority 3: Generic GPU
                  for path in /sys/class/devfreq/*; do
-                     if echo "${'$'}path" | grep -q "gpu"; then
+                     if [ -d "${'$'}path" ] && { [ -e "${'$'}path/governor" ] || [ -e "${'$'}path/cur_freq" ] || [ -e "${'$'}path/available_frequencies" ]; } && echo "${'$'}path" | grep -q "gpu"; then
                          echo "${'$'}path"
                          exit 0
                      fi
                 done
                 
                  # Priority 4: PowerVR
-                 for path in /sys/class/devfreq/*; do
-                     if echo "${'$'}path" | grep -q "pvr" || echo "${'$'}path" | grep -q "rgx"; then
+                for path in /sys/class/devfreq/*; do
+                     if [ -d "${'$'}path" ] && { [ -e "${'$'}path/governor" ] || [ -e "${'$'}path/cur_freq" ] || [ -e "${'$'}path/available_frequencies" ]; } && { echo "${'$'}path" | grep -q "pvr" || echo "${'$'}path" | grep -q "rgx"; }; then
                          echo "${'$'}path"
                          exit 0
                      fi
@@ -44,13 +46,13 @@ object GpuScripts {
             fi
             
             # 2. Check legacy Adreno path
-            if [ -d "/sys/class/kgsl/kgsl-3d0/devfreq" ]; then
+            if [ -d "/sys/class/kgsl/kgsl-3d0/devfreq" ] && { [ -e "/sys/class/kgsl/kgsl-3d0/devfreq/governor" ] || [ -e "/sys/class/kgsl/kgsl-3d0/devfreq/cur_freq" ] || [ -e "/sys/class/kgsl/kgsl-3d0/devfreq/available_frequencies" ]; }; then
                 echo "/sys/class/kgsl/kgsl-3d0/devfreq"
                 exit 0
             fi
             
             # 3. Check MediaTek specific fallback
-            if [ -d "/sys/class/misc/mali0/device/devfreq/13000000.mali" ]; then
+            if [ -d "/sys/class/misc/mali0/device/devfreq/13000000.mali" ] && { [ -e "/sys/class/misc/mali0/device/devfreq/13000000.mali/governor" ] || [ -e "/sys/class/misc/mali0/device/devfreq/13000000.mali/cur_freq" ] || [ -e "/sys/class/misc/mali0/device/devfreq/13000000.mali/available_frequencies" ]; }; then
                 echo "/sys/class/misc/mali0/device/devfreq/13000000.mali"
                 exit 0
             fi
@@ -99,7 +101,21 @@ object GpuScripts {
             echo "MIN_FREQ=$(cat "$path/min_freq" 2>/dev/null)"
             echo "MAX_FREQ=$(cat "$path/max_freq" 2>/dev/null)"
             echo "TARGET_FREQ=$(cat "$path/target_freq" 2>/dev/null)"
-            echo "AVAIL_FREQ=$(cat "$path/available_frequencies" 2>/dev/null)"
+            # Prefer the real OPP table. If unavailable, expose only points that
+            # the driver actually reports; never invent compatibility values.
+            AVAIL_FREQ=$(cat "$path/available_frequencies" 2>/dev/null | tr '\n' ' ')
+            if [ -z "${'$'}AVAIL_FREQ" ] && [ -e "$path/stats/time_in_state" ]; then
+                AVAIL_FREQ=$(awk '{print ${'$'}1}' "$path/stats/time_in_state" 2>/dev/null | tr '\n' ' ')
+            fi
+            if [ -z "${'$'}AVAIL_FREQ" ] && [ -e "$path/time_in_state" ]; then
+                AVAIL_FREQ=$(awk '{print ${'$'}1}' "$path/time_in_state" 2>/dev/null | tr '\n' ' ')
+            fi
+            if [ -z "${'$'}AVAIL_FREQ" ]; then
+                for v in "${'$'}CUR_FREQ" "$(cat "$path/min_freq" 2>/dev/null)" "$(cat "$path/max_freq" 2>/dev/null)" "$(cat "$path/target_freq" 2>/dev/null)"; do
+                    case " ${'$'}AVAIL_FREQ " in *" ${'$'}v "*) ;; *) [ -n "${'$'}v" ] && [ "${'$'}v" != "0" ] && AVAIL_FREQ="${'$'}AVAIL_FREQ ${'$'}v" ;; esac
+                done
+            fi
+            echo "AVAIL_FREQ=${'$'}AVAIL_FREQ"
 
             # Load Calculation
             LOAD=0

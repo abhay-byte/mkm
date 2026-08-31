@@ -23,6 +23,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ivarna.mkm.data.model.CpuCluster
 import com.ivarna.mkm.data.model.CpuCore
@@ -43,11 +44,9 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
     var selectedClusterForGovernor by remember { mutableStateOf<CpuCluster?>(null) }
     var selectedClusterForMaxFreq by remember { mutableStateOf<CpuCluster?>(null) }
     var selectedClusterForMinFreq by remember { mutableStateOf<CpuCluster?>(null) }
-    
-    var selectedCoreForSettings by remember { mutableStateOf<com.ivarna.mkm.data.model.CpuCore?>(null) }
-    var showCoreGovernorSheet by remember { mutableStateOf(false) }
-    var showCoreMaxFreqSheet by remember { mutableStateOf(false) }
-    var showCoreMinFreqSheet by remember { mutableStateOf(false) }
+    var applyingControl by remember { mutableStateOf<String?>(null) }
+    var sheetError by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -149,8 +148,7 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
 
             item {
                 CoreStatusGrid(
-                    cores = cpuStatus.clusters.flatMap { it.cores },
-                    onCoreClick = { selectedCoreForSettings = it }
+                    cores = cpuStatus.clusters.flatMap { it.cores }
                 )
             }
             }
@@ -162,11 +160,21 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                 title = stringResource(com.ivarna.mkm.R.string.select_governor),
                 items = cluster.availableGovernors,
                 selectedItem = cluster.governor,
-                onDismiss = { selectedClusterForGovernor = null },
+                onDismiss = { sheetError = null; selectedClusterForGovernor = null },
                 onItemSelected = {
-                    viewModel.setGovernor(cluster.id, it)
-                    selectedClusterForGovernor = null
-                }
+                    sheetError = null
+                    applyingControl = "cpu-${cluster.id}-governor"
+                    viewModel.setGovernor(cluster.id, it) { result ->
+                        applyingControl = null
+                        if (result is com.ivarna.mkm.data.model.ApplyResult.Failed) sheetError = result.message()
+                        else {
+                            selectedClusterForGovernor = null
+                            if (result is com.ivarna.mkm.data.model.ApplyResult.Adjusted) android.widget.Toast.makeText(context, result.message(), android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+                isApplying = applyingControl == "cpu-${cluster.id}-governor",
+                errorMessage = sheetError
             )
         }
 
@@ -175,12 +183,22 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                 title = stringResource(com.ivarna.mkm.R.string.select_max_frequency),
                 items = cluster.availableFrequencies,
                 selectedItem = cluster.rawMaxFreq,
-                onDismiss = { selectedClusterForMaxFreq = null },
+                onDismiss = { sheetError = null; selectedClusterForMaxFreq = null },
                 onItemSelected = {
-                    viewModel.setFrequency(cluster.id, it, true)
-                    selectedClusterForMaxFreq = null
+                    sheetError = null
+                    applyingControl = "cpu-${cluster.id}-max"
+                    viewModel.setFrequency(cluster.id, it, true) { result ->
+                        applyingControl = null
+                        if (result is com.ivarna.mkm.data.model.ApplyResult.Failed) sheetError = result.message()
+                        else {
+                            selectedClusterForMaxFreq = null
+                            if (result is com.ivarna.mkm.data.model.ApplyResult.Adjusted) android.widget.Toast.makeText(context, result.message(), android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 },
-                itemLabel = { ShellUtils.formatFreq(it.toLongOrNull() ?: 0L) }
+                itemLabel = { ShellUtils.formatFreq(it.toLongOrNull() ?: 0L) },
+                isApplying = applyingControl == "cpu-${cluster.id}-max",
+                errorMessage = sheetError
             )
         }
 
@@ -189,94 +207,23 @@ fun CpuScreen(viewModel: CpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                 title = stringResource(com.ivarna.mkm.R.string.select_min_frequency),
                 items = cluster.availableFrequencies,
                 selectedItem = cluster.rawMinFreq,
-                onDismiss = { selectedClusterForMinFreq = null },
+                onDismiss = { sheetError = null; selectedClusterForMinFreq = null },
                 onItemSelected = {
-                    viewModel.setFrequency(cluster.id, it, false)
-                    selectedClusterForMinFreq = null
+                    sheetError = null
+                    applyingControl = "cpu-${cluster.id}-min"
+                    viewModel.setFrequency(cluster.id, it, false) { result ->
+                        applyingControl = null
+                        if (result is com.ivarna.mkm.data.model.ApplyResult.Failed) sheetError = result.message()
+                        else {
+                            selectedClusterForMinFreq = null
+                            if (result is com.ivarna.mkm.data.model.ApplyResult.Adjusted) android.widget.Toast.makeText(context, result.message(), android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 },
-                itemLabel = { ShellUtils.formatFreq(it.toLongOrNull() ?: 0L) }
+                itemLabel = { ShellUtils.formatFreq(it.toLongOrNull() ?: 0L) },
+                isApplying = applyingControl == "cpu-${cluster.id}-min",
+                errorMessage = sheetError
             )
-        }
-
-        selectedCoreForSettings?.let { core ->
-            ModalBottomSheet(
-                onDismissRequest = { selectedCoreForSettings = null },
-                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                containerColor = MaterialTheme.colorScheme.surface
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                        .padding(bottom = 48.dp)
-                ) {
-                    Text(
-                        text = stringResource(com.ivarna.mkm.R.string.core_settings_format, core.id),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 24.dp)
-                    )
-
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        SettingRow(
-                            label = stringResource(com.ivarna.mkm.R.string.governor),
-                            value = core.governor,
-                            onClick = { showCoreGovernorSheet = true }
-                        )
-                        SettingRow(
-                            label = stringResource(com.ivarna.mkm.R.string.max_frequency),
-                            value = core.maxFreq,
-                            onClick = { showCoreMaxFreqSheet = true }
-                        )
-                        SettingRow(
-                            label = stringResource(com.ivarna.mkm.R.string.min_frequency),
-                            value = core.minFreq,
-                            onClick = { showCoreMinFreqSheet = true }
-                        )
-                    }
-                }
-            }
-
-            if (showCoreGovernorSheet) {
-                SelectionBottomSheet(
-                    title = stringResource(com.ivarna.mkm.R.string.core_governor_format, core.id),
-                    items = core.availableGovernors,
-                    selectedItem = core.governor,
-                    onDismiss = { showCoreGovernorSheet = false },
-                    onItemSelected = {
-                        viewModel.setGovernorForCore(core.id, it)
-                        showCoreGovernorSheet = false
-                    }
-                )
-            }
-
-            if (showCoreMaxFreqSheet) {
-                SelectionBottomSheet(
-                    title = stringResource(com.ivarna.mkm.R.string.core_max_freq_format, core.id),
-                    items = core.availableFrequencies,
-                    selectedItem = core.rawMaxFreq,
-                    onDismiss = { showCoreMaxFreqSheet = false },
-                    onItemSelected = {
-                        viewModel.setFrequencyForCore(core.id, it, true)
-                        showCoreMaxFreqSheet = false
-                    },
-                    itemLabel = { ShellUtils.formatFreq(it.toLongOrNull() ?: 0L) }
-                )
-            }
-
-            if (showCoreMinFreqSheet) {
-                SelectionBottomSheet(
-                    title = stringResource(com.ivarna.mkm.R.string.core_min_freq_format, core.id),
-                    items = core.availableFrequencies,
-                    selectedItem = core.rawMinFreq,
-                    onDismiss = { showCoreMinFreqSheet = false },
-                    onItemSelected = {
-                        viewModel.setFrequencyForCore(core.id, it, false)
-                        showCoreMinFreqSheet = false
-                    },
-                    itemLabel = { ShellUtils.formatFreq(it.toLongOrNull() ?: 0L) }
-                )
-            }
         }
     }
 }
@@ -310,8 +257,13 @@ fun CpuClusterCard(
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                 ) {
+                    val policyCpus = cluster.affectedCpus.ifEmpty { cluster.relatedCpus }
                     Text(
-                        text = stringResource(com.ivarna.mkm.R.string.cluster_cores_range_format, cluster.coreRange.first, cluster.coreRange.last),
+                        text = if (policyCpus.isNotEmpty()) {
+                            stringResource(com.ivarna.mkm.R.string.policy_cpus_format, policyCpus.joinToString(","))
+                        } else {
+                            stringResource(com.ivarna.mkm.R.string.policy_id_format, cluster.id)
+                        },
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -325,29 +277,39 @@ fun CpuClusterCard(
                 SettingRow(
                     label = stringResource(com.ivarna.mkm.R.string.governor),
                     value = cluster.governor,
-                    onClick = onGovernorClick
+                    onClick = onGovernorClick,
+                    enabled = cluster.governorWritable && cluster.availableGovernors.isNotEmpty()
                 )
                 SettingRow(
                     label = stringResource(com.ivarna.mkm.R.string.max_frequency),
                     value = cluster.maxFreq,
-                    onClick = onMaxFreqClick
+                    onClick = onMaxFreqClick,
+                    enabled = cluster.maxWritable && cluster.availableFrequencies.isNotEmpty()
                 )
                 SettingRow(
                     label = stringResource(com.ivarna.mkm.R.string.min_frequency),
                     value = cluster.minFreq,
-                    onClick = onMinFreqClick
+                    onClick = onMinFreqClick,
+                    enabled = cluster.minWritable && cluster.availableFrequencies.isNotEmpty()
                 )
                 InfoRow(
                     label = stringResource(com.ivarna.mkm.R.string.current_clock_speed),
                     value = cluster.currentFreq
                 )
+                if (cluster.availableGovernors.isEmpty() || cluster.availableFrequencies.isEmpty()) {
+                    Text(
+                        text = stringResource(com.ivarna.mkm.R.string.tuning_unavailable_kernel),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun CoreStatusGrid(cores: List<CpuCore>, onCoreClick: (CpuCore) -> Unit) {
+fun CoreStatusGrid(cores: List<CpuCore>) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         cores.chunked(2).forEach { rowCores ->
             Row(
@@ -357,7 +319,6 @@ fun CoreStatusGrid(cores: List<CpuCore>, onCoreClick: (CpuCore) -> Unit) {
                 rowCores.forEach { core ->
                     CoreMiniCard(
                         core = core,
-                        onClick = { onCoreClick(core) },
                         modifier = Modifier.weight(1f)
                     )
                 }

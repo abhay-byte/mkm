@@ -23,13 +23,19 @@ data class CpuCore(
     val maxFreq: String = "0 MHz",
     val rawMinFreq: String = "",
     val rawMaxFreq: String = "",
+    // Telemetry cards are deliberately not tuning controls. Tuning belongs to
+    // the owning cpufreq policy, even when a kernel exposes per-core symlinks.
     val availableGovernors: List<String> = emptyList(),
-    val availableFrequencies: List<String> = emptyList()
+    val availableFrequencies: List<String> = emptyList(),
+    val policyId: Int? = null
 )
 
 data class CpuCluster(
     val id: Int,
-    val coreRange: IntRange,
+    val policyPath: String = "",
+    val affectedCpus: List<Int> = emptyList(),
+    val relatedCpus: List<Int> = emptyList(),
+    val coreRange: IntRange = 0..0,
     val governor: String = "unknown",
     val currentFreq: String = "0 MHz",
     val minFreq: String = "0 MHz",
@@ -40,6 +46,11 @@ data class CpuCluster(
     val hwMaxFreq: String = "",
     val availableGovernors: List<String> = emptyList(),
     val availableFrequencies: List<String> = emptyList(),
+    val frequencyCapability: FrequencyCapability = FrequencyCapability.Unavailable("Frequency capability unavailable on this kernel"),
+    val governorWritable: Boolean = false,
+    val minWritable: Boolean = false,
+    val maxWritable: Boolean = false,
+    val policyState: CpuPolicyState? = null,
     val cores: List<CpuCore> = emptyList()
 )
 
@@ -68,8 +79,15 @@ data class GpuStatus(
     val sysfsPath: String = "Unknown",
     val setOnBoot: Boolean = false,
     val freezeValues: Boolean = false,
-    val frequencyAvailable: Boolean = true,
-    val freqRequiresRoot: Boolean = false
+    val frequencyAvailable: Boolean = false,
+    val freqRequiresRoot: Boolean = false,
+    val frequencyCapability: FrequencyCapability = FrequencyCapability.Unavailable("Frequency capability unavailable on this kernel"),
+    val governorWritable: Boolean = false,
+    val minWritable: Boolean = false,
+    val maxWritable: Boolean = false,
+    val targetWritable: Boolean = false,
+    val capabilityReason: String? = null,
+    val tuningCapabilities: GpuTuningCapabilities? = null
 )
 
 data class SwapDeviceInfo(

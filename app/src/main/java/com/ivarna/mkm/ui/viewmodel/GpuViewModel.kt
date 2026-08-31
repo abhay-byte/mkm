@@ -3,60 +3,81 @@ package com.ivarna.mkm.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.ivarna.mkm.data.model.ApplyResult
 import com.ivarna.mkm.data.model.GpuStatus
 import com.ivarna.mkm.data.provider.GpuProvider
 import com.ivarna.mkm.service.BootSettingsManager
 import com.ivarna.mkm.util.AppVisibilityMonitor
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 class GpuViewModel(application: Application) : AndroidViewModel(application) {
     private val _gpuStatus = MutableStateFlow(GpuStatus())
     val gpuStatus = _gpuStatus.asStateFlow()
-
-    private var freezeValues = false
-
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing = _isRefreshing.asStateFlow()
-
     private val _bootEnabled = MutableStateFlow(BootSettingsManager.isGpuEnabled(application))
     val bootEnabled = _bootEnabled.asStateFlow()
+    private val _pendingControlId = MutableStateFlow<String?>(null)
+    val pendingControlId = _pendingControlId.asStateFlow()
+    private val _lastApplyResult = MutableStateFlow<ApplyResult?>(null)
+    val lastApplyResult = _lastApplyResult.asStateFlow()
 
-    init {
-        startMonitoring()
-    }
+    private val tuningMutex = Mutex()
+    private var freezeValues = false
+
+    init { startMonitoring() }
 
     private fun startMonitoring() {
         viewModelScope.launch {
             while (true) {
-                if (AppVisibilityMonitor.isForeground.value) {
-                    val status = GpuProvider.getGpuStatus()
-                    _gpuStatus.value = status.copy(
-                        setOnBoot = _bootEnabled.value,
-                        freezeValues = freezeValues
-                    )
+                if (AppVisibilityMonitor.isForeground.value) tuningMutex.withLock { publishState() }
+                delay(1000L)
+            }
+        }
+    }
+
+    fun setGovernor(governor: String, onResult: (ApplyResult) -> Unit = {}) =
+        mutate("gpu-governor", { GpuProvider.applyGovernor(governor) }, onResult)
+
+    fun setFrequency(freq: String, type: Int, onResult: (ApplyResult) -> Unit = {}) {
+        val value = freq.toLongOrNull()
+        mutate("gpu-${when (type) { 0 -> "min"; 1 -> "max"; else -> "target" }}", {
+            if (value == null) ApplyResult.Failed("Invalid GPU frequency")
+            else when (type) {
+                0 -> GpuProvider.applyRange(desiredMin = value)
+                1 -> GpuProvider.applyRange(desiredMax = value)
+                2 -> GpuProvider.applyTarget(value)
+                else -> ApplyResult.Failed("Unknown GPU frequency control")
+            }
+        }, onResult)
+    }
+
+    private fun mutate(controlId: String, operation: () -> ApplyResult, onResult: (ApplyResult) -> Unit) {
+        viewModelScope.launch {
+            val result = tuningMutex.withLock {
+                _pendingControlId.value = controlId
+                try {
+                    val applied = withContext(Dispatchers.IO) { operation() }
+                    publishState()
+                    applied
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    ApplyResult.Failed(error.message ?: "GPU tuning operation failed")
+                } finally {
+                    _pendingControlId.value = null
                 }
-                delay(1000)
             }
-        }
-    }
-
-    fun setGovernor(governor: String) {
-        viewModelScope.launch {
-            if (GpuProvider.setGovernor(governor)) {
-                refresh()
-            }
-        }
-    }
-
-    fun setFrequency(freq: String, type: Int) {
-        // type: 0=min, 1=max, 2=target
-        viewModelScope.launch {
-            if (GpuProvider.setFrequency(freq, type)) {
-                refresh()
-            }
+            _lastApplyResult.value = result
+            onResult(result)
         }
     }
 
@@ -64,20 +85,12 @@ class GpuViewModel(application: Application) : AndroidViewModel(application) {
         BootSettingsManager.setGpuEnabled(getApplication(), enabled)
         _bootEnabled.value = enabled
         _gpuStatus.value = _gpuStatus.value.copy(setOnBoot = enabled)
-        if (enabled) {
-            saveCurrentGpuSettings()
-        }
+        if (enabled) saveCurrentGpuSettings()
     }
 
     private fun saveCurrentGpuSettings() {
         val status = _gpuStatus.value
-        BootSettingsManager.saveGpuSettings(
-            getApplication(),
-            status.governor,
-            status.rawMaxFreq,
-            status.rawMinFreq,
-            status.rawTargetFreq
-        )
+        BootSettingsManager.saveGpuSettings(getApplication(), status.governor, status.rawMaxFreq, status.rawMinFreq, status.rawTargetFreq)
     }
 
     fun toggleFreezeValues(enabled: Boolean) {
@@ -88,13 +101,20 @@ class GpuViewModel(application: Application) : AndroidViewModel(application) {
     fun refresh() {
         viewModelScope.launch {
             _isRefreshing.value = true
-            GpuProvider.clearCache()
-            _gpuStatus.value = GpuProvider.getGpuStatus().copy(
-                setOnBoot = _bootEnabled.value,
-                freezeValues = freezeValues
-            )
-            delay(500)
-            _isRefreshing.value = false
+            try { tuningMutex.withLock { publishState() } }
+            finally { _isRefreshing.value = false }
+        }
+    }
+
+    /** Explicit redetection is separate from ordinary polling. */
+    fun redetect() {
+        GpuProvider.clearCache()
+        refresh()
+    }
+
+    private suspend fun publishState() {
+        _gpuStatus.value = withContext(Dispatchers.IO) {
+            GpuProvider.getGpuStatus().copy(setOnBoot = _bootEnabled.value, freezeValues = freezeValues)
         }
     }
 }

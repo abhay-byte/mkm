@@ -5,12 +5,9 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 
 /**
- * Manages shell command execution with intelligent fallback.
- * Priority: Root (if available) → Local shell
- * 
- * Note: Shizuku is integrated for permission detection and status display.
- * Direct command execution via Shizuku requires UserService API (planned for future update).
- * For now, operations that require elevated access will use root.
+ * Manages shell command execution with explicit privilege-aware fallback.
+ * Kernel tuning uses root first, then Shizuku, and never silently falls back
+ * to an unprivileged write.
  */
 object ShellManager {
     private const val COMMAND_TIMEOUT_MS = 10_000L
@@ -23,6 +20,17 @@ object ShellManager {
     enum class AccessMethod {
         ROOT,       // Root via libsu
         LOCAL       // Non-root local shell
+    }
+
+    enum class PrivilegeRequirement {
+        NORMAL,
+        ELEVATED_SYSFS
+    }
+
+    enum class ExecutionBackend {
+        ROOT,
+        SHIZUKU,
+        LOCAL
     }
 
     /**
@@ -62,27 +70,28 @@ object ShellManager {
         return Shell.getShell().isRoot
     }
 
-    /**
-     * Execute command with automatic fallback
-     * Shizuku → Root → Local shell
-     */
-    fun exec(command: String): CommandResult {
-        // Try Shizuku first if available
-        if (hasShizuku()) {
-            val result = execShizuku(command)
-            // If Shizuku succeeds or is truly unavailable, return the result
-            // If it times out or fails, fall back to root
-            if (result.isSuccess || result.exitCode != -1) {
+    /** Execute a command according to its privilege requirement. */
+    fun exec(command: String, requirement: PrivilegeRequirement = PrivilegeRequirement.NORMAL): CommandResult {
+        val order = PrivilegeExecutionPolicy.order(requirement, hasRoot(), hasShizuku())
+        if (order.isEmpty()) return CommandResult(-1, "", "No elevated backend available")
+
+        var lastResult: CommandResult? = null
+        for (backend in order) {
+            val result = when (backend) {
+                ExecutionBackend.ROOT -> execRoot(command)
+                ExecutionBackend.SHIZUKU -> execShizuku(command)
+                ExecutionBackend.LOCAL -> execLocal(command)
+            }
+            lastResult = result
+            // Normal commands preserve the existing behavior: a real shell
+            // failure is returned, while an unavailable backend may fall back.
+            // Elevated operations use a root-first order and never include
+            // LOCAL, so permission failures cannot become fake sysfs writes.
+            if (result.isSuccess || result.exitCode != -1 || requirement == PrivilegeRequirement.ELEVATED_SYSFS) {
                 return result
             }
-            // Shizuku failed, try root fallback
         }
-        
-        // Fall back to root or local
-        return when (getAvailableMethod()) {
-            AccessMethod.ROOT -> execRoot(command)
-            AccessMethod.LOCAL -> execLocal(command)
-        }
+        return lastResult ?: CommandResult(-1, "", "No execution backend available")
     }
 
     /**
@@ -93,7 +102,8 @@ object ShellManager {
         return CommandResult(
             result.code,
             result.out.joinToString("\n").trim(),
-            result.err.joinToString("\n").trim()
+            result.err.joinToString("\n").trim(),
+            ExecutionBackend.ROOT
         )
     }
 
@@ -161,13 +171,13 @@ object ShellManager {
             
             if (!finished) {
                 process.destroy()
-                return CommandResult(-1, output.toString().trim(), "Command timeout after 10 seconds")
+                return CommandResult(-1, output.toString().trim(), "Command timeout after 10 seconds", ExecutionBackend.SHIZUKU)
             }
             
             val exitCode = process.exitValue()
-            CommandResult(exitCode, output.toString().trim(), error.toString().trim())
+            CommandResult(exitCode, output.toString().trim(), error.toString().trim(), ExecutionBackend.SHIZUKU)
         } catch (e: Exception) {
-            CommandResult(-1, "", "Shizuku execution failed: ${e.message}")
+            CommandResult(-1, "", "Shizuku execution failed: ${e.message}", ExecutionBackend.SHIZUKU)
         }
     }
 
@@ -195,11 +205,11 @@ object ShellManager {
             val finished = waitForProcess(process, COMMAND_TIMEOUT_MS)
             if (!finished) {
                 process.destroy()
-                return CommandResult(-1, output.toString().trim(), "Command timeout after 10 seconds")
+                return CommandResult(-1, output.toString().trim(), "Command timeout after 10 seconds", ExecutionBackend.LOCAL)
             }
-            CommandResult(process.exitValue(), output.toString().trim(), error.toString().trim())
+            CommandResult(process.exitValue(), output.toString().trim(), error.toString().trim(), ExecutionBackend.LOCAL)
         } catch (e: Exception) {
-            CommandResult(-1, "", e.message ?: "Unknown local error")
+            CommandResult(-1, "", e.message ?: "Unknown local error", ExecutionBackend.LOCAL)
         }
     }
 
@@ -222,7 +232,8 @@ object ShellManager {
     data class CommandResult(
         val exitCode: Int,
         val stdout: String,
-        val stderr: String
+        val stderr: String,
+        val backend: ExecutionBackend? = null
     ) {
         val isSuccess: Boolean get() = exitCode == 0
     }
@@ -383,5 +394,24 @@ object ShellManager {
             onOutput("EXCEPTION: $msg")
             CommandResult(-1, "", msg)
         }
+    }
+}
+
+/** Pure backend ordering so privilege fallback is explicit and testable. */
+object PrivilegeExecutionPolicy {
+    fun order(
+        requirement: ShellManager.PrivilegeRequirement,
+        rootAvailable: Boolean,
+        shizukuAvailable: Boolean
+    ): List<ShellManager.ExecutionBackend> = when {
+        requirement == ShellManager.PrivilegeRequirement.ELEVATED_SYSFS && rootAvailable ->
+            listOf(ShellManager.ExecutionBackend.ROOT)
+        requirement == ShellManager.PrivilegeRequirement.ELEVATED_SYSFS && shizukuAvailable ->
+            listOf(ShellManager.ExecutionBackend.SHIZUKU)
+        requirement == ShellManager.PrivilegeRequirement.ELEVATED_SYSFS -> emptyList()
+        shizukuAvailable -> listOf(ShellManager.ExecutionBackend.SHIZUKU) +
+            if (rootAvailable) listOf(ShellManager.ExecutionBackend.ROOT) else listOf(ShellManager.ExecutionBackend.LOCAL)
+        rootAvailable -> listOf(ShellManager.ExecutionBackend.ROOT)
+        else -> listOf(ShellManager.ExecutionBackend.LOCAL)
     }
 }

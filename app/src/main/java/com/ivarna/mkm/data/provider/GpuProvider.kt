@@ -1,197 +1,308 @@
 package com.ivarna.mkm.data.provider
 
-import com.ivarna.mkm.data.model.GpuStatus
-import com.ivarna.mkm.shell.GpuScripts
-import com.ivarna.mkm.shell.ShellManager
-import com.ivarna.mkm.utils.ShellUtils
-import java.io.File
 import android.opengl.EGL14
 import android.opengl.GLES20
+import android.util.Log
+import com.ivarna.mkm.data.model.ApplyResult
+import com.ivarna.mkm.data.model.FrequencyCapability
+import com.ivarna.mkm.data.model.FrequencyCapabilityParser
+import com.ivarna.mkm.data.model.FrequencyRangePlanner
+import com.ivarna.mkm.data.model.GpuStatus
+import com.ivarna.mkm.data.model.GpuTuningCapabilities
+import com.ivarna.mkm.shell.GpuScripts
+import com.ivarna.mkm.shell.ShellManager
+import com.ivarna.mkm.shell.SysfsTuningExecutor
+import com.ivarna.mkm.utils.ShellUtils
+import java.io.File
 
 object GpuProvider {
+    private const val TAG = "GpuProvider"
     private var cachedPath: String? = null
     private var cachedGpuModel: String? = null
 
+    /** Explicit diagnostic/redetection hook; normal refreshes retain identity. */
     fun clearCache() {
         cachedPath = null
+        cachedGpuModel = null
     }
 
     fun getGpuStatus(): GpuStatus {
-        val pathResult = getPath()
-        val path = pathResult.first
+        val path = getPath().first
+        if (path.isEmpty()) return GpuStatus(capabilityReason = "GPU devfreq device was not detected")
 
-        // Default / Empty values
+        // Prefer the same elevated read path used by mutations when available;
+        // a permitted Shizuku shell can still be denied by vendor sysfs policy.
+        val result = if (ShellManager.hasRoot() || ShellManager.hasShizuku()) {
+            ShellManager.exec(GpuScripts.getGpuInfo(path), ShellManager.PrivilegeRequirement.ELEVATED_SYSFS)
+        } else {
+            ShellManager.exec(GpuScripts.getGpuInfo(path))
+        }
         var load = 0f
         var curFreq = 0L
         var minFreq = 0L
         var maxFreq = 0L
         var targetFreq = 0L
-        var rawMinFreq = ""
-        var rawMaxFreq = ""
-        var rawTargetFreq = ""
         var governor = "unknown"
-        var availableGovernors = listOf("dummy", "performance", "powersave")
-        var availableFrequencies = listOf("265000000", "500000000", "1400000000")
+        var availableGovernors = emptyList<String>()
+        var availableFrequencies = emptyList<Long>()
         var frequencyAvailable = false
-        var freqRequiresRoot = false
 
-        if (path.isNotEmpty()) {
-             val result = ShellManager.exec(GpuScripts.getGpuInfo(path))
-             if (result.isSuccess) {
-                 result.stdout.lines().forEach { line ->
-                     when {
-                         line.startsWith("GOV=") -> governor = line.removePrefix("GOV=").takeIf { it.isNotEmpty() } ?: "unknown"
-                         line.startsWith("AVAIL=") -> {
-                             val allGovs = line.removePrefix("AVAIL=").split("\\s+".toRegex()).filter { it.isNotBlank() }
-                             val unsafeGovernors = setOf("apupassive-pe", "apupassive", "apuconstrain", "apuuser")
-                             availableGovernors = allGovs.filter { it !in unsafeGovernors }
-                         }
-                         line.startsWith("CUR_FREQ=") -> curFreq = line.removePrefix("CUR_FREQ=").toLongOrNull() ?: 0L
-                         line.startsWith("FREQ_AVAILABLE=") -> {
-                             frequencyAvailable = line.removePrefix("FREQ_AVAILABLE=").trim() == "1"
-                         }
-                         line.startsWith("MIN_FREQ=") -> {
-                             rawMinFreq = line.removePrefix("MIN_FREQ=")
-                             minFreq = rawMinFreq.toLongOrNull() ?: 0L
-                         }
-                         line.startsWith("MAX_FREQ=") -> {
-                             rawMaxFreq = line.removePrefix("MAX_FREQ=")
-                             maxFreq = rawMaxFreq.toLongOrNull() ?: 0L
-                         }
-                         line.startsWith("TARGET_FREQ=") -> {
-                              rawTargetFreq = line.removePrefix("TARGET_FREQ=")
-                              targetFreq = rawTargetFreq.toLongOrNull() ?: 0L
-                         }
-                         line.startsWith("AVAIL_FREQ=") -> availableFrequencies = line.removePrefix("AVAIL_FREQ=").split("\\s+".toRegex()).filter { it.isNotBlank() }
-                         line.startsWith("LOAD=") -> {
-                             val rawLoad = line.removePrefix("LOAD=").toFloatOrNull() ?: 0f
-                             load = if (rawLoad > 1f) rawLoad / 100f else rawLoad
-                         }
-                     }
-                 }
-
-                 // Fallback: If load is 0, estimate based on frequency usage
-                 if (load == 0f && availableFrequencies.isNotEmpty()) {
-                     val maxAvail = availableFrequencies.mapNotNull { it.toLongOrNull() }.maxOrNull() ?: 0L
-                     if (maxAvail > 0 && curFreq > 0) {
-                         load = curFreq.toFloat() / maxAvail.toFloat()
-                     }
-                 }
-             }
+        if (result.isSuccess) {
+            result.stdout.lines().forEach { line ->
+                when {
+                    line.startsWith("GOV=") -> governor = line.removePrefix("GOV=").trim().ifEmpty { "unknown" }
+                    line.startsWith("AVAIL=") -> availableGovernors = line.removePrefix("AVAIL=")
+                        .split(Regex("\\s+")).filter { it.isNotBlank() }.distinct()
+                    line.startsWith("CUR_FREQ=") -> curFreq = line.removePrefix("CUR_FREQ=").trim().toLongOrNull() ?: 0L
+                    line.startsWith("FREQ_AVAILABLE=") -> frequencyAvailable = line.removePrefix("FREQ_AVAILABLE=").trim() == "1"
+                    line.startsWith("MIN_FREQ=") -> minFreq = line.removePrefix("MIN_FREQ=").trim().toLongOrNull() ?: 0L
+                    line.startsWith("MAX_FREQ=") -> maxFreq = line.removePrefix("MAX_FREQ=").trim().toLongOrNull() ?: 0L
+                    line.startsWith("TARGET_FREQ=") -> targetFreq = line.removePrefix("TARGET_FREQ=").trim().toLongOrNull() ?: 0L
+                    line.startsWith("AVAIL_FREQ=") -> availableFrequencies = FrequencyCapabilityParser.normalize(
+                        listOf(line.removePrefix("AVAIL_FREQ="))
+                    )
+                    line.startsWith("LOAD=") -> {
+                        val raw = line.removePrefix("LOAD=").trim().toFloatOrNull() ?: 0f
+                        load = if (raw > 1f) raw / 100f else raw
+                    }
+                }
+            }
         }
 
-        // Fallback for defaults if empty from script
-        if (availableGovernors.isEmpty()) {
-            availableGovernors = listOf("dummy", "performance", "powersave")
+        val knownPoints = listOf(curFreq, minFreq, maxFreq, targetFreq)
+        val capability = if (availableFrequencies.isNotEmpty()) {
+            FrequencyCapability.Discrete(availableFrequencies)
         } else {
-            val unsafeGovernors = setOf("apupassive-pe", "apupassive", "apuconstrain", "apuuser")
-            availableGovernors = availableGovernors.filter { it !in unsafeGovernors }
+            val known = FrequencyCapabilityParser.normalizeLongs(knownPoints)
+            if (known.isNotEmpty()) FrequencyCapability.Discrete(known)
+            else FrequencyCapability.Unavailable("No GPU frequency table is exposed by this kernel")
         }
-        if (availableFrequencies.isEmpty()) availableFrequencies = listOf("265000000", "500000000", "1400000000")
-
-        // Determine if root would be required to read frequency on this device.
-        // If we have a valid path but no readable frequency source, modern Android (esp.
-        // Adreno/Turnip) is blocking the shell user via SELinux — root would unlock it.
-        freqRequiresRoot = path.isNotEmpty() &&
-            !frequencyAvailable &&
-            (path.contains("kgsl", true) || path.contains("adreno", true) || path.contains("mali", true))
-
-        val sysfsName = if (path.isNotEmpty()) File(path).name else "Unknown"
+        val uiFrequencies = FrequencyCapabilityParser.valuesForUi(capability).map(Long::toString)
+        val rangeFilesExist = SysfsTuningExecutor.exists("$path/min_freq") && SysfsTuningExecutor.exists("$path/max_freq")
+        val reason = when {
+            !result.isSuccess -> "GPU metrics could not be read: ${result.stderr.ifBlank { "unknown error" }}"
+            !rangeFilesExist -> "GPU frequency controls are unavailable on this kernel"
+            capability is FrequencyCapability.Unavailable -> capability.reason
+            else -> null
+        }
+        val sysfsName = File(path).name
         val renderer = getGpuModel()
 
-        // GPU frequencies from devfreq are in Hz, but formatFreq expects kHz
         return GpuStatus(
-            loadPercent = load,
-            currentFreq = if (frequencyAvailable && curFreq > 0L) ShellUtils.formatFreq(curFreq / 1000) else "N/A",
-            minFreq = if (minFreq > 0L) ShellUtils.formatFreq(minFreq / 1000) else "N/A",
-            maxFreq = if (maxFreq > 0L) ShellUtils.formatFreq(maxFreq / 1000) else "N/A",
-            targetFreq = if (targetFreq > 0L) ShellUtils.formatFreq(targetFreq / 1000) else "N/A",
-            rawMinFreq = rawMinFreq,
-            rawMaxFreq = rawMaxFreq,
-            rawTargetFreq = rawTargetFreq,
+            loadPercent = load.coerceIn(0f, 1f),
+            currentFreq = if (frequencyAvailable && curFreq > 0L) formatRawFrequency(curFreq) else "N/A",
+            minFreq = if (minFreq > 0L) formatRawFrequency(minFreq) else "N/A",
+            maxFreq = if (maxFreq > 0L) formatRawFrequency(maxFreq) else "N/A",
+            targetFreq = if (targetFreq > 0L) formatRawFrequency(targetFreq) else "N/A",
+            rawMinFreq = minFreq.takeIf { it > 0L }?.toString() ?: "",
+            rawMaxFreq = maxFreq.takeIf { it > 0L }?.toString() ?: "",
+            rawTargetFreq = targetFreq.takeIf { it > 0L }?.toString() ?: "",
             governor = governor,
             availableGovernors = availableGovernors,
-            availableFrequencies = availableFrequencies,
+            availableFrequencies = uiFrequencies,
             model = renderer,
             renderer = renderer,
             sysfsPath = sysfsName,
             frequencyAvailable = frequencyAvailable,
-            freqRequiresRoot = freqRequiresRoot
+            freqRequiresRoot = path.isNotEmpty() && !frequencyAvailable,
+            frequencyCapability = capability,
+            governorWritable = SysfsTuningExecutor.canWrite("$path/governor") && availableGovernors.isNotEmpty(),
+            minWritable = SysfsTuningExecutor.canWrite("$path/min_freq") && SysfsTuningExecutor.canWrite("$path/max_freq"),
+            maxWritable = SysfsTuningExecutor.canWrite("$path/min_freq") && SysfsTuningExecutor.canWrite("$path/max_freq"),
+            targetWritable = SysfsTuningExecutor.canWrite("$path/target_freq"),
+            capabilityReason = reason,
+            tuningCapabilities = GpuTuningCapabilities(
+                path = path,
+                governors = availableGovernors,
+                frequencies = capability,
+                governorWritable = SysfsTuningExecutor.canWrite("$path/governor") && availableGovernors.isNotEmpty(),
+                minWritable = SysfsTuningExecutor.canWrite("$path/min_freq") && SysfsTuningExecutor.canWrite("$path/max_freq"),
+                maxWritable = SysfsTuningExecutor.canWrite("$path/min_freq") && SysfsTuningExecutor.canWrite("$path/max_freq"),
+                targetWritable = SysfsTuningExecutor.canWrite("$path/target_freq"),
+                requiresRoot = path.isNotEmpty() && !frequencyAvailable,
+                reason = reason
+            )
         )
     }
 
-    private fun getPath(): Pair<String, String> {
-        cachedPath?.let { return Pair(it, "Using cached path") }
-        
-        val result = ShellManager.exec(GpuScripts.findGpuPath())
-        val debugLog = "CMD: findGpuPath\nEXIT: ${result.exitCode}\nSTDOUT: ${result.stdout}\nSTDERR: ${result.stderr}"
-        
-        if (result.stdout.isNotBlank()) {
-            val p = result.stdout.trim().lines().firstOrNull() ?: ""
-            if (p.isNotEmpty() && p.startsWith("/")) {
-                cachedPath = p
-                return Pair(p, debugLog)
-            }
+    fun applyGovernor(governor: String): ApplyResult {
+        if (!SysfsTuningExecutor.isSafeValue(governor)) return ApplyResult.Failed("Invalid GPU governor")
+        val path = getPath().first.takeIf { it.isNotEmpty() }
+            ?: return ApplyResult.Failed("GPU devfreq device is unavailable")
+        val supported = SysfsTuningExecutor.read("$path/available_governors")
+            .split(Regex("\\s+")).filter { it.isNotBlank() }
+        if (supported.isEmpty() || governor !in supported) {
+            return ApplyResult.Failed("Governor '$governor' is not advertised by the GPU driver")
         }
-        return Pair("", debugLog)
+        val before = SysfsTuningExecutor.read("$path/governor")
+        val result = SysfsTuningExecutor.write("$path/governor", governor)
+        if (!result.isSuccess) return failed("governor", result)
+        val after = SysfsTuningExecutor.read("$path/governor")
+        val outcome = if (after == governor) ApplyResult.Applied(governor, after)
+        else ApplyResult.Adjusted(governor, after, "GPU driver selected a different governor.")
+        Log.i(TAG, "domain=GPU path=$path request=governor:$governor before=$before backend=${result.backend} after=$after result=${outcome::class.simpleName}")
+        return outcome
     }
+
+    fun applyRange(desiredMin: Long? = null, desiredMax: Long? = null): ApplyResult {
+        if (desiredMin == null && desiredMax == null) return ApplyResult.Failed("No GPU frequency requested")
+        val path = getPath().first.takeIf { it.isNotEmpty() }
+            ?: return ApplyResult.Failed("GPU devfreq device is unavailable")
+        if (!SysfsTuningExecutor.exists("$path/min_freq") || !SysfsTuningExecutor.exists("$path/max_freq")) {
+            return ApplyResult.Failed("GPU min/max frequency controls are unavailable on this kernel")
+        }
+        val currentMin = SysfsTuningExecutor.readLong("$path/min_freq")
+        val currentMax = SysfsTuningExecutor.readLong("$path/max_freq")
+        if (currentMin == null || currentMax == null) return ApplyResult.Failed("GPU frequency bounds are unavailable")
+        if (currentMin > currentMax) return ApplyResult.Failed("GPU driver reports an invalid frequency range")
+        val capability = getGpuCapability(path, currentMin, currentMax)
+        if (!listOfNotNull(desiredMin, desiredMax).all { supportedFrequency(it, capability) }) {
+            return ApplyResult.Failed("Requested GPU frequency is not advertised by the GPU driver")
+        }
+        val plan = when {
+            desiredMin != null && desiredMax != null -> FrequencyRangePlanner.plan(currentMin, currentMax, desiredMin, desiredMax)
+            desiredMax != null -> FrequencyRangePlanner.forMax(currentMin, currentMax, desiredMax)
+            else -> FrequencyRangePlanner.forMin(currentMin, currentMax, desiredMin!!)
+        }
+        val before = "min=$currentMin,max=$currentMax"
+        for (step in plan.steps) {
+            val file = if (step.isMin) "min_freq" else "max_freq"
+            val result = SysfsTuningExecutor.write("$path/$file", step.value.toString())
+            if (!result.isSuccess) return failed(file, result)
+        }
+        val first = readRange(path)
+        Thread.sleep(150L)
+        val after = readRange(path)
+        if (after.first <= 0L || after.second <= 0L || after.first > after.second) {
+            return ApplyResult.Failed("GPU driver returned an invalid frequency range", "after=$after")
+        }
+        val requested = "min=${plan.min},max=${plan.max}"
+        val outcome = when {
+            after.first != plan.min || after.second != plan.max -> ApplyResult.Adjusted(
+                requested, "min=${after.first},max=${after.second}", "GPU driver clamped or overrode the requested range."
+            )
+            plan.adjusted -> ApplyResult.Adjusted(requested, requested, plan.adjustmentReason ?: "Range adjusted")
+            else -> ApplyResult.Applied(requested, requested)
+        }
+        Log.i(TAG, "domain=GPU path=$path request=$requested before=$before plan=${plan.steps.joinToString { if (it.isMin) "min=${it.value}" else "max=${it.value}" }} after=$after result=${outcome::class.simpleName}")
+        return outcome
+    }
+
+    fun applyTarget(freq: Long): ApplyResult {
+        val path = getPath().first.takeIf { it.isNotEmpty() }
+            ?: return ApplyResult.Failed("GPU devfreq device is unavailable")
+        if (!SysfsTuningExecutor.exists("$path/target_freq")) return ApplyResult.Failed("GPU target frequency is unavailable on this kernel")
+        val min = SysfsTuningExecutor.readLong("$path/min_freq") ?: freq
+        val max = SysfsTuningExecutor.readLong("$path/max_freq") ?: freq
+        if (!supportedFrequency(freq, getGpuCapability(path, min, max))) {
+            return ApplyResult.Failed("Requested GPU target is not advertised by the GPU driver")
+        }
+        val result = SysfsTuningExecutor.write("$path/target_freq", freq.toString())
+        if (!result.isSuccess) return failed("target_freq", result)
+        val actual = SysfsTuningExecutor.read("$path/target_freq").toLongOrNull() ?: 0L
+        return if (actual == freq) ApplyResult.Applied(freq.toString(), actual.toString())
+        else ApplyResult.Adjusted(freq.toString(), actual.toString(), "GPU driver selected a different target frequency.")
+    }
+
+    fun setGovernor(governor: String): Boolean = applyGovernor(governor) !is ApplyResult.Failed
+
+    fun setFrequency(freq: String, type: Int): Boolean {
+        val value = freq.toLongOrNull() ?: return false
+        val result = when (type) {
+            0 -> applyRange(desiredMin = value)
+            1 -> applyRange(desiredMax = value)
+            2 -> applyTarget(value)
+            else -> ApplyResult.Failed("Unknown GPU frequency control")
+        }
+        return result !is ApplyResult.Failed
+    }
+
+    private fun getPath(): Pair<String, String> {
+        cachedPath?.let { path ->
+            if (File(path).exists() || SysfsTuningExecutor.read("$path/governor").isNotBlank()) return path to "Using cached path"
+            cachedPath = null
+        }
+        val result = if (ShellManager.hasRoot() || ShellManager.hasShizuku()) {
+            ShellManager.exec(GpuScripts.findGpuPath(), ShellManager.PrivilegeRequirement.ELEVATED_SYSFS)
+        } else {
+            ShellManager.exec(GpuScripts.findGpuPath())
+        }
+        val debugLog = "CMD: findGpuPath\nEXIT: ${result.exitCode}\nSTDOUT: ${result.stdout}\nSTDERR: ${result.stderr}"
+        val path = result.stdout.trim().lines()
+            .firstOrNull { SysfsTuningExecutor.isSafeSysfsPath(it) }
+            .orEmpty()
+        if (path.isNotEmpty()) {
+            cachedPath = path
+            return path to debugLog
+        }
+        return "" to debugLog
+    }
+
+    private fun getGpuCapability(path: String, currentMin: Long, currentMax: Long): FrequencyCapability {
+        val available = SysfsTuningExecutor.read("$path/available_frequencies")
+        val stats = SysfsTuningExecutor.read("$path/stats/time_in_state")
+            .lines()
+            .mapNotNull { it.trim().split(Regex("\\s+")).firstOrNull() }
+        val legacyStats = SysfsTuningExecutor.read("$path/time_in_state")
+            .lines()
+            .mapNotNull { it.trim().split(Regex("\\s+")).firstOrNull() }
+        return FrequencyCapabilityParser.fromDiscreteSources(
+            sources = listOf(
+                listOf(available),
+                stats,
+                legacyStats
+            ),
+            rangeMin = currentMin,
+            rangeMax = currentMax,
+            knownPoints = listOf(
+                currentMin,
+                currentMax,
+                SysfsTuningExecutor.readLong("$path/cur_freq") ?: 0L,
+                SysfsTuningExecutor.readLong("$path/target_freq") ?: 0L
+            )
+        )
+    }
+
+    private fun supportedFrequency(value: Long, capability: FrequencyCapability): Boolean = when (capability) {
+        is FrequencyCapability.Discrete -> value in capability.values
+        is FrequencyCapability.Range -> value in capability.min..capability.max
+        is FrequencyCapability.Unavailable -> false
+    }
+
+    private fun readRange(path: String): Pair<Long, Long> =
+        (SysfsTuningExecutor.readLong("$path/min_freq") ?: 0L) to (SysfsTuningExecutor.readLong("$path/max_freq") ?: 0L)
+
+    private fun failed(path: String, result: ShellManager.CommandResult): ApplyResult {
+        Log.e(TAG, "domain=GPU path=$path backend=${result.backend} exit=${result.exitCode} stderr=${result.stderr}")
+        return ApplyResult.Failed("GPU write failed for $path", result.stderr)
+    }
+
+    private fun formatRawFrequency(raw: Long): String = ShellUtils.formatFreq(if (raw > 10_000_000L) raw / 1000L else raw)
 
     private fun getGpuModel(): String {
         cachedGpuModel?.let { return it }
-        
         return try {
             val display = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
             val version = IntArray(2)
             EGL14.eglInitialize(display, version, 0, version, 1)
-
-            val configAttribs = intArrayOf(
-                EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT,
-                EGL14.EGL_NONE
-            )
+            val configAttribs = intArrayOf(EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT, EGL14.EGL_NONE)
             val configs = arrayOfNulls<android.opengl.EGLConfig>(1)
             val numConfigs = IntArray(1)
             EGL14.eglChooseConfig(display, configAttribs, 0, configs, 0, 1, numConfigs, 0)
-            
-            val config = configs[0]
-            val contextAttribs = intArrayOf(
-                EGL14.EGL_CONTEXT_CLIENT_VERSION, 2,
-                EGL14.EGL_NONE
-            )
-            val context = EGL14.eglCreateContext(display, config, EGL14.EGL_NO_CONTEXT, contextAttribs, 0)
+            val contextAttribs = intArrayOf(EGL14.EGL_CONTEXT_CLIENT_VERSION, 2, EGL14.EGL_NONE)
+            val context = EGL14.eglCreateContext(display, configs[0], EGL14.EGL_NO_CONTEXT, contextAttribs, 0)
             val surfaceAttribs = intArrayOf(EGL14.EGL_WIDTH, 1, EGL14.EGL_HEIGHT, 1, EGL14.EGL_NONE)
-            val surface = EGL14.eglCreatePbufferSurface(display, config, surfaceAttribs, 0)
-            
+            val surface = EGL14.eglCreatePbufferSurface(display, configs[0], surfaceAttribs, 0)
             EGL14.eglMakeCurrent(display, surface, surface, context)
             val renderer = GLES20.glGetString(GLES20.GL_RENDERER)
-            
             EGL14.eglMakeCurrent(display, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT)
             EGL14.eglDestroySurface(display, surface)
             EGL14.eglDestroyContext(display, context)
             EGL14.eglTerminate(display)
-            
-            renderer?.also { cachedGpuModel = it } ?: "Unknown GPU"
-        } catch (e: Exception) {
+            renderer?.takeIf { it.isNotBlank() }?.also { cachedGpuModel = it } ?: "Unknown GPU"
+        } catch (_: Exception) {
             val path = cachedPath ?: ""
             if (path.contains("mali", true)) "Mali GPU" else if (path.contains("kgsl", true)) "Adreno GPU" else "Unknown GPU"
         }
-    }
-
-    fun setGovernor(governor: String): Boolean {
-        val path = getPath().first
-        if (path.isEmpty()) return false
-        return ShellManager.exec(GpuScripts.setGovernor(path, governor)).isSuccess
-    }
-
-    fun setFrequency(freq: String, type: Int): Boolean {
-        // type: 0=min, 1=max, 2=target
-        val path = getPath().first
-        if (path.isEmpty()) return false
-        val fileType = when(type) {
-            0 -> "min_freq"
-            1 -> "max_freq"
-            2 -> "target_freq"
-            else -> return false
-        }
-        return ShellManager.exec(GpuScripts.setFrequency(path, freq, fileType)).isSuccess
     }
 }

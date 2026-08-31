@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.ivarna.mkm.R
+import com.ivarna.mkm.data.model.ApplyResult
 import com.ivarna.mkm.data.provider.CpuProvider
 import com.ivarna.mkm.data.provider.GpuProvider
 import com.ivarna.mkm.shell.DevfreqScripts
@@ -79,28 +80,29 @@ class BootApplyService : Service() {
                 delay(1000L)
             }
 
-            applyAllSettings()
-            updateNotificationDone()
+            val failures = applyAllSettings()
+            updateNotificationDone(failures)
             delay(3000L)
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
     }
 
-    private suspend fun applyAllSettings() {
+    private suspend fun applyAllSettings(): List<String> {
+        val failures = mutableListOf<String>()
         withContext(Dispatchers.IO) {
             // CPU
             if (BootSettingsManager.isCpuEnabled(this@BootApplyService)) {
                 val policies = BootSettingsManager.loadCpuPolicies(this@BootApplyService)
                 policies.forEach { policy ->
-                    if (policy.governor.isNotBlank()) {
-                        CpuProvider.setGovernor(policy.policyId, policy.governor)
+                    if (policy.governor.isNotBlank() && CpuProvider.applyGovernor(policy.policyId, policy.governor) is ApplyResult.Failed) {
+                        failures += "CPU policy${policy.policyId} governor"
                     }
-                    if (policy.maxFreq.isNotBlank()) {
-                        CpuProvider.setFrequency(policy.policyId, policy.maxFreq, isMax = true)
-                    }
-                    if (policy.minFreq.isNotBlank()) {
-                        CpuProvider.setFrequency(policy.policyId, policy.minFreq, isMax = false)
+                    val min = policy.minFreq.toLongOrNull()
+                    val max = policy.maxFreq.toLongOrNull()
+                    if (min != null || max != null) {
+                        val result = CpuProvider.applyRange(policy.policyId, min, max)
+                        if (result is ApplyResult.Failed) failures += "CPU policy${policy.policyId} frequency"
                     }
                 }
             }
@@ -108,10 +110,17 @@ class BootApplyService : Service() {
             // GPU
             if (BootSettingsManager.isGpuEnabled(this@BootApplyService)) {
                 BootSettingsManager.loadGpuSettings(this@BootApplyService)?.let { gpu ->
-                    if (gpu.governor.isNotBlank()) GpuProvider.setGovernor(gpu.governor)
-                    if (gpu.maxFreq.isNotBlank()) GpuProvider.setFrequency(gpu.maxFreq, type = 1)
-                    if (gpu.minFreq.isNotBlank()) GpuProvider.setFrequency(gpu.minFreq, type = 0)
-                    if (gpu.targetFreq.isNotBlank()) GpuProvider.setFrequency(gpu.targetFreq, type = 2)
+                    if (gpu.governor.isNotBlank() && GpuProvider.applyGovernor(gpu.governor) is ApplyResult.Failed) {
+                        failures += "GPU governor"
+                    }
+                    val min = gpu.minFreq.toLongOrNull()
+                    val max = gpu.maxFreq.toLongOrNull()
+                    if (min != null || max != null) {
+                        val result = GpuProvider.applyRange(min, max)
+                        if (result is ApplyResult.Failed) failures += "GPU frequency"
+                    }
+                    val target = gpu.targetFreq.toLongOrNull()
+                    if (target != null && GpuProvider.applyTarget(target) is ApplyResult.Failed) failures += "GPU target frequency"
                 }
             }
 
@@ -119,10 +128,10 @@ class BootApplyService : Service() {
             if (BootSettingsManager.isRamEnabled(this@BootApplyService)) {
                 BootSettingsManager.loadRamSettings(this@BootApplyService)?.let { ram ->
                     if (ram.governor.isNotBlank()) {
-                        ShellManager.exec(DevfreqScripts.setGovernor(ram.controllerPath, ram.governor))
+                        if (!ShellManager.exec(DevfreqScripts.setGovernor(ram.controllerPath, ram.governor)).isSuccess) failures += "RAM governor"
                     }
                     if (ram.freq.isNotBlank()) {
-                        ShellManager.exec(DevfreqScripts.setFreq(ram.controllerPath, ram.freq))
+                        if (!ShellManager.exec(DevfreqScripts.setFreq(ram.controllerPath, ram.freq)).isSuccess) failures += "RAM frequency"
                     }
                 }
             }
@@ -131,17 +140,18 @@ class BootApplyService : Service() {
             if (BootSettingsManager.isStorageEnabled(this@BootApplyService)) {
                 BootSettingsManager.loadStorageSettings(this@BootApplyService)?.let { storage ->
                     if (storage.governor.isNotBlank()) {
-                        ShellManager.exec(UfsScripts.setGovernor(storage.controllerPath, storage.governor))
+                        if (!ShellManager.exec(UfsScripts.setGovernor(storage.controllerPath, storage.governor)).isSuccess) failures += "Storage governor"
                     }
                     if (storage.minFreq.isNotBlank()) {
-                        ShellManager.exec(UfsScripts.setMinFreq(storage.controllerPath, storage.minFreq))
+                        if (!ShellManager.exec(UfsScripts.setMinFreq(storage.controllerPath, storage.minFreq)).isSuccess) failures += "Storage minimum frequency"
                     }
                     if (storage.maxFreq.isNotBlank()) {
-                        ShellManager.exec(UfsScripts.setMaxFreq(storage.controllerPath, storage.maxFreq))
+                        if (!ShellManager.exec(UfsScripts.setMaxFreq(storage.controllerPath, storage.maxFreq)).isSuccess) failures += "Storage maximum frequency"
                     }
                 }
             }
         }
+        return failures
     }
 
     // ------------------------------------------------------------------
@@ -192,12 +202,12 @@ class BootApplyService : Service() {
         nm.notify(NOTIFICATION_ID, notification)
     }
 
-    private fun updateNotificationDone() {
+    private fun updateNotificationDone(failures: List<String>) {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_battery)
             .setContentTitle("MKM Boot Settings")
-            .setContentText("Settings applied successfully.")
+            .setContentText(if (failures.isEmpty()) "Settings applied successfully." else "Some settings failed: ${failures.joinToString()}")
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(false)
             .setOnlyAlertOnce(true)

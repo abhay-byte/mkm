@@ -4,9 +4,13 @@ import android.util.Log
 import com.ivarna.mkm.data.model.CpuCluster
 import com.ivarna.mkm.data.model.CpuCore
 import com.ivarna.mkm.data.model.CpuStatus
+import com.ivarna.mkm.data.model.CpuPolicyState
+import com.ivarna.mkm.data.model.ApplyResult
+import com.ivarna.mkm.data.model.FrequencyCapability
+import com.ivarna.mkm.data.model.FrequencyCapabilityParser
+import com.ivarna.mkm.data.model.FrequencyRangePlanner
 import com.ivarna.mkm.utils.ShellUtils
-import com.ivarna.mkm.shell.ShellManager
-import com.ivarna.mkm.shell.CpuScripts
+import com.ivarna.mkm.shell.SysfsTuningExecutor
 import java.io.File
 
 object CpuProvider {
@@ -25,15 +29,13 @@ object CpuProvider {
 
         policyFiles?.forEach { policy ->
             val id = policy.name.removePrefix("policy").toInt()
-            val affectedCoresStr = readSystemFile("${policy.absolutePath}/affected_cpus")
-            val affectedCores = if (affectedCoresStr.isNotEmpty()) {
-                parseCoreList(affectedCoresStr)
-            } else {
-                listOf(id)
-            }
+            val affectedCores = CpuPolicyMapping.parseCpuList(readSystemFile("${policy.absolutePath}/affected_cpus"))
+            val relatedCores = CpuPolicyMapping.parseCpuList(readSystemFile("${policy.absolutePath}/related_cpus"))
+            val policyCores = (if (affectedCores.isNotEmpty()) affectedCores else relatedCores)
+                .ifEmpty { listOf(id) }
             
-            val coreRange = if (affectedCores.isNotEmpty()) {
-                affectedCores.min()..affectedCores.max()
+            val coreRange = if (policyCores.isNotEmpty()) {
+                policyCores.min()..policyCores.max()
             } else {
                 0..0
             }
@@ -51,12 +53,22 @@ object CpuProvider {
             val rawMaxFreq = readSystemFile("${policy.absolutePath}/scaling_max_freq")
             
             val availableGovernors = readSystemFile("${policy.absolutePath}/scaling_available_governors")
-                .split(Regex("\\s+")).filter { it.isNotBlank() }
+                .split(Regex("\\s+")).filter { it.isNotBlank() }.distinct()
             
-            val availableFrequencies = readSystemFile("${policy.absolutePath}/scaling_available_frequencies")
+            val availableFrequenciesRaw = readSystemFile("${policy.absolutePath}/scaling_available_frequencies")
                 .split(Regex("\\s+")).filter { it.isNotBlank() }
+            val timeInState = readSystemFile("${policy.absolutePath}/stats/time_in_state")
+                .lines().mapNotNull { it.trim().split(Regex("\\s+")).firstOrNull() }
+            val frequencyCapability = FrequencyCapabilityParser.fromDiscreteSources(
+                sources = listOf(availableFrequenciesRaw, timeInState),
+                rangeMin = hwMinFreq.takeIf { it > 0L },
+                rangeMax = hwMaxFreq.takeIf { it > 0L },
+                knownPoints = listOf(curFreq, minFreq, maxFreq)
+            )
+            val availableFrequencies = FrequencyCapabilityParser.valuesForUi(frequencyCapability)
+                .map(Long::toString)
 
-            val cores = affectedCores.map { coreId ->
+            val cores = policyCores.map { coreId ->
                 val coreCurFreqFile = File("/sys/devices/system/cpu/cpu$coreId/cpufreq/scaling_cur_freq")
                 val coreCurFreq = if (coreCurFreqFile.exists()) {
                     readSystemFile(coreCurFreqFile.absolutePath).toLongOrNull() ?: curFreq
@@ -86,13 +98,21 @@ object CpuProvider {
                     maxFreq = ShellUtils.formatFreq(maxFreq),
                     rawMinFreq = rawMinFreq,
                     rawMaxFreq = rawMaxFreq,
-                    availableGovernors = availableGovernors,
-                    availableFrequencies = availableFrequencies
+                    // Core cards are telemetry-only; policy controls are rendered once below.
+                    availableGovernors = emptyList(),
+                    availableFrequencies = emptyList(),
+                    policyId = id
                 )
             }
 
             clusters.add(CpuCluster(
                 id = id,
+                policyPath = policy.absolutePath,
+                // Keep the kernel-reported membership exact. policyCores is
+                // only the telemetry fallback when both membership files are
+                // unavailable; it must not be presented as affected_cpus.
+                affectedCpus = affectedCores,
+                relatedCpus = relatedCores,
                 coreRange = coreRange,
                 governor = governor,
                 currentFreq = ShellUtils.formatFreq(curFreq),
@@ -104,6 +124,23 @@ object CpuProvider {
                 hwMaxFreq = hwMaxFreq.toString(),
                 availableGovernors = availableGovernors,
                 availableFrequencies = availableFrequencies,
+                frequencyCapability = frequencyCapability,
+                governorWritable = SysfsTuningExecutor.canWrite("${policy.absolutePath}/scaling_governor"),
+                minWritable = SysfsTuningExecutor.canWrite("${policy.absolutePath}/scaling_min_freq"),
+                maxWritable = SysfsTuningExecutor.canWrite("${policy.absolutePath}/scaling_max_freq"),
+                policyState = CpuPolicyState(
+                    policyId = id,
+                    path = policy.absolutePath,
+                    affectedCpus = affectedCores,
+                    relatedCpus = relatedCores,
+                    governor = governor,
+                    supportedGovernors = availableGovernors,
+                    minFreq = minFreq,
+                    maxFreq = maxFreq,
+                    hwMinFreq = hwMinFreq.takeIf { it > 0L },
+                    hwMaxFreq = hwMaxFreq.takeIf { it > 0L },
+                    frequencyCapability = frequencyCapability
+                ),
                 cores = cores
             ))
         }
@@ -134,17 +171,7 @@ object CpuProvider {
      * Reads a system file. execution fails with permission errors, falls back to SU.
      */
     private fun readSystemFile(path: String): String {
-        // 1. Try normal read first (faster)
-        val content = ShellUtils.readFile(path)
-        if (content.isNotEmpty()) return content
-        
-        // 2. Fallback to SU if empty (assuming file exists but not readable)
-        // Check if file exists first to avoid unnecessary SU calls? No, ShellUtils.readFile checks existence too.
-        // But if it exists and is just empty, we might waste SU call.
-        // However, sysfs files usually return something if readable.
-        
-        val result = ShellManager.exec("cat \"$path\"")
-        return if (result.isSuccess) result.stdout else ""
+        return SysfsTuningExecutor.read(path)
     }
 
     private fun getCpuName(): String {
@@ -153,7 +180,7 @@ object CpuProvider {
         // 1. Try Build.SOC_MODEL (Android 12+)
         if (android.os.Build.VERSION.SDK_INT >= 31) {
             val socModel = android.os.Build.SOC_MODEL
-            if (socModel != null && socModel != "unknown" && socModel.isNotEmpty()) {
+            if (socModel != "unknown" && socModel.isNotEmpty()) {
                 name = socModel
             }
         }
@@ -200,62 +227,121 @@ object CpuProvider {
         return name
     }
 
-    private fun parseCoreList(content: String): List<Int> {
-        val cores = mutableListOf<Int>()
-        content.split(Regex("[,\\s+]")).filter { it.isNotBlank() }.forEach { part ->
-            if (part.contains("-")) {
-                val range = part.split("-")
-                if (range.size == 2) {
-                    val start = range[0].trim().toIntOrNull()
-                    val end = range[1].trim().toIntOrNull()
-                    if (start != null && end != null) {
-                        for (i in start..end) cores.add(i)
-                    }
-                }
-            } else {
-                part.trim().toIntOrNull()?.let { cores.add(it) }
-            }
+    fun applyGovernor(policyId: Int, governor: String): ApplyResult {
+        if (!SysfsTuningExecutor.isSafeValue(governor)) return ApplyResult.Failed("Invalid governor")
+        val path = policyPath(policyId) ?: return ApplyResult.Failed("CPU policy $policyId is unavailable")
+        val governors = readSystemFile("$path/scaling_available_governors").split(Regex("\\s+")).filter { it.isNotBlank() }
+        if (governors.isEmpty() || governor !in governors) {
+            return ApplyResult.Failed("Governor '$governor' is not advertised by policy$policyId")
         }
-        return cores.distinct().sorted()
+        val before = readSystemFile("$path/scaling_governor")
+        val result = SysfsTuningExecutor.write("$path/scaling_governor", governor)
+        if (!result.isSuccess) return failed("CPU", "policy$policyId", "governor", result)
+        val after = readSystemFile("$path/scaling_governor")
+        val outcome = if (after == governor) ApplyResult.Applied(governor, after)
+        else ApplyResult.Adjusted(governor, after, "Kernel selected a different governor.")
+        android.util.Log.i("CpuProvider", "domain=CPU policy=policy$policyId request=governor:$governor before=$before backend=${result.backend} after=$after result=${outcome::class.simpleName}")
+        return outcome
     }
 
-    fun setGovernor(policyId: Int, governor: String): Boolean {
-        return ShellManager.exec(CpuScripts.setGovernor(policyId, governor)).isSuccess
-    }
-
-    fun setFrequency(policyId: Int, freqKhz: String, isMax: Boolean): Boolean {
-        return if (isMax) {
-            ShellManager.exec(CpuScripts.setMaxFreq(policyId, freqKhz)).isSuccess
-        } else {
-            ShellManager.exec(CpuScripts.setMinFreq(policyId, freqKhz)).isSuccess
+    fun applyRange(policyId: Int, desiredMin: Long? = null, desiredMax: Long? = null): ApplyResult {
+        if (desiredMin == null && desiredMax == null) return ApplyResult.Failed("No frequency requested")
+        val path = policyPath(policyId) ?: return ApplyResult.Failed("CPU policy $policyId is unavailable")
+        val currentMin = readSystemFile("$path/scaling_min_freq").toLongOrNull()
+        val currentMax = readSystemFile("$path/scaling_max_freq").toLongOrNull()
+        if (currentMin == null || currentMax == null || currentMin <= 0L || currentMax <= 0L) {
+            return ApplyResult.Failed("CPU policy bounds are unavailable")
         }
-    }
-
-    fun setGovernorForCore(coreId: Int, governor: String): Boolean {
-        // Find which policy this core belong to
-        val policyPath = findPolicyForCore(coreId) ?: "/sys/devices/system/cpu/cpu$coreId/cpufreq"
-        return ShellManager.exec("echo \"$governor\" > \"$policyPath/scaling_governor\"").isSuccess
-    }
-
-    fun setFrequencyForCore(coreId: Int, freqKhz: String, isMax: Boolean): Boolean {
-        val policyPath = findPolicyForCore(coreId) ?: "/sys/devices/system/cpu/cpu$coreId/cpufreq"
-        val file = if (isMax) "scaling_max_freq" else "scaling_min_freq"
-        val result = ShellManager.exec("printf '%s' '$freqKhz' > $policyPath/$file")
-        
-        // Log error if failed
-        if (!result.isSuccess) {
-            android.util.Log.e("CpuProvider", "Failed to set freq for core $coreId: ${result.stderr}")
+        if (currentMin > currentMax) {
+            return ApplyResult.Failed("CPU policy reports an invalid frequency range")
         }
-        
-        return result.isSuccess
+        val capability = policyCapability(path, currentMin, currentMax)
+        val requested = listOfNotNull(desiredMin, desiredMax)
+        if (!requested.all { isSupportedFrequency(it, capability) }) {
+            return ApplyResult.Failed("Requested CPU frequency is not advertised by policy$policyId")
+        }
+        val plan = when {
+            desiredMin != null && desiredMax != null -> FrequencyRangePlanner.plan(currentMin, currentMax, desiredMin, desiredMax)
+            desiredMax != null -> FrequencyRangePlanner.forMax(currentMin, currentMax, desiredMax)
+            else -> FrequencyRangePlanner.forMin(currentMin, currentMax, desiredMin!!)
+        }
+        val before = "min=$currentMin,max=$currentMax"
+        for (step in plan.steps) {
+            val file = if (step.isMin) "scaling_min_freq" else "scaling_max_freq"
+            val result = SysfsTuningExecutor.write("$path/$file", step.value.toString())
+            if (!result.isSuccess) return failed("CPU", "policy$policyId", file, result)
+        }
+        val afterFirst = readRange(path)
+        Thread.sleep(150L)
+        val after = readRange(path)
+        if (after.first <= 0L || after.second <= 0L || after.first > after.second) {
+            return ApplyResult.Failed("Kernel returned an invalid CPU range", "after=$after")
+        }
+        val requestedText = "min=${plan.min},max=${plan.max}"
+        val outcome = when {
+            after.first != plan.min || after.second != plan.max -> ApplyResult.Adjusted(
+                requestedText, "min=${after.first},max=${after.second}", "Kernel clamped or overrode the requested range."
+            )
+            plan.adjusted -> ApplyResult.Adjusted(requestedText, requestedText, plan.adjustmentReason ?: "Range adjusted")
+            else -> ApplyResult.Applied(requestedText, requestedText)
+        }
+        android.util.Log.i("CpuProvider", "domain=CPU policy=policy$policyId request=$requestedText before=$before plan=${plan.steps.joinToString { if (it.isMin) "min=${it.value}" else "max=${it.value}" }} afterFirst=$afterFirst after=$after result=${outcome::class.simpleName}")
+        return outcome
     }
+
+    fun setGovernor(policyId: Int, governor: String): Boolean = applyGovernor(policyId, governor) !is ApplyResult.Failed
+
+    fun setFrequency(policyId: Int, freqKhz: String, isMax: Boolean): Boolean =
+        (if (isMax) applyRange(policyId, desiredMax = freqKhz.toLongOrNull())
+         else applyRange(policyId, desiredMin = freqKhz.toLongOrNull())) !is ApplyResult.Failed
+
+    fun setGovernorForCore(coreId: Int, governor: String): Boolean =
+        findPolicyIdForCore(coreId)?.let { setGovernor(it, governor) } ?: false
+
+    fun setFrequencyForCore(coreId: Int, freqKhz: String, isMax: Boolean): Boolean =
+        findPolicyIdForCore(coreId)?.let { setFrequency(it, freqKhz, isMax) } ?: false
 
     fun findPolicyForCore(coreId: Int): String? {
         val policyDir = File("/sys/devices/system/cpu/cpufreq")
         policyDir.listFiles { _, name -> name.startsWith("policy") }?.forEach { policy ->
-            val affectedCores = parseCoreList(ShellUtils.readFile("${policy.absolutePath}/affected_cpus"))
-            if (affectedCores.contains(coreId)) return policy.absolutePath
+            val affectedCores = CpuPolicyMapping.parseCpuList(readSystemFile("${policy.absolutePath}/affected_cpus"))
+            val relatedCores = CpuPolicyMapping.parseCpuList(readSystemFile("${policy.absolutePath}/related_cpus"))
+            if (affectedCores.contains(coreId) || relatedCores.contains(coreId)) return policy.absolutePath
         }
         return null
+    }
+
+    private fun findPolicyIdForCore(coreId: Int): Int? = findPolicyForCore(coreId)
+        ?.substringAfterLast("policy")?.toIntOrNull()
+
+    private fun policyPath(policyId: Int): String? {
+        val path = "/sys/devices/system/cpu/cpufreq/policy$policyId"
+        return if (SysfsTuningExecutor.read("$path/scaling_min_freq").isNotBlank() || SysfsTuningExecutor.exists(path)) path else null
+    }
+
+    private fun policyCapability(path: String, currentMin: Long, currentMax: Long): FrequencyCapability =
+        FrequencyCapabilityParser.fromDiscreteSources(
+            sources = listOf(
+                readSystemFile("$path/scaling_available_frequencies").split(Regex("\\s+")),
+                readSystemFile("$path/stats/time_in_state").lines().mapNotNull { it.trim().split(Regex("\\s+")).firstOrNull() }
+            ),
+            rangeMin = readSystemFile("$path/cpuinfo_min_freq").toLongOrNull() ?: currentMin,
+            rangeMax = readSystemFile("$path/cpuinfo_max_freq").toLongOrNull() ?: currentMax,
+            knownPoints = listOf(currentMin, currentMax)
+        )
+
+    private fun isSupportedFrequency(value: Long, capability: FrequencyCapability): Boolean = when (capability) {
+        is FrequencyCapability.Discrete -> value in capability.values
+        is FrequencyCapability.Range -> value in capability.min..capability.max
+        is FrequencyCapability.Unavailable -> false
+    }
+
+    private fun readRange(path: String): Pair<Long, Long> =
+        (readSystemFile("$path/scaling_min_freq").toLongOrNull() ?: 0L) to
+            (readSystemFile("$path/scaling_max_freq").toLongOrNull() ?: 0L)
+
+    private fun failed(domain: String, target: String, path: String, result: com.ivarna.mkm.shell.ShellManager.CommandResult): ApplyResult {
+        android.util.Log.e("CpuProvider", "domain=$domain target=$target path=$path backend=${result.backend} exit=${result.exitCode} stderr=${result.stderr}")
+        return ApplyResult.Failed("Write failed for $target/$path", result.stderr)
     }
 }

@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ivarna.mkm.data.model.GpuStatus
 import com.ivarna.mkm.ui.components.*
@@ -38,6 +39,9 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
     var showMaxFreqSheet by remember { mutableStateOf(false) }
     var showMinFreqSheet by remember { mutableStateOf(false) }
     var showTargetFreqSheet by remember { mutableStateOf(false) }
+    var applyingControl by remember { mutableStateOf<String?>(null) }
+    var sheetError by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -157,27 +161,40 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                     SettingRow(
                         label = stringResource(com.ivarna.mkm.R.string.gpu_governor),
                         value = gpuStatus.governor,
-                        onClick = { showGovernorSheet = true }
+                        onClick = { showGovernorSheet = true },
+                        enabled = gpuStatus.governorWritable && gpuStatus.availableGovernors.isNotEmpty()
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingRow(
                         label = stringResource(com.ivarna.mkm.R.string.maximum_frequency),
                         value = gpuStatus.maxFreq,
-                        onClick = { showMaxFreqSheet = true }
+                        onClick = { showMaxFreqSheet = true },
+                        enabled = gpuStatus.maxWritable && gpuStatus.availableFrequencies.isNotEmpty()
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingRow(
                         label = stringResource(com.ivarna.mkm.R.string.minimum_frequency),
                         value = gpuStatus.minFreq,
-                        onClick = { showMinFreqSheet = true }
+                        onClick = { showMinFreqSheet = true },
+                        enabled = gpuStatus.minWritable && gpuStatus.availableFrequencies.isNotEmpty()
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingRow(
                         label = stringResource(com.ivarna.mkm.R.string.target_frequency),
                         value = gpuStatus.targetFreq,
-                        onClick = { showTargetFreqSheet = true }
+                        onClick = { showTargetFreqSheet = true },
+                        enabled = gpuStatus.targetWritable && gpuStatus.availableFrequencies.isNotEmpty()
                     )
                 }
+            }
+
+            gpuStatus.capabilityReason?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -194,11 +211,21 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                 title = stringResource(com.ivarna.mkm.R.string.select_gpu_governor),
                 items = gpuStatus.availableGovernors,
                 selectedItem = gpuStatus.governor,
-                onDismiss = { showGovernorSheet = false },
+                onDismiss = { sheetError = null; showGovernorSheet = false },
                 onItemSelected = {
-                    viewModel.setGovernor(it)
-                    showGovernorSheet = false
-                }
+                    sheetError = null
+                    applyingControl = "gpu-governor"
+                    viewModel.setGovernor(it) { result ->
+                        applyingControl = null
+                        if (result is com.ivarna.mkm.data.model.ApplyResult.Failed) sheetError = result.message()
+                        else {
+                            showGovernorSheet = false
+                            if (result is com.ivarna.mkm.data.model.ApplyResult.Adjusted) android.widget.Toast.makeText(context, result.message(), android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+                isApplying = applyingControl == "gpu-governor",
+                errorMessage = sheetError
             )
         }
 
@@ -207,12 +234,22 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                 title = stringResource(com.ivarna.mkm.R.string.maximum_frequency),
                 items = gpuStatus.availableFrequencies,
                 selectedItem = gpuStatus.rawMaxFreq,
-                onDismiss = { showMaxFreqSheet = false },
+                onDismiss = { sheetError = null; showMaxFreqSheet = false },
                 onItemSelected = {
-                    viewModel.setFrequency(it, 1)
-                    showMaxFreqSheet = false
+                    sheetError = null
+                    applyingControl = "gpu-max"
+                    viewModel.setFrequency(it, 1) { result ->
+                        applyingControl = null
+                        if (result is com.ivarna.mkm.data.model.ApplyResult.Failed) sheetError = result.message()
+                        else {
+                            showMaxFreqSheet = false
+                            if (result is com.ivarna.mkm.data.model.ApplyResult.Adjusted) android.widget.Toast.makeText(context, result.message(), android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 },
-                itemLabel = { formatFreq(it) }
+                itemLabel = { formatFreq(it) },
+                isApplying = applyingControl == "gpu-max",
+                errorMessage = sheetError
             )
         }
 
@@ -221,12 +258,22 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                 title = stringResource(com.ivarna.mkm.R.string.minimum_frequency),
                 items = gpuStatus.availableFrequencies,
                 selectedItem = gpuStatus.rawMinFreq,
-                onDismiss = { showMinFreqSheet = false },
+                onDismiss = { sheetError = null; showMinFreqSheet = false },
                 onItemSelected = {
-                    viewModel.setFrequency(it, 0)
-                    showMinFreqSheet = false
+                    sheetError = null
+                    applyingControl = "gpu-min"
+                    viewModel.setFrequency(it, 0) { result ->
+                        applyingControl = null
+                        if (result is com.ivarna.mkm.data.model.ApplyResult.Failed) sheetError = result.message()
+                        else {
+                            showMinFreqSheet = false
+                            if (result is com.ivarna.mkm.data.model.ApplyResult.Adjusted) android.widget.Toast.makeText(context, result.message(), android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 },
-                itemLabel = { formatFreq(it) }
+                itemLabel = { formatFreq(it) },
+                isApplying = applyingControl == "gpu-min",
+                errorMessage = sheetError
             )
         }
 
@@ -235,12 +282,22 @@ fun GpuScreen(viewModel: GpuViewModel = viewModel(), onOpenDrawer: () -> Unit = 
                 title = stringResource(com.ivarna.mkm.R.string.target_frequency),
                 items = gpuStatus.availableFrequencies,
                 selectedItem = gpuStatus.rawTargetFreq,
-                onDismiss = { showTargetFreqSheet = false },
+                onDismiss = { sheetError = null; showTargetFreqSheet = false },
                 onItemSelected = {
-                    viewModel.setFrequency(it, 2)
-                    showTargetFreqSheet = false
+                    sheetError = null
+                    applyingControl = "gpu-target"
+                    viewModel.setFrequency(it, 2) { result ->
+                        applyingControl = null
+                        if (result is com.ivarna.mkm.data.model.ApplyResult.Failed) sheetError = result.message()
+                        else {
+                            showTargetFreqSheet = false
+                            if (result is com.ivarna.mkm.data.model.ApplyResult.Adjusted) android.widget.Toast.makeText(context, result.message(), android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 },
-                itemLabel = { formatFreq(it) }
+                itemLabel = { formatFreq(it) },
+                isApplying = applyingControl == "gpu-target",
+                errorMessage = sheetError
             )
         }
     }

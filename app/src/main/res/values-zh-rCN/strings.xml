@@ -482,6 +482,9 @@
     <string name="processors_active_format">%1$d 个处理器处于活跃状态</string>
     <string name="cluster_id_format">集群 %1$d</string>
     <string name="cluster_cores_range_format">核心 %1$d-%2$d</string>
+    <string name="policy_cpus_format">CPU %1$s</string>
+    <string name="policy_id_format">策略 %1$d</string>
+    <string name="tuning_unavailable_kernel">此内核不可用</string>
 
     <!-- Overlay FPS Monitor -->
     <string name="fps_monitor">FPS 监视器</string>
