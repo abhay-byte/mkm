@@ -44,7 +44,8 @@ class GameBoostViewModel(application: Application) : AndroidViewModel(applicatio
             val result = if (enabled) {
                 // The service is promoted before the first manager mutation.
                 GameBoostService.start(getApplication())
-                withContext(Dispatchers.IO) { manager.enable() }
+                if (!GameBoostService.awaitReady()) GameBoostTransitionResult.Failure("Game Boost foreground service could not start")
+                else withContext(Dispatchers.IO) { manager.enable() }
             } else withContext(Dispatchers.IO) { manager.disable() }
             if (result is GameBoostTransitionResult.Failure) {
                 _message.value = result.reason

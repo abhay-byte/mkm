@@ -60,10 +60,12 @@ class ProductionGameBoostTuningBackend(private val context: Context) : GameBoost
 
     override fun applyGpuGovernor(snapshot: GameBoostSnapshot): ApplyResult =
         if (snapshot.gpu == null) ApplyResult.Failed("GPU was not detected")
+        else if (!gpuPathMatches(snapshot.gpu.path)) ApplyResult.Failed("GPU tuning path changed since the snapshot was captured")
         else exact(GpuProvider.applyGovernor("performance"), "GPU governor")
 
     override fun applyGpuMax(snapshot: GameBoostSnapshot): ApplyResult =
         snapshot.gpu?.let { target ->
+            if (!gpuPathMatches(target.path)) return ApplyResult.Failed("GPU tuning path changed since the snapshot was captured")
             val max = target.targetFreq ?: target.maxFreq
             exact(GpuProvider.applyRange(max, max), "GPU maximum")
         }
@@ -76,11 +78,11 @@ class ProductionGameBoostTuningBackend(private val context: Context) : GameBoost
         applyAll(snapshot.cpu, operation = { CpuProvider.applyRange(it.policyId, it.minFreq, it.maxFreq) })
 
     override fun restoreGpuGovernor(snapshot: GameBoostSnapshot): ApplyResult =
-        snapshot.gpu?.let { exact(GpuProvider.applyGovernor(it.governor), "GPU governor restore") }
+        snapshot.gpu?.let { if (gpuPathMatches(it.path)) exact(GpuProvider.applyGovernor(it.governor), "GPU governor restore") else ApplyResult.Failed("GPU tuning path changed before restore") }
             ?: ApplyResult.Applied("no GPU", "no GPU")
 
     override fun restoreGpuRange(snapshot: GameBoostSnapshot): ApplyResult =
-        snapshot.gpu?.let { exact(GpuProvider.applyRange(it.minFreq, it.maxFreq), "GPU range restore") }
+        snapshot.gpu?.let { if (gpuPathMatches(it.path)) exact(GpuProvider.applyRange(it.minFreq, it.maxFreq), "GPU range restore") else ApplyResult.Failed("GPU tuning path changed before restore") }
             ?: ApplyResult.Applied("no GPU", "no GPU")
 
     override fun isApplied(snapshot: GameBoostSnapshot, component: GameBoostComponent): Boolean {
@@ -92,13 +94,16 @@ class ProductionGameBoostTuningBackend(private val context: Context) : GameBoost
                 val target = saved.targetFreq ?: saved.maxFreq
                 cpu.clusters.firstOrNull { it.id == saved.policyId }?.let { it.rawMinFreq == target.toString() && it.rawMaxFreq == target.toString() } == true
             }
-            GameBoostComponent.GPU_GOVERNOR -> snapshot.gpu?.let { gpu.governor == "performance" } == true
+            GameBoostComponent.GPU_GOVERNOR -> snapshot.gpu?.let { gpuPathMatches(it.path) && gpu.governor == "performance" } == true
             GameBoostComponent.GPU_MAX_LOCK -> snapshot.gpu?.let { target ->
                 val max = target.targetFreq ?: target.maxFreq
-                gpu.rawMinFreq == max.toString() && gpu.rawMaxFreq == max.toString()
+                gpuPathMatches(target.path) && gpu.rawMinFreq == max.toString() && gpu.rawMaxFreq == max.toString()
             } == true
         }
     }
+
+    private fun gpuPathMatches(expected: String): Boolean =
+        GpuProvider.getGpuStatus().tuningCapabilities?.path == expected
 
     private fun applyAll(
         policies: List<CpuBoostSnapshot>,

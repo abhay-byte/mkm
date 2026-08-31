@@ -1,6 +1,7 @@
 package com.ivarna.mkm.service
 
 import android.content.Context
+import android.os.PowerManager
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ivarna.mkm.data.model.ApplyResult
@@ -85,6 +86,21 @@ class GameBoostManagerTest {
         assertTrue(manager.retryRecovery() is GameBoostTransitionResult.Success)
         assertTrue(GameBoostRegistry.state.value is GameBoostState.Off)
         assertEquals(null, GameBoostSnapshotStore(context).load())
+        }
+    }
+
+    @Test
+    fun severeThermalReleasesOnlyMaximumLocksWithoutRelocking() {
+        runBlocking {
+            val backend = FakeBackend()
+            val manager = GameBoostManager(context, backend)
+            assertTrue(manager.enable() is GameBoostTransitionResult.Success)
+            manager.onThermalStatus(PowerManager.THERMAL_STATUS_SEVERE)
+            val state = GameBoostRegistry.state.value as GameBoostState.ThermalLimited
+            assertEquals(setOf(GameBoostComponent.CPU_GOVERNOR, GameBoostComponent.GPU_GOVERNOR), state.stillApplied)
+            assertEquals(setOf(GameBoostComponent.CPU_MAX_LOCK, GameBoostComponent.GPU_MAX_LOCK), state.released)
+            assertTrue("cpuMax" !in backend.calls.drop(4))
+            assertTrue(manager.disable() is GameBoostTransitionResult.Success)
         }
     }
 

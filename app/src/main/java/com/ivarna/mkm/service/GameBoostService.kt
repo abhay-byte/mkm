@@ -17,6 +17,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** Keeps Game Boost ownership and thermal release monitoring alive outside the UI. */
 class GameBoostService : Service() {
@@ -37,6 +38,7 @@ class GameBoostService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         } else startForeground(NOTIFICATION_ID, notification)
+        ready.set(true)
 
         if (Build.VERSION.SDK_INT >= 29) {
             getSystemService(PowerManager::class.java)?.let { power ->
@@ -60,6 +62,7 @@ class GameBoostService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        ready.set(false)
         if (Build.VERSION.SDK_INT >= 29) {
             val power = getSystemService(PowerManager::class.java)
             thermalListener?.let { power?.removeThermalStatusListener(it) }
@@ -81,10 +84,17 @@ class GameBoostService : Service() {
         const val ACTION_STOP = "com.ivarna.mkm.action.STOP_GAME_BOOST"
         const val CHANNEL_ID = "mkm_game_boost_channel"
         const val NOTIFICATION_ID = 3002
+        private val ready = AtomicBoolean(false)
 
         fun start(context: Context) {
             val intent = Intent(context, GameBoostService::class.java).setAction(ACTION_START)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent) else context.startService(intent)
+        }
+
+        suspend fun awaitReady(timeoutMs: Long = 2_000L): Boolean {
+            val deadline = System.currentTimeMillis() + timeoutMs
+            while (!ready.get() && System.currentTimeMillis() < deadline) kotlinx.coroutines.delay(50L)
+            return ready.get()
         }
 
         fun stop(context: Context) {

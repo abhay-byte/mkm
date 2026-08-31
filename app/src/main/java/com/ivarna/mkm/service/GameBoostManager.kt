@@ -139,7 +139,7 @@ class GameBoostManager(
         }
         val updated = snapshot.copy(phase = "THERMAL_LIMITED", thermallyReleased = released)
         store.save(updated)
-        GameBoostRegistry.publish(GameBoostState.ThermalLimited(snapshot.applied, released))
+        GameBoostRegistry.publish(GameBoostState.ThermalLimited(snapshot.applied - released, released))
     }
 
     private fun reconcile() {
@@ -153,7 +153,7 @@ class GameBoostManager(
         if (mismatch != null || snapshot.phase == "RECOVERY" || snapshot.phase == "ENABLING") {
             GameBoostRegistry.publish(GameBoostState.RecoveryRequired("Saved Game Boost state does not match the device", snapshot.applied.map { it.name }))
         } else if (snapshot.phase == "THERMAL_LIMITED") {
-            GameBoostRegistry.publish(GameBoostState.ThermalLimited(snapshot.applied, snapshot.thermallyReleased))
+            GameBoostRegistry.publish(GameBoostState.ThermalLimited(snapshot.applied - snapshot.thermallyReleased, snapshot.thermallyReleased))
         } else {
             GameBoostRegistry.publish(GameBoostState.Active(snapshot.applied, emptySet()))
         }
