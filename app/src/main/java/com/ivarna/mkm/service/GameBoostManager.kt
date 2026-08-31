@@ -39,6 +39,9 @@ class GameBoostManager(
         if (!capabilities.boostPossible) return@withLock fail(
             capabilities.components.values.mapNotNull { it.reason }.distinct().joinToString("; ").ifBlank { "No safe Game Boost component is supported" }
         )
+        // Claim ownership before snapshot capture so manual tuning cannot race
+        // the preflight window before the first component mutation.
+        GameBoostRegistry.publish(GameBoostState.Enabling("capturing original state"))
         val snapshot = runCatching { backend.captureSnapshot(capabilities) }.getOrElse {
             return@withLock fail("Could not capture the original tuning state: ${it.message}")
         }

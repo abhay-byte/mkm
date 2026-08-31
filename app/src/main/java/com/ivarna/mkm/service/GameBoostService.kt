@@ -51,7 +51,20 @@ class GameBoostService : Service() {
         ready.set(true)
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // A null intent indicates Android recreated a sticky service. Do not
+        // keep a pre-reboot or already-finished Game Boost owner alive.
+        if (intent == null) {
+            val store = GameBoostSnapshotStore(this)
+            val snapshot = store.load()
+            if (snapshot == null || !store.isSameBoot(snapshot)) {
+                snapshot?.let { store.clear() }
+                stopSelf(startId)
+                return START_NOT_STICKY
+            }
+        }
+        return START_STICKY
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
