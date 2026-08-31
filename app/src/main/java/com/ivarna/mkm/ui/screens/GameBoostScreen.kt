@@ -33,6 +33,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -73,23 +75,20 @@ fun GameBoostScreen(viewModel: GameBoostViewModel = viewModel(), onOpenDrawer: (
                         Spacer(Modifier.height(8.dp))
                         Text(stringResource(R.string.game_boost_desc), style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(12.dp))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text(stringResource(R.string.game_boost_toggle), fontWeight = FontWeight.SemiBold)
-                            Switch(
-                                checked = owns,
-                                enabled = !transitioning && state !is GameBoostState.RecoveryRequired,
-                                onCheckedChange = { enabled ->
-                                    if (enabled && !viewModel.disclosureAcknowledged) showDisclosure = true
-                                    else viewModel.toggle(enabled)
-                                }
-                            )
-                        }
+                        GameBoostToggleRow(
+                            checked = owns,
+                            enabled = !transitioning && state !is GameBoostState.RecoveryRequired,
+                            onCheckedChange = { enabled ->
+                                if (enabled && !viewModel.disclosureAcknowledged) showDisclosure = true
+                                else viewModel.toggle(enabled)
+                            }
+                        )
                         if (transitioning) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 8.dp))
                     }
                 }
             }
             item {
-                StatusCard(state, capabilities)
+                GameBoostStatusCard(state, capabilities)
             }
             message?.let { msg -> item { Text(msg, color = MaterialTheme.colorScheme.error) } }
             if (state is GameBoostState.RecoveryRequired) {
@@ -110,7 +109,21 @@ fun GameBoostScreen(viewModel: GameBoostViewModel = viewModel(), onOpenDrawer: (
 }
 
 @Composable
-private fun StatusCard(state: GameBoostState, capabilities: com.ivarna.mkm.data.model.GameBoostCapabilities?) {
+internal fun GameBoostToggleRow(checked: Boolean, enabled: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val toggleDescription = stringResource(R.string.game_boost_toggle)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(R.string.game_boost_toggle), fontWeight = FontWeight.SemiBold)
+        Switch(
+            checked = checked,
+            enabled = enabled,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.semantics { contentDescription = toggleDescription }
+        )
+    }
+}
+
+@Composable
+internal fun GameBoostStatusCard(state: GameBoostState, capabilities: com.ivarna.mkm.data.model.GameBoostCapabilities?) {
     val applied = when (state) {
         is GameBoostState.Active -> state.applied
         is GameBoostState.ThermalLimited -> state.stillApplied
