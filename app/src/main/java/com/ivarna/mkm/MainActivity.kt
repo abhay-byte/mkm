@@ -60,6 +60,7 @@ import androidx.navigation.compose.rememberNavController
 import com.ivarna.mkm.navigation.Screen
 import com.ivarna.mkm.navigation.navItems
 import com.ivarna.mkm.service.OverlayService
+import com.ivarna.mkm.service.GameBoostService
 import com.ivarna.mkm.ui.screens.BatteryHistoryScreen
 import com.ivarna.mkm.ui.screens.BatteryScreen
 import com.ivarna.mkm.ui.screens.NotificationSettingsScreen
@@ -92,6 +93,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val openBattery = intent?.action == com.ivarna.mkm.service.BatteryMonitorService.ACTION_OPEN_BATTERY
+        val openGameBoost = intent?.action == GameBoostService.ACTION_OPEN_GAME_BOOST
         resumeOverlayIfEnabled()
         setContent {
             val settingsViewModel: SettingsViewModel = viewModel()
@@ -99,7 +101,7 @@ class MainActivity : ComponentActivity() {
             val theme by settingsViewModel.theme.collectAsState()
 
             MKMTheme(appTheme = theme) {
-                MainScreen(settingsViewModel, homeViewModel, navigateToBattery = openBattery)
+                MainScreen(settingsViewModel, homeViewModel, navigateToBattery = openBattery, navigateToGameBoost = openGameBoost)
             }
         }
     }
@@ -108,6 +110,8 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         if (intent.action == com.ivarna.mkm.service.BatteryMonitorService.ACTION_OPEN_BATTERY) {
+            recreate()
+        } else if (intent.action == GameBoostService.ACTION_OPEN_GAME_BOOST) {
             recreate()
         }
     }
@@ -133,7 +137,12 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewModel, navigateToBattery: Boolean = false) {
+fun MainScreen(
+    settingsViewModel: SettingsViewModel,
+    homeViewModel: HomeViewModel,
+    navigateToBattery: Boolean = false,
+    navigateToGameBoost: Boolean = false
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -144,6 +153,18 @@ fun MainScreen(settingsViewModel: SettingsViewModel, homeViewModel: HomeViewMode
     LaunchedEffect(navigateToBattery) {
         if (navigateToBattery) {
             navController.navigate(Screen.Battery.route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
+
+    LaunchedEffect(navigateToGameBoost) {
+        if (navigateToGameBoost) {
+            navController.navigate(Screen.GameBoost.route) {
                 popUpTo(navController.graph.findStartDestination().id) {
                     saveState = true
                 }

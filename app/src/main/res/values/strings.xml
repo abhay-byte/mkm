@@ -525,4 +525,7 @@
     <string name="game_boost_recovery_required">Recovery required. Restore the saved tuning state before disabling.</string>
     <string name="game_boost_retry_recovery">Retry recovery</string>
     <string name="game_boost_managed_reason">Managed by Game Boost. Disable Game Boost to edit.</string>
+    <string name="game_boost_notification_active">Global performance tuning is active.</string>
+    <string name="game_boost_notification_thermal">Thermal limited: maximum-clock locks released.</string>
+    <string name="game_boost_notification_recovery">Recovery required: restore saved tuning.</string>
 </resources>

@@ -525,4 +525,7 @@
     <string name="game_boost_recovery_required">需要恢复。请先恢复保存的调优状态。</string>
     <string name="game_boost_retry_recovery">重试恢复</string>
     <string name="game_boost_managed_reason">由游戏加速管理。请先关闭游戏加速再编辑。</string>
+    <string name="game_boost_notification_active">全局性能调优已启用。</string>
+    <string name="game_boost_notification_thermal">热限制：最高频率锁定已释放。</string>
+    <string name="game_boost_notification_recovery">需要恢复：请恢复保存的调优状态。</string>
 </resources>
