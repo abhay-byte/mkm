@@ -18,6 +18,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import com.ivarna.mkm.data.model.CpuCore
+import com.ivarna.mkm.data.model.SelectionOrdering
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -380,9 +381,10 @@ fun SelectionBottomSheet(
     isApplying: Boolean = false,
     errorMessage: String? = null
 ) {
+    val orderedItems = remember(items) { SelectionOrdering.order(items) }
     val listState = rememberLazyListState()
-    LaunchedEffect(selectedItem, items) {
-        val selectedIndex = items.indexOf(selectedItem)
+    LaunchedEffect(selectedItem, orderedItems) {
+        val selectedIndex = orderedItems.indexOf(selectedItem)
         if (selectedIndex >= 0) listState.scrollToItem(selectedIndex)
     }
     ModalBottomSheet(
@@ -412,7 +414,7 @@ fun SelectionBottomSheet(
                 )
             }
             LazyColumn(state = listState) {
-                items(items, key = { it }) { item ->
+                items(orderedItems, key = { it }) { item ->
                     ListItem(
                         headlineContent = { Text(itemLabel(item)) },
                         trailingContent = {

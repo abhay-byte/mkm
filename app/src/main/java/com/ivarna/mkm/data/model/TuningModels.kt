@@ -108,6 +108,18 @@ object ScalarReadbackVerifier {
     }
 }
 
+object SelectionOrdering {
+    /** Sorts numeric frequency values and removes duplicate entries. */
+    fun order(items: List<String>): List<String> {
+        val numeric = items.map { it.toLongOrNull() }
+        return if (numeric.isNotEmpty() && numeric.all { it != null }) {
+            items.distinct().sortedBy { it.toLong() }
+        } else {
+            items
+        }
+    }
+}
+
 object FrequencyRangePlanner {
     fun forMax(currentMin: Long, currentMax: Long, requestedMax: Long): RangeWritePlan {
         val finalMin = minOf(currentMin, requestedMax)

@@ -2,6 +2,7 @@ package com.ivarna.mkm.tuning
 
 import com.ivarna.mkm.data.model.FrequencyCapability
 import com.ivarna.mkm.data.model.FrequencyCapabilityParser
+import com.ivarna.mkm.data.model.SelectionOrdering
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -26,5 +27,16 @@ class FrequencyCapabilityTest {
             FrequencyCapabilityParser.fromDiscreteSources(emptyList(), 300L, 2800L)
         )
         assertTrue(FrequencyCapabilityParser.fromDiscreteSources(emptyList(), null, null) is FrequencyCapability.Unavailable)
+    }
+
+    @Test fun ordersNumericSelectionsWithoutChangingTextLabels() {
+        assertEquals(
+            listOf("300", "1200", "2800"),
+            SelectionOrdering.order(listOf("2800", "300", "1200", "300"))
+        )
+        assertEquals(
+            listOf("schedutil", "performance"),
+            SelectionOrdering.order(listOf("schedutil", "performance"))
+        )
     }
 }

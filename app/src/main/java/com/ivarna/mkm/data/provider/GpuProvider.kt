@@ -48,6 +48,7 @@ object GpuProvider {
             // disappear. Force one redetection rather than presenting stale
             // capabilities or attempting writes against the old device.
             cachedPath = null
+            cachedGpuModel = null
             return if (allowRedetection) getGpuStatus(allowRedetection = false)
             else GpuStatus(capabilityReason = "GPU devfreq device disappeared while reading its capabilities")
         }
@@ -264,6 +265,7 @@ object GpuProvider {
         cachedPath?.let { path ->
             if (hasTuningNode(path)) return path to "Using cached path"
             cachedPath = null
+            cachedGpuModel = null
         }
         val result = if (ShellManager.hasRoot() || ShellManager.hasShizuku()) {
             ShellManager.exec(GpuScripts.findGpuPath(), ShellManager.PrivilegeRequirement.ELEVATED_SYSFS)
