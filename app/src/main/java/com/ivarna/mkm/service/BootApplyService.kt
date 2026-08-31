@@ -97,6 +97,7 @@ class BootApplyService : Service() {
         val failures = mutableListOf<String>()
         val adjustments = mutableListOf<String>()
         withContext(Dispatchers.IO) {
+            KernelTuningCoordinator.withMutation {
             // CPU
             if (BootSettingsManager.isCpuEnabled(this@BootApplyService)) {
                 val policies = BootSettingsManager.loadCpuPolicies(this@BootApplyService)
@@ -176,6 +177,7 @@ class BootApplyService : Service() {
                         if (!ShellManager.exec(UfsScripts.setMaxFreq(storage.controllerPath, storage.maxFreq)).isSuccess) failures += "Storage maximum frequency"
                     }
                 }
+            }
             }
         }
         return ApplySummary(failures = failures, adjustments = adjustments)

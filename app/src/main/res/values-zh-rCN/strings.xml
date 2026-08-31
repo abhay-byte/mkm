@@ -520,6 +520,7 @@
     <string name="game_boost_applied">已应用</string>
     <string name="game_boost_not_applied">未应用</string>
     <string name="game_boost_unsupported">不支持</string>
+    <string name="game_boost_thermal_released">因过热已释放</string>
     <string name="game_boost_enabling">正在应用：%s</string>
     <string name="game_boost_thermal_limited">严重过热：最高频率锁定已释放，冷却后不会自动重新锁定。</string>
     <string name="game_boost_recovery_required">需要恢复。请先恢复保存的调优状态。</string>

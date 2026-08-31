@@ -10,23 +10,32 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
+/** Storage boundary so transaction durability failures can be tested deterministically. */
+interface GameBoostSessionStore {
+    fun save(snapshot: GameBoostSnapshot): Boolean
+    fun hasSnapshot(): Boolean
+    fun load(): GameBoostSnapshot?
+    fun clear(): Boolean
+    fun isSameBoot(snapshot: GameBoostSnapshot): Boolean
+}
+
 /** Durable session ownership. A snapshot is written before any tuning write. */
-class GameBoostSnapshotStore(context: Context) {
+class GameBoostSnapshotStore(context: Context) : GameBoostSessionStore {
     private val appContext = context.applicationContext
     private val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    fun save(snapshot: GameBoostSnapshot): Boolean =
+    override fun save(snapshot: GameBoostSnapshot): Boolean =
         prefs.edit().putString(KEY_SNAPSHOT, GameBoostSnapshotJson.encode(snapshot).toString()).commit()
 
-    fun load(): GameBoostSnapshot? = runCatching {
+    override fun hasSnapshot(): Boolean = prefs.contains(KEY_SNAPSHOT)
+
+    override fun load(): GameBoostSnapshot? = runCatching {
         prefs.getString(KEY_SNAPSHOT, null)?.let { GameBoostSnapshotJson.decode(JSONObject(it)) }
     }.getOrNull()
 
-    fun clear() {
-        prefs.edit().remove(KEY_SNAPSHOT).commit()
-    }
+    override fun clear(): Boolean = prefs.edit().remove(KEY_SNAPSHOT).commit()
 
-    fun isSameBoot(snapshot: GameBoostSnapshot): Boolean {
+    override fun isSameBoot(snapshot: GameBoostSnapshot): Boolean {
         val current = currentIdentity()
         return matchesBoot(snapshot.bootCount, snapshot.bootId, current.first, current.second)
     }
@@ -65,12 +74,12 @@ object GameBoostSnapshotJson {
         put("phase", snapshot.phase)
         put("cpu", JSONArray().apply {
             snapshot.cpu.forEach { p -> put(JSONObject().apply {
-                put("policyId", p.policyId); put("path", p.path); put("governor", p.governor)
-                put("minFreq", p.minFreq); put("maxFreq", p.maxFreq); putOpt("targetFreq", p.targetFreq)
+                put("policyId", p.policyId); put("path", p.path); putOpt("governor", p.governor)
+                putOpt("minFreq", p.minFreq); putOpt("maxFreq", p.maxFreq); putOpt("targetFreq", p.targetFreq)
             }) }
         })
         snapshot.gpu?.let { g -> put("gpu", JSONObject().apply {
-            put("path", g.path); put("governor", g.governor); put("minFreq", g.minFreq); put("maxFreq", g.maxFreq); putOpt("targetFreq", g.targetFreq)
+            put("path", g.path); putOpt("governor", g.governor); putOpt("minFreq", g.minFreq); putOpt("maxFreq", g.maxFreq); putOpt("targetFreq", g.targetFreq)
         }) }
         put("attempted", JSONArray(snapshot.attempted.map { it.name }))
         put("applied", JSONArray(snapshot.applied.map { it.name }))
@@ -86,11 +95,24 @@ object GameBoostSnapshotJson {
             val values = obj.optJSONArray("cpu") ?: JSONArray()
             for (i in 0 until values.length()) {
                 val p = values.getJSONObject(i)
-                add(CpuBoostSnapshot(p.getInt("policyId"), p.getString("path"), p.getString("governor"), p.getLong("minFreq"), p.getLong("maxFreq"), p.optLong("targetFreq", 0L).takeIf { it > 0L }))
+                add(CpuBoostSnapshot(
+                    policyId = p.getInt("policyId"),
+                    path = p.getString("path"),
+                    governor = p.optString("governor").takeIf { it.isNotBlank() && it != "null" },
+                    minFreq = p.optLong("minFreq", 0L).takeIf { it > 0L },
+                    maxFreq = p.optLong("maxFreq", 0L).takeIf { it > 0L },
+                    targetFreq = p.optLong("targetFreq", 0L).takeIf { it > 0L }
+                ))
             }
         }
         val gpu = obj.optJSONObject("gpu")?.let { g ->
-            GpuBoostSnapshot(g.getString("path"), g.getString("governor"), g.getLong("minFreq"), g.getLong("maxFreq"), g.optLong("targetFreq", 0L).takeIf { it > 0L })
+            GpuBoostSnapshot(
+                path = g.getString("path"),
+                governor = g.optString("governor").takeIf { it.isNotBlank() && it != "null" },
+                minFreq = g.optLong("minFreq", 0L).takeIf { it > 0L },
+                maxFreq = g.optLong("maxFreq", 0L).takeIf { it > 0L },
+                targetFreq = g.optLong("targetFreq", 0L).takeIf { it > 0L }
+            )
         }
         return GameBoostSnapshot(
             version = obj.optInt("version", 1),

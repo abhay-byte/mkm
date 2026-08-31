@@ -129,6 +129,7 @@ internal fun GameBoostStatusCard(state: GameBoostState, capabilities: com.ivarna
         is GameBoostState.ThermalLimited -> state.stillApplied
         else -> emptySet()
     }
+    val released = (state as? GameBoostState.ThermalLimited)?.released.orEmpty()
     ElevatedCard {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(stringResource(R.string.game_boost_status), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -140,12 +141,22 @@ internal fun GameBoostStatusCard(state: GameBoostState, capabilities: com.ivarna
             ).forEach { (component, label) ->
                 val capability = capabilities?.components?.get(component)
                 val value = when {
+                    component in released -> stringResource(R.string.game_boost_thermal_released)
                     component in applied -> stringResource(R.string.game_boost_applied)
                     capability?.supported == false -> stringResource(R.string.game_boost_unsupported)
                     else -> stringResource(R.string.game_boost_not_applied)
                 }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(stringResource(label)); Text(value, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(Modifier.fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(stringResource(label)); Text(value, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    val detail = capability?.reason ?: capability?.target?.let { target ->
+                        capability.source?.takeIf { it.isNotBlank() }?.let { source -> "Target $target ($source)" }
+                            ?: "Target $target"
+                    }
+                    if (!detail.isNullOrBlank()) {
+                        Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
             when (state) {

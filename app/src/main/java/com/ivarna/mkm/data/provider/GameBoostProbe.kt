@@ -43,6 +43,7 @@ class GameBoostProbe(private val context: Context) {
                     cpuTarget(state) != null
             }
             val cpuMaxReason = when {
+                cpuMaxOk -> null
                 !maxLocksThermallySupported -> "Maximum-clock locks require the API 29+ thermal guard"
                 cpuPolicies.isEmpty() -> "No cpufreq policies were discovered"
                 !cpuPolicies.all { it.minWritable && it.maxWritable } -> "At least one CPU range is not writable"

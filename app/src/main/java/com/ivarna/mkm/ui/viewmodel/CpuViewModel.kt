@@ -12,6 +12,7 @@ import com.ivarna.mkm.data.provider.ThermalProvider
 import com.ivarna.mkm.data.provider.ThermalStatus
 import com.ivarna.mkm.service.BootSettingsManager
 import com.ivarna.mkm.service.GameBoostRegistry
+import com.ivarna.mkm.service.KernelTuningCoordinator
 import com.ivarna.mkm.util.AppVisibilityMonitor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -96,7 +97,7 @@ class CpuViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val result = tuningCoordinator.withMutation(controlId, { _pendingControlId.value = it }) {
                     val applied = try {
-                        withContext(Dispatchers.IO) { operation() }
+                        withContext(Dispatchers.IO) { KernelTuningCoordinator.withMutation { operation() } }
                     } catch (error: CancellationException) {
                         throw error
                     } catch (error: Exception) {
@@ -125,7 +126,11 @@ class CpuViewModel(application: Application) : AndroidViewModel(application) {
         if (GameBoostRegistry.ownsTuning()) return
         viewModelScope.launch {
             tuningCoordinator.withObservation {
-                withContext(Dispatchers.IO) { if (ThermalProvider.setThermalLimit(limit)) cachedLimit = limit }
+                withContext(Dispatchers.IO) {
+                    KernelTuningCoordinator.withMutation {
+                        if (ThermalProvider.setThermalLimit(limit)) cachedLimit = limit
+                    }
+                }
                 publishState()
             }
         }
@@ -135,7 +140,7 @@ class CpuViewModel(application: Application) : AndroidViewModel(application) {
         if (GameBoostRegistry.ownsTuning()) return
         viewModelScope.launch {
             tuningCoordinator.withObservation {
-                withContext(Dispatchers.IO) { ThermalProvider.disableThrottling() }
+                withContext(Dispatchers.IO) { KernelTuningCoordinator.withMutation { ThermalProvider.disableThrottling() } }
                 publishState()
             }
         }

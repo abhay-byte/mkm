@@ -35,6 +35,7 @@ class GameBoostProbeTest {
         assertEquals("1400000000", result.components[GameBoostComponent.GPU_MAX_LOCK]?.target)
         assertTrue(result.components.getValue(GameBoostComponent.CPU_MAX_LOCK).supported)
         assertTrue(result.components.getValue(GameBoostComponent.GPU_MAX_LOCK).supported)
+        assertEquals(null, result.components.getValue(GameBoostComponent.CPU_MAX_LOCK).reason)
     }
 
     @Test

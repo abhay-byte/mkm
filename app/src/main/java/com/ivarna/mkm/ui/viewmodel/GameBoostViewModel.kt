@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -26,7 +27,14 @@ class GameBoostViewModel(application: Application) : AndroidViewModel(applicatio
     private val prefs = application.getSharedPreferences(PREFS, Application.MODE_PRIVATE)
     val disclosureAcknowledged: Boolean get() = prefs.getBoolean(KEY_DISCLOSURE, false)
 
-    init { refreshCapabilities() }
+    init {
+        refreshCapabilities()
+        viewModelScope.launch {
+            state.collectLatest { current ->
+                if (current !is GameBoostState.Off) GameBoostService.ensureRunning(getApplication())
+            }
+        }
+    }
 
     fun acknowledgeDisclosure() {
         prefs.edit().putBoolean(KEY_DISCLOSURE, true).apply()
@@ -49,7 +57,7 @@ class GameBoostViewModel(application: Application) : AndroidViewModel(applicatio
             } else withContext(Dispatchers.IO) { manager.disable() }
             if (result is GameBoostTransitionResult.Failure) {
                 _message.value = result.reason
-                if (enabled) GameBoostService.stop(getApplication())
+                if (enabled && !GameBoostRegistry.ownsTuning()) GameBoostService.stop(getApplication())
             }
             if (!enabled && result is GameBoostTransitionResult.Success) GameBoostService.stop(getApplication())
             refreshCapabilities()
@@ -60,7 +68,7 @@ class GameBoostViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch(Dispatchers.IO) {
             val result = manager.retryRecovery()
             if (result is GameBoostTransitionResult.Failure) _message.value = result.reason
-            else GameBoostService.stop(getApplication())
+            else if (!GameBoostRegistry.ownsTuning()) GameBoostService.stop(getApplication())
         }
     }
 

@@ -43,7 +43,7 @@ class GameBoostScreenTest {
                 )
             }
         }
-        composeRule.onAllNodesWithText("Not applied").assertCountEquals(2)
+        composeRule.onAllNodesWithText("Thermal released").assertCountEquals(2)
         composeRule.onNodeWithText("Severe thermal status: maximum-clock locks were released and will not be relocked automatically.").assertIsDisplayed()
     }
 

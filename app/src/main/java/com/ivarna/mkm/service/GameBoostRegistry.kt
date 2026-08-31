@@ -19,7 +19,10 @@ object GameBoostRegistry {
 
     fun manager(context: android.content.Context): GameBoostManager {
         return manager ?: synchronized(this) {
-            manager ?: GameBoostManager(context.applicationContext).also { manager = it }
+            manager ?: GameBoostManager(context.applicationContext).also {
+                manager = it
+                it.startReconciliation()
+            }
         }
     }
 }

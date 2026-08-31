@@ -520,6 +520,7 @@
     <string name="game_boost_applied">Applied</string>
     <string name="game_boost_not_applied">Not applied</string>
     <string name="game_boost_unsupported">Unsupported</string>
+    <string name="game_boost_thermal_released">Thermal released</string>
     <string name="game_boost_enabling">Applying: %s</string>
     <string name="game_boost_thermal_limited">Severe thermal status: maximum-clock locks were released and will not be relocked automatically.</string>
     <string name="game_boost_recovery_required">Recovery required. Restore the saved tuning state before disabling.</string>

@@ -40,17 +40,17 @@ data class GameBoostCapabilities(
 data class CpuBoostSnapshot(
     val policyId: Int,
     val path: String,
-    val governor: String,
-    val minFreq: Long,
-    val maxFreq: Long,
+    val governor: String? = null,
+    val minFreq: Long? = null,
+    val maxFreq: Long? = null,
     val targetFreq: Long? = null
 )
 
 data class GpuBoostSnapshot(
     val path: String,
-    val governor: String,
-    val minFreq: Long,
-    val maxFreq: Long,
+    val governor: String? = null,
+    val minFreq: Long? = null,
+    val maxFreq: Long? = null,
     val targetFreq: Long? = null
 )
 
@@ -65,3 +65,7 @@ data class GameBoostSnapshot(
     val applied: Set<GameBoostComponent> = emptySet(),
     val thermallyReleased: Set<GameBoostComponent> = emptySet()
 )
+
+/** Components that may have been touched and therefore must be restored. */
+fun GameBoostSnapshot.componentsNeedingRestore(): Set<GameBoostComponent> =
+    (attempted + applied) - thermallyReleased

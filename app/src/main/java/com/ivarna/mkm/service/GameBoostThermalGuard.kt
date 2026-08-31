@@ -14,28 +14,42 @@ class GameBoostThermalGuard(
     private val scope: CoroutineScope,
     private val onStatus: suspend (Int) -> Unit
 ) {
+    data class StartResult(val monitoringAvailable: Boolean, val listenerRegistered: Boolean)
+
     private val appContext = context.applicationContext
     private var powerManager: PowerManager? = null
     private var listener: PowerManager.OnThermalStatusChangedListener? = null
 
-    /** Returns false when API 29+ thermal monitoring cannot be initialized. */
-    fun start(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return true
-        val power = appContext.getSystemService(PowerManager::class.java) ?: return false
-        return runCatching {
+    /** Listener registration is optional; polling is the mandatory safety path. */
+    fun start(): StartResult {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return StartResult(true, false)
+        val power = appContext.getSystemService(PowerManager::class.java)
+            ?: return StartResult(false, false)
+        powerManager = power
+
+        var listenerRegistered = false
+        runCatching {
             val callback = PowerManager.OnThermalStatusChangedListener { status ->
                 scope.launch { onStatus(status) }
             }
             power.addThermalStatusListener(appContext.mainExecutor, callback)
-            powerManager = power
             listener = callback
+            listenerRegistered = true
+        }
+
+        val initialStatus = runCatching { power.currentThermalStatus }.getOrNull()
+        val pollingAvailable = initialStatus != null
+        if (pollingAvailable) {
             scope.launch {
+                onStatus(initialStatus!!)
                 while (isActive) {
-                    onStatus(power.currentThermalStatus)
+                    val status = runCatching { power.currentThermalStatus }.getOrNull() ?: break
+                    onStatus(status)
                     delay(POLL_INTERVAL_MS)
                 }
             }
-        }.isSuccess
+        }
+        return StartResult(listenerRegistered || pollingAvailable, listenerRegistered)
     }
 
     fun stop() {

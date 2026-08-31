@@ -10,6 +10,7 @@ import com.ivarna.mkm.data.model.TuningPersistencePolicy
 import com.ivarna.mkm.data.provider.GpuProvider
 import com.ivarna.mkm.service.BootSettingsManager
 import com.ivarna.mkm.service.GameBoostRegistry
+import com.ivarna.mkm.service.KernelTuningCoordinator
 import com.ivarna.mkm.util.AppVisibilityMonitor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
@@ -71,7 +72,7 @@ class GpuViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val result = tuningCoordinator.withMutation(controlId, { _pendingControlId.value = it }) {
                     val applied = try {
-                        withContext(Dispatchers.IO) { operation() }
+                        withContext(Dispatchers.IO) { KernelTuningCoordinator.withMutation { operation() } }
                     } catch (error: CancellationException) {
                         throw error
                     } catch (error: Exception) {

@@ -38,17 +38,24 @@ class GameBoostService : Service() {
         val guard = GameBoostThermalGuard(this, scope) { status ->
             GameBoostRegistry.manager(this@GameBoostService).onThermalStatus(status)
         }
-        if (!guard.start()) {
-            stopSelf()
-            return
-        }
+        val guardResult = guard.start()
         thermalGuard = guard
         scope.launch {
             GameBoostRegistry.state.collectLatest { state ->
                 getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, buildNotification(state))
             }
         }
-        ready.set(true)
+        if (guardResult.monitoringAvailable) {
+            ready.set(true)
+        } else {
+            // A recovered session may already hold max locks. Restore them
+            // before declaring the service ready, and keep the service alive
+            // for RecoveryRequired diagnostics if that restore fails.
+            scope.launch {
+                GameBoostRegistry.manager(this@GameBoostService).onThermalMonitoringUnavailable()
+                ready.set(true)
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -118,6 +125,10 @@ class GameBoostService : Service() {
         fun start(context: Context) {
             val intent = Intent(context, GameBoostService::class.java).setAction(ACTION_START)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent) else context.startService(intent)
+        }
+
+        fun ensureRunning(context: Context) {
+            if (!ready.get()) start(context)
         }
 
         suspend fun awaitReady(timeoutMs: Long = 2_000L): Boolean {
