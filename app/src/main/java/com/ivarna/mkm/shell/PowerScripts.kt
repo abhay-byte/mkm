@@ -1,27 +1,79 @@
 package com.ivarna.mkm.shell
 
 object PowerScripts {
-    // Reads current and voltage from the first valid power supply
+    /**
+     * Reads signed current (µA), voltage (µV), and capacity from a **battery-class**
+     * power supply only.
+     *
+     * Preference order:
+     * 1. Well-known names: battery, bms, BAT0/BAT1/BATTERY
+     * 2. Any supply with type=Battery
+     *
+     * Does **not** fall through to usb/dc/ac/wireless when battery current is 0
+     * (full charge) — that was the source of absurd multi-kW readings.
+     * Current sign is preserved (kernel convention varies; callers must not use
+     * it for UI polarity — use Android charging state instead).
+     */
     fun getPowerAndVoltage(): String {
         return """
             current=0
             voltage=0
             capacity=0
-            for ps in /sys/class/power_supply/*; do
-                if [ ${"$"}current -eq 0 ] && [ -e "${"$"}ps/current_now" ] && [ -e "${"$"}ps/voltage_now" ]; then
-                    current=${"$"}(cat "${"$"}ps/current_now")
-                    voltage=${"$"}(cat "${"$"}ps/voltage_now")
-                    current=${"$"}{current#-}
+            found=0
+
+            try_read() {
+                ps="${"$"}1"
+                if [ -e "${"$"}ps/current_now" ] && [ -e "${"$"}ps/voltage_now" ]; then
+                    c=${"$"}(cat "${"$"}ps/current_now" 2>/dev/null)
+                    v=${"$"}(cat "${"$"}ps/voltage_now" 2>/dev/null)
+                    # Accept battery node even when current is 0 (full / idle).
+                    if [ -n "${"$"}v" ] && [ "${"$"}v" != "0" ]; then
+                        current=${"$"}c
+                        voltage=${"$"}v
+                        if [ -e "${"$"}ps/capacity" ]; then
+                            capacity=${"$"}(cat "${"$"}ps/capacity" 2>/dev/null || echo 0)
+                        fi
+                        return 0
+                    fi
                 fi
-                if [ ${"$"}capacity -eq 0 ] && [ -e "${"$"}ps/capacity" ]; then
-                    capacity=${"$"}(cat "${"$"}ps/capacity")
+                return 1
+            }
+
+            # Pass 1: well-known battery / BMS names
+            for name in battery bms BAT0 BAT1 BATTERY Battery; do
+                ps="/sys/class/power_supply/${"$"}name"
+                if [ -d "${"$"}ps" ] && try_read "${"$"}ps"; then
+                    found=1
+                    break
                 fi
             done
+
+            # Pass 2: any supply with type=Battery
+            if [ "${"$"}found" -eq 0 ]; then
+                for ps in /sys/class/power_supply/*; do
+                    [ -d "${"$"}ps" ] || continue
+                    [ -e "${"$"}ps/type" ] || continue
+                    t=${"$"}(cat "${"$"}ps/type" 2>/dev/null)
+                    if [ "${"$"}t" = "Battery" ] && try_read "${"$"}ps"; then
+                        found=1
+                        break
+                    fi
+                done
+            fi
+
+            # Capacity fallback if still 0
+            if [ "${"$"}capacity" -eq 0 ] 2>/dev/null; then
+                for ps in /sys/class/power_supply/*; do
+                    if [ -e "${"$"}ps/capacity" ]; then
+                        capacity=${"$"}(cat "${"$"}ps/capacity" 2>/dev/null || echo 0)
+                        [ "${"$"}capacity" != "0" ] && break
+                    fi
+                done
+            fi
+
             echo "${"$"}current ${"$"}voltage ${"$"}capacity"
         """.trimIndent()
     }
-
-
 
     private val GPU_BENCHMARK_SCRIPT = """
 #!/system/bin/sh
@@ -43,13 +95,32 @@ GPU_PATH=${"$"}(find_gpu_path)
 [ -z "${"$"}GPU_PATH" ] && exit 1
 echo "Found GPU at: ${"$"}GPU_PATH"
 
+# Battery-first power read (same policy as getPowerAndVoltage). Keep |current| for magnitude.
 get_power_values() {
-    for ps in /sys/class/power_supply/*; do
+    try_read() {
+        ps="${"$"}1"
         if [ -e "${"$"}ps/current_now" ] && [ -e "${"$"}ps/voltage_now" ]; then
-            current=${"$"}(cat "${"$"}ps/current_now")
-            voltage=${"$"}(cat "${"$"}ps/voltage_now")
-            current=${"$"}{current#-}
-            echo "${"$"}current ${"$"}voltage"
+            c=${"$"}(cat "${"$"}ps/current_now" 2>/dev/null)
+            v=${"$"}(cat "${"$"}ps/voltage_now" 2>/dev/null)
+            if [ -n "${"$"}v" ] && [ "${"$"}v" != "0" ]; then
+                c=${"$"}{c#-}
+                echo "${"$"}c ${"$"}v"
+                return 0
+            fi
+        fi
+        return 1
+    }
+    for name in battery bms BAT0 BAT1 BATTERY Battery; do
+        ps="/sys/class/power_supply/${"$"}name"
+        if [ -d "${"$"}ps" ] && try_read "${"$"}ps"; then
+            return
+        fi
+    done
+    for ps in /sys/class/power_supply/*; do
+        [ -d "${"$"}ps" ] || continue
+        [ -e "${"$"}ps/type" ] || continue
+        t=${"$"}(cat "${"$"}ps/type" 2>/dev/null)
+        if [ "${"$"}t" = "Battery" ] && try_read "${"$"}ps"; then
             return
         fi
     done

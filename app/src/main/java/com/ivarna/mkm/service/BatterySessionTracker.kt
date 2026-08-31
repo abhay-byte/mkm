@@ -212,6 +212,7 @@ fun start() {
     private fun onPowerConnected() {
         synchronized(lock) {
             val now = System.currentTimeMillis()
+            provider.invalidate()
             val snap = provider.getSnapshot(appContext)
             lastSnapshot = snap
             // Finalize the discharging session with final stats
@@ -234,6 +235,7 @@ fun start() {
     private fun onPowerDisconnected() {
         synchronized(lock) {
             val now = System.currentTimeMillis()
+            provider.invalidate()
             val snap = provider.getSnapshot(appContext)
             lastSnapshot = snap
             // Finalize the charging session
@@ -265,12 +267,9 @@ fun start() {
         val multiplier = calibrationManager.getMultiplier()
         val powerStatus = powerProvider.getPowerStatus(multiplier)
 
-        // Sign is determined by Android's BATTERY_STATUS_CHARGING (rawSnap.isCharging),
-        // NOT by the kernel current direction (powerStatus.isCharging).
-        // When the charger is connected but consumption > charge rate the kernel reports
-        // negative current, but Android still says "charging" — we must respect that so
-        // calibratedWattageW never goes negative while the charger is plugged in.
-        val isCharging = rawSnap.isCharging
+        // Both powerStatus.isCharging and rawSnap.isCharging derive from Android sticky broadcast,
+        // but powerStatus is uncached so powerStatus.isCharging is live immediately upon plug change.
+        val isCharging = powerStatus.isCharging
         val calibratedW = if (isCharging) powerStatus.calibratedPowerW
                           else -powerStatus.calibratedPowerW
         val rawW = if (isCharging) powerStatus.powerW
@@ -278,6 +277,7 @@ fun start() {
 
         // Overlay the authoritative power values onto the battery snapshot
         val snap = rawSnap.copy(
+            isCharging = isCharging,
             wattageW = rawW,
             calibratedWattageW = calibratedW,
             calibrationMultiplier = multiplier

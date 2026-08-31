@@ -68,7 +68,7 @@
     <string name="join_mkm_community">加入 MKM 社区</string>
     <string name="discord_desc">在 Discord 上与其他 MKM 用户和开发者交流</string>
     <string name="minimal_kernel_manager">极简内核管理器</string>
-    <string name="version_1_7">v1.7</string>
+    <string name="version_1_8">v1.8</string>
     <string name="june_16_2026">2026 年 6 月 16 日</string>
     <string name="version_build_format">%1$s • %2$s</string>
     <string name="made_with">使用</string>
@@ -486,4 +486,21 @@
     <!-- Overlay FPS Monitor -->
     <string name="fps_monitor">FPS 监视器</string>
     <string name="fps_format">%1$.0f FPS</string>
+    <string name="fps_recording">FPS 录制</string>
+    <string name="start_recording">开始录制</string>
+    <string name="stop_recording">停止录制</string>
+    <string name="recording_in_progress">录制中...</string>
+    <string name="fps_session_summary">FPS 会话摘要</string>
+    <string name="avg_fps">平均</string>
+    <string name="min_fps">最小</string>
+    <string name="max_fps">最大</string>
+    <string name="samples_count">采样数</string>
+    <string name="fps_source">来源</string>
+    <string name="fps_target_app">目标应用</string>
+    <string name="fps_source_adreno">Adreno 在途</string>
+    <string name="fps_source_mali">Mali DMA Fence</string>
+    <string name="fps_source_monitor">FPS 监视器</string>
+    <string name="current_fps">当前</string>
+    <string name="clear_recording">清除</string>
+    <string name="fps_recording_disabled_overlay_off">请先启动覆盖层以录制 FPS</string>
 </resources>

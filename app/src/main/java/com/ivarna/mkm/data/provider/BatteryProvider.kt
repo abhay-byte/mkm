@@ -25,19 +25,36 @@ class BatteryProvider(context: Context) {
     private var shellCacheTimeMs = 0L
     private val SHELL_CACHE_TTL_MS = 2_000L
 
+    fun invalidate() {
+        cachedSnapshot = null
+        cacheTimeMs = 0L
+        lastShellSnapshot = null
+        shellCacheTimeMs = 0L
+        lastCurrentMa = 0
+        lastVoltageMv = 0
+        lastZeroReadTime = 0L
+    }
+
     fun getSnapshot(context: Context): BatterySnapshot {
+        val sticky = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val currentIsCharging = BatteryCharging.readAndroidCharging(sticky)
+        val cached = cachedSnapshot
+        if (cached != null && cached.isCharging != currentIsCharging) {
+            invalidate()
+        }
+
         val now = System.currentTimeMillis()
         cachedSnapshot?.let {
             if (now - cacheTimeMs < CACHE_TTL_MS) return it
         }
-        val snap = computeSnapshot(context)
+        val snap = computeSnapshot(context, sticky)
         cachedSnapshot = snap
         cacheTimeMs = now
         return snap
     }
 
-    private fun computeSnapshot(context: Context): BatterySnapshot {
-        val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+    private fun computeSnapshot(context: Context, stickyIntent: Intent? = null): BatterySnapshot {
+        val intent = stickyIntent ?: context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
             ?: return BatterySnapshot(0, 0f, 0, 0, false)
 
         val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, 0)
@@ -47,9 +64,7 @@ class BatteryProvider(context: Context) {
         val tempTenths = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0)
         val temperatureC = tempTenths / 10f
 
-        val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, BatteryManager.BATTERY_STATUS_UNKNOWN)
-        val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0)
-        val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || plugged != 0
+        val isCharging = BatteryCharging.readAndroidCharging(intent)
 
         val shellReadings = readShellBatteryData()
 
@@ -64,6 +79,12 @@ class BatteryProvider(context: Context) {
             if (!signMatchesState) {
                 rawCurrentMa = -rawCurrentMa
             }
+        }
+
+        if ((isCharging && lastCurrentMa < 0) || (!isCharging && lastCurrentMa > 0)) {
+            lastCurrentMa = 0
+            lastVoltageMv = 0
+            lastZeroReadTime = 0L
         }
 
         val now = System.currentTimeMillis()
@@ -130,26 +151,49 @@ class BatteryProvider(context: Context) {
             if (now - shellCacheTimeMs < SHELL_CACHE_TTL_MS) return it
         }
 
+        // Battery-first only — never latch onto usb/dc/ac when battery current is 0 (full).
+        // Fields: current voltage charge_full charge_full_design suspend_time
         val script = """
-            current=0; voltage=0; charge_full=0; charge_full_design=0; p_current=0; p_voltage=0
-            for ps in /sys/class/power_supply/*; do
-                if [ ${'$'}current -eq 0 ] && [ -e "${'$'}ps/current_now" ] && [ -e "${'$'}ps/voltage_now" ]; then
-                    current=${'$'}(cat "${'$'}ps/current_now")
-                    voltage=${'$'}(cat "${'$'}ps/voltage_now")
+            current=0; voltage=0; charge_full=0; charge_full_design=0; found=0
+            try_read() {
+                ps=${'$'}1
+                if [ -e "${'$'}ps/current_now" ] && [ -e "${'$'}ps/voltage_now" ]; then
+                    c=${'$'}(cat "${'$'}ps/current_now" 2>/dev/null)
+                    v=${'$'}(cat "${'$'}ps/voltage_now" 2>/dev/null)
+                    if [ -n "${'$'}v" ] && [ "${'$'}v" != "0" ]; then
+                        current=${'$'}c
+                        voltage=${'$'}v
+                        [ -e "${'$'}ps/charge_full" ] && charge_full=${'$'}(cat "${'$'}ps/charge_full" 2>/dev/null || echo 0)
+                        [ -e "${'$'}ps/charge_full_design" ] && charge_full_design=${'$'}(cat "${'$'}ps/charge_full_design" 2>/dev/null || echo 0)
+                        return 0
+                    fi
                 fi
-                if [ ${'$'}charge_full -eq 0 ] && [ -e "${'$'}ps/charge_full" ]; then
-                    charge_full=${'$'}(cat "${'$'}ps/charge_full")
-                fi
-                if [ ${'$'}charge_full_design -eq 0 ] && [ -e "${'$'}ps/charge_full_design" ]; then
-                    charge_full_design=${'$'}(cat "${'$'}ps/charge_full_design")
-                fi
-                if [ ${'$'}p_current -eq 0 ] && [ -e "${'$'}ps/current_now" ] && [ -e "${'$'}ps/voltage_now" ]; then
-                    p_current=${'$'}(cat "${'$'}ps/current_now")
-                    p_voltage=${'$'}(cat "${'$'}ps/voltage_now")
-                fi
+                return 1
+            }
+            for name in battery bms BAT0 BAT1 BATTERY Battery; do
+                ps="/sys/class/power_supply/${'$'}name"
+                if [ -d "${'$'}ps" ] && try_read "${'$'}ps"; then found=1; break; fi
             done
+            if [ "${'$'}found" -eq 0 ]; then
+                for ps in /sys/class/power_supply/*; do
+                    [ -d "${'$'}ps" ] || continue
+                    [ -e "${'$'}ps/type" ] || continue
+                    t=${'$'}(cat "${'$'}ps/type" 2>/dev/null)
+                    if [ "${'$'}t" = "Battery" ] && try_read "${'$'}ps"; then found=1; break; fi
+                done
+            fi
+            if [ "${'$'}charge_full" = "0" ] || [ "${'$'}charge_full_design" = "0" ]; then
+                for ps in /sys/class/power_supply/*; do
+                    if [ "${'$'}charge_full" = "0" ] && [ -e "${'$'}ps/charge_full" ]; then
+                        charge_full=${'$'}(cat "${'$'}ps/charge_full" 2>/dev/null || echo 0)
+                    fi
+                    if [ "${'$'}charge_full_design" = "0" ] && [ -e "${'$'}ps/charge_full_design" ]; then
+                        charge_full_design=${'$'}(cat "${'$'}ps/charge_full_design" 2>/dev/null || echo 0)
+                    fi
+                done
+            fi
             suspend_time=${'$'}(cat /sys/power/suspend_stats/time 2>/dev/null || echo 0)
-            echo "${'$'}current ${'$'}voltage ${'$'}charge_full ${'$'}charge_full_design ${'$'}p_current ${'$'}p_voltage ${'$'}suspend_time"
+            echo "${'$'}current ${'$'}voltage ${'$'}charge_full ${'$'}charge_full_design ${'$'}suspend_time"
         """.trimIndent()
 
         val result = ShellManager.exec(script)
@@ -157,26 +201,35 @@ class BatteryProvider(context: Context) {
 
         val readings = if (output.isNotBlank()) {
             val parts = output.split(" ")
-            val currentUa = parts.getOrNull(0)?.toLongOrNull()?.takeIf { it != 0L }
-            val voltageUv = parts.getOrNull(1)?.toLongOrNull()?.takeIf { it != 0L }
+            val currentRaw = parts.getOrNull(0)?.toLongOrNull()
+            val voltageRaw = parts.getOrNull(1)?.toLongOrNull()?.takeIf { it != 0L }
             val chargeFullUa = parts.getOrNull(2)?.toLongOrNull()?.takeIf { it != 0L }
             val chargeFullDesignUa = parts.getOrNull(3)?.toLongOrNull()?.takeIf { it != 0L }
-            val pCurrentRaw = parts.getOrNull(4)?.toLongOrNull() ?: 0L
-            val pVoltageRaw = parts.getOrNull(5)?.toLongOrNull() ?: 0L
+            val suspendTimeMs = parts.getOrNull(4)?.toLongOrNull() ?: 0L
+
+            // Keep signed current for polarity alignment; drop pure zeros for optional path.
+            val currentUa = currentRaw?.takeIf { it != 0L }
 
             var powerW = 0f
-            if (pCurrentRaw != 0L && pVoltageRaw != 0L) {
-                val currentUa = kotlin.math.abs(pCurrentRaw)
-                val voltageUv = pVoltageRaw
-                val powerUw = (currentUa * voltageUv) / 1_000_000L
-                powerW = powerUw / 1_000_000f
+            if (currentRaw != null && currentRaw != 0L && voltageRaw != null) {
+                val absI = kotlin.math.abs(currentRaw)
+                val absV = kotlin.math.abs(voltageRaw)
+                val voltageUv = when {
+                    absV in 1_000_000L..50_000_000L -> absV
+                    absV in 1_000L..50_000L -> absV * 1_000L
+                    else -> absV
+                }
+                val currentUaMag = when {
+                    absV in 1_000L..50_000L && absI in 1L until 20_000L -> absI * 1_000L
+                    else -> absI
+                }
+                val watts = (currentUaMag.toDouble() * voltageUv.toDouble()) / 1_000_000_000_000.0
+                powerW = if (watts.isFinite() && watts in 0.0..100.0) watts.toFloat() else 0f
             }
-
-            val suspendTimeMs = parts.getOrNull(6)?.toLongOrNull() ?: 0L
 
             ShellBatteryReadings(
                 sysfsCurrentUa = currentUa,
-                sysfsVoltageUv = voltageUv,
+                sysfsVoltageUv = voltageRaw,
                 sysfsChargeFullUa = chargeFullUa,
                 sysfsChargeFullDesignUa = chargeFullDesignUa,
                 powerW = powerW,

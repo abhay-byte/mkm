@@ -138,7 +138,7 @@ fun BatteryScreen(
 fun BatteryHeroCard(stats: BatteryStats) {
     val statusText = when {
         stats.isCharging -> stringResource(com.ivarna.mkm.R.string.charging)
-        stats.isSessionActive -> stringResource(com.ivarna.mkm.R.string.discharging_ma_format, stats.currentMa)
+        stats.isSessionActive -> stringResource(com.ivarna.mkm.R.string.discharging_ma_format, kotlin.math.abs(stats.currentMa))
         else -> stringResource(com.ivarna.mkm.R.string.on_ac)
     }
 

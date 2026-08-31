@@ -1,24 +1,21 @@
-# v1.7
+# v1.8
 
 ## What's Changed
-- Discord community card in Settings.
-- Quick Access grid on the Home page for one-tap navigation to each component.
-- Locked Quick Access tiles for components that need root or Shizuku.
-- Overlay: per-metric absolute value display for CPU, GPU, RAM, and SWAP.
-- Overlay: CPU Frequency display mode selector (All Cores, Average, Max).
-- Overlay: accent color can now tint the background, with a separate background color picker.
-- RAM icon updated to a more representative memory glyph.
-- Overlay auto-resumes on app start when it was enabled before a force close.
-- GPU frequency on Adreno / Turnip shows N/A with a root-required hint when the kernel blocks shell access.
+- FPS Session Recording with live Canvas graphing (`FpsRecordGraph`) and summary metrics.
+- Root-level hardware GPU frame rate collectors for Snapdragon (Adreno inflight) and MediaTek (Mali dma_fence).
+- Non-root FPS Monitor fallback with guaranteed 2-second sampling cadence.
+- Overlay Update Frequency slider (500 ms – 5000 ms) now directly drives overlay monitor loop.
+- Power wattage & current polarity on charge/discharge fixed across Overlay, Power, Battery, and Notifications.
+- Instant cache invalidation and live state synchronization on plug/unplug events.
+- Expanded Simplified Chinese translations for all new overlay and FPS recording UI.
+- Comprehensive unit test suites for session recording and charging evaluation.
 
 ## Items Shipped
-- Discord: Join the MKM community card in Settings.
-- Home: Quick Access grid with per-component lock state.
-- Overlay: Absolute Values toggle with per-metric sub-toggles.
-- Overlay: CPU Frequency Display dropdown (All Cores / Average / Max).
-- Overlay: Apply Accent to Background + separate background color picker.
-- Overlay: Auto-resume on app start if previously enabled.
-- GPU: Graceful N/A when shell cannot read frequency.
+- FPS: In-memory session recorder, root ftrace collectors, non-root fallback, real-time graph.
+- Overlay: Update interval preference slider support and 500ms floor.
+- Power/Battery: Signed wattage and charging state synchronization.
+- Testing: JVM unit tests for FpsSessionRecorder and BatteryCharging.
+- Localization: Complete zh-rCN translations for new features.
 
 ## Migration Notes
 - No migration required.

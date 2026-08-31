@@ -1,0 +1,8 @@
+Added FPS Session Recording with real-time graph plotting, metric pills, and elapsed time view.
+Added root-level GPU frame collection for Snapdragon (inflight drops) and MediaTek (dma_fence).
+Added non-root FPS Monitor fallback with guaranteed 2-second sampling cadence.
+Fixed Overlay Update Frequency slider to properly control HUD interval (500 ms - 5000 ms).
+Fixed charging and discharging power/wattage polarity across Overlay, Power, Battery, and Settings.
+Fixed battery charging session tracking with instant cache invalidation on plug/unplug events.
+Expanded Simplified Chinese localization across overlay, battery, and FPS recording.
+Added comprehensive JVM unit test suites for session recording and charging evaluation.

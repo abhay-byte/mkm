@@ -1,5 +1,15 @@
 package com.ivarna.mkm.data.model
 
+/**
+ * Live power sample shared by Power page, Overlay PWR metric, Settings calibration,
+ * and BatterySessionTracker (magnitude only).
+ *
+ * Polarity contract:
+ * - [powerW] / [calibratedPowerW] are **unsigned magnitudes** (always ≥ 0).
+ * - [isCharging] is **Android plug/charge state** (sticky ACTION_BATTERY_CHANGED),
+ *   not kernel current direction. UI shows `+` when true, `−` when false.
+ * - [currentUa] is magnitude only (positive).
+ */
 data class PowerStatus(
     val voltageUv: Long = 0, // Microvolts
     val currentUa: Long = 0, // Microamperes (always positive magnitude)
@@ -7,8 +17,8 @@ data class PowerStatus(
     val powerW: Float = 0f,  // Raw Watts (always positive magnitude)
     val calibratedPowerW: Float = 0f, // Calibrated Watts (always positive magnitude)
     val batteryPercent: Int = 0,
-    val multiplier: Float = 1.0f,     // Current multiplier
-    val isCharging: Boolean = false   // true = charging (+), false = discharging (-)
+    val multiplier: Float = 1.0f,     // Calibration multiplier
+    val isCharging: Boolean = false   // Android charging/plugged → UI + / −
 )
 
 data class CpuEfficiencyResult(

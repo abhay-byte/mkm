@@ -72,7 +72,7 @@ fun PowerCalibrationComponent(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                CalibrationDataItem("Raw Current", "${polaritySign}${status.currentUa / 1000} mA")
+                CalibrationDataItem("Raw Current", "${polaritySign}${kotlin.math.abs(status.currentUa) / 1000} mA")
                 CalibrationDataItem("Raw Voltage", "%.2f V".format(status.voltageUv / 1_000_000f))
             }
 
@@ -82,10 +82,10 @@ fun PowerCalibrationComponent(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                CalibrationDataItem("Raw Power", "${polaritySign}%.3f W".format(status.powerW))
+                CalibrationDataItem("Raw Power", "${polaritySign}%.3f W".format(kotlin.math.abs(status.powerW)))
                 CalibrationDataItem(
-                    "Calibrated", 
-                    "${polaritySign}%.3f W".format(calibratedPower),
+                    "Calibrated",
+                    "${polaritySign}%.3f W".format(kotlin.math.abs(calibratedPower)),
                     valueColor = MaterialTheme.colorScheme.primary
                 )
             }

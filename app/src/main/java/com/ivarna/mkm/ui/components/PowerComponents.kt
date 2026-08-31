@@ -89,7 +89,8 @@ fun PowerMonitorCard(
                     color = polarityColor
                 )
                 Text(
-                    text = "%.2f".format(status.calibratedPowerW),
+                    // Magnitude only; sign is polaritySign from isCharging (Overlay + Power page).
+                    text = "%.2f".format(kotlin.math.abs(status.calibratedPowerW)),
                     style = MaterialTheme.typography.displayLarge.copy(
                         fontSize = 56.sp,
                         fontWeight = FontWeight.Black
@@ -119,7 +120,7 @@ fun PowerMonitorCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 PowerDetailItem("Voltage", "${status.voltageUv / 1000} mV", isHero = true)
-                PowerDetailItem("Current", "${polaritySign}${status.currentUa / 1000} mA", isHero = true)
+                PowerDetailItem("Current", "${polaritySign}${kotlin.math.abs(status.currentUa) / 1000} mA", isHero = true)
             }
         }
     }

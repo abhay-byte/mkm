@@ -116,10 +116,29 @@ object FpsMonitor {
 
     private val pkgRegex = Regex("""([a-zA-Z0-9._-]+)/""")
 
-    private fun foregroundPackage(): String? {
+    fun foregroundPackage(): String? {
         val result = ShellManager.exec("dumpsys window | grep -E 'mCurrentFocus|mFocusedApp'")
         if (!result.isSuccess || result.stdout.isBlank()) return null
         return pkgRegex.find(result.stdout)?.groupValues?.get(1)
+    }
+
+    fun foregroundApp(): Pair<String, Int>? {
+        var pkg: String? = foregroundPackage()
+        if (pkg == null || pkg == "null") {
+            val actResult = ShellManager.exec("dumpsys activity activities | grep -m1 -E 'mResumedActivity|topResumedActivity'")
+            if (actResult.isSuccess && actResult.stdout.isNotBlank()) {
+                val match = Regex("""u0\s+([^/\s}]+)""").find(actResult.stdout)
+                pkg = match?.groupValues?.get(1)
+            }
+        }
+        if (pkg.isNullOrBlank() || pkg == "null") return null
+
+        val pidResult = ShellManager.exec("pidof '$pkg'")
+        val pid = pidResult.stdout.trim().split(Regex("\\s+")).firstOrNull()?.toIntOrNull() ?: run {
+            val psResult = ShellManager.exec("ps -A -o PID,NAME | grep '$pkg'")
+            psResult.stdout.trim().split(Regex("\\s+")).firstOrNull()?.toIntOrNull() ?: 0
+        }
+        return Pair(pkg, pid)
     }
 
     fun getDisplayRefreshRate(): Float = displayRefreshRate

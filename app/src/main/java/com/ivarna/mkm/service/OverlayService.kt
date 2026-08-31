@@ -43,8 +43,11 @@ import androidx.savedstate.*
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.ivarna.mkm.data.SystemRepository
 import com.ivarna.mkm.data.HomeData
+import com.ivarna.mkm.data.model.FpsSource
 import com.ivarna.mkm.data.provider.PowerCalibrationManager
 import com.ivarna.mkm.utils.FpsMonitor
+import com.ivarna.mkm.utils.FpsSessionRecorder
+import com.ivarna.mkm.utils.GpuFpsCollector
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -92,6 +95,7 @@ class OverlayService : Service() {
     private var showFpsState by mutableStateOf(false)
     private val _fpsState = MutableStateFlow(FpsMonitor.FpsResult(0f, 0))
     private val fpsState = _fpsState.asStateFlow()
+    private var recordingJob: Job? = null
 
     // History for Sparklines: Map of metric key to list of values
     private val metricHistory = mutableStateMapOf<String, List<Float>>()
@@ -101,6 +105,12 @@ class OverlayService : Service() {
     private val NOTIFICATION_ID = 1001
 
     companion object {
+        const val PREFS_NAME = "overlay_prefs"
+        const val KEY_UPDATE_INTERVAL = "update_interval"
+        const val DEFAULT_UPDATE_INTERVAL_MS = 2000L
+        const val MIN_UPDATE_INTERVAL_MS = 500L
+        const val MAX_UPDATE_INTERVAL_MS = 5000L
+
         @Volatile
         var isRunning: Boolean = false
             private set
@@ -141,6 +151,7 @@ class OverlayService : Service() {
         isRunning = true
         showOverlay()
         startMonitoring()
+        observeFpsRecording()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -162,9 +173,8 @@ class OverlayService : Service() {
         showBatteryTempState = prefs.getBoolean("show_battery_temp", false)
         showProgressBarsState = prefs.getBoolean("show_progress_bars", true)
         showBatteryPercentState = prefs.getBoolean("show_battery_percent", false)
-        // Use PowerCalibrationManager for consistent update interval across app
-        val calibrationManager = PowerCalibrationManager(this)
-        updateIntervalState = calibrationManager.getUpdateInterval()
+        updateIntervalState = prefs.getLong(KEY_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL_MS)
+            .coerceIn(MIN_UPDATE_INTERVAL_MS, MAX_UPDATE_INTERVAL_MS)
         showIconsOnlyState = prefs.getBoolean("show_icons_only", false)
         isGridViewState = prefs.getBoolean("is_grid_view", false)
         gridColumnsState = prefs.getInt("grid_columns", 2)
@@ -192,9 +202,8 @@ class OverlayService : Service() {
     }
 
     private fun updateSettings() {
-        if (!::composeView.isInitialized || !composeView.isAttachedToWindow) return
-        
         loadSettings()
+        if (!::composeView.isInitialized || !composeView.isAttachedToWindow) return
         
         val flags = if (isMovableState) {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
@@ -277,7 +286,7 @@ class OverlayService : Service() {
                     updateHistory("gpu_usage", h.gpu.loadPercent)
                     updateHistory("ram_usage", h.memory.usagePercent)
                     updateHistory("swap_usage", h.swap.usagePercent)
-                    updateHistory("power_usage", (h.power.calibratedPowerW / 5f).coerceIn(0f, 1f))
+                    updateHistory("power_usage", (kotlin.math.abs(h.power.calibratedPowerW) / 5f).coerceIn(0f, 1f))
                     updateHistory("cpu_temp", (h.cpuTemp / 100f).coerceIn(0f, 1f))
                     updateHistory("battery_temp", (h.batteryTemp / 100f).coerceIn(0f, 1f))
                     updateHistory("battery_percent", h.power.batteryPercent / 100f)
@@ -300,11 +309,7 @@ class OverlayService : Service() {
                     FpsMonitor.stopDrawPacing()
                 }
                 
-                val interval = if (showFpsState) {
-                    updateIntervalState.coerceAtLeast(500L)
-                } else {
-                    updateIntervalState.coerceAtLeast(1000L)
-                }
+                val interval = updateIntervalState.coerceAtLeast(MIN_UPDATE_INTERVAL_MS)
                 delay(interval)
             }
         }
@@ -470,8 +475,14 @@ class OverlayService : Service() {
                                 }
                             }
                             if (showPowerUsageState) metricsMap["power_usage"] = {
+                                // Polarity from Android charging state (PowerProvider.isCharging);
+                                // magnitude is always |calibratedPowerW| so sign never doubles.
                                 val sign = if (homeData.power.isCharging) "+" else "-"
-                                val powerStr = String.format("${sign}%.2f W", homeData.power.calibratedPowerW)
+                                val powerStr = String.format(
+                                    "%s%.2f W",
+                                    sign,
+                                    kotlin.math.abs(homeData.power.calibratedPowerW)
+                                )
                                 CompactMetric("PWR", powerStr, 0f, false, Icons.Default.FlashOn, showIconsOnlyState, metricHistory["power_usage"])
                             }
                             if (showCpuTempState) metricsMap["cpu_temp"] = {
@@ -652,7 +663,52 @@ class OverlayService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    private fun observeFpsRecording() {
+        serviceScope.launch {
+            FpsSessionRecorder.isRecording.collect { recording ->
+                if (recording) {
+                    startFpsRecording()
+                } else {
+                    stopFpsRecording()
+                }
+            }
+        }
+    }
+
+    private fun startFpsRecording() {
+        recordingJob?.cancel()
+        recordingJob = serviceScope.launch(Dispatchers.IO) {
+            try {
+                val platform = GpuFpsCollector.detectPlatform()
+                FpsSessionRecorder.setPlatform(platform.name)
+                var consecutiveFtraceFailures = 0
+                while (isActive && FpsSessionRecorder.isRecording.value) {
+                    val fallbackOnly = consecutiveFtraceFailures >= 2
+                    val sample = GpuFpsCollector.sample(windowSec = 2f, fallbackOnly = fallbackOnly)
+                    if (sample != null) {
+                        if (sample.source == FpsSource.FPS_MONITOR && GpuFpsCollector.probeTracing() && !fallbackOnly) {
+                            consecutiveFtraceFailures++
+                        } else if (sample.source != FpsSource.FPS_MONITOR) {
+                            consecutiveFtraceFailures = 0
+                        }
+                        FpsSessionRecorder.add(sample)
+                    }
+                }
+            } finally {
+                GpuFpsCollector.shutdown()
+            }
+        }
+    }
+
+    private fun stopFpsRecording() {
+        recordingJob?.cancel()
+        recordingJob = null
+        GpuFpsCollector.shutdown()
+    }
+
     override fun onDestroy() {
+        GpuFpsCollector.shutdown()
+        FpsSessionRecorder.stop()
         FpsMonitor.stopOverlayFps()
         FpsMonitor.stopDrawPacing()
         if (::lifecycleOwner.isInitialized) {

@@ -68,7 +68,7 @@
     <string name="join_mkm_community">Join MKM Community</string>
     <string name="discord_desc">Chat with other MKM users and developers on Discord</string>
     <string name="minimal_kernel_manager">Minimal Kernel Manager</string>
-    <string name="version_1_7">v1.7</string>
+    <string name="version_1_8">v1.8</string>
     <string name="june_16_2026">June 16, 2026</string>
     <string name="version_build_format">%1$s • %2$s</string>
     <string name="made_with">Made with</string>
@@ -486,4 +486,21 @@
     <!-- Overlay FPS Monitor -->
     <string name="fps_monitor">FPS Monitor</string>
     <string name="fps_format">%1$.0f FPS</string>
+    <string name="fps_recording">FPS Recording</string>
+    <string name="start_recording">Start Recording</string>
+    <string name="stop_recording">Stop Recording</string>
+    <string name="recording_in_progress">Recording in progress...</string>
+    <string name="fps_session_summary">FPS Session Summary</string>
+    <string name="avg_fps">Avg</string>
+    <string name="min_fps">Min</string>
+    <string name="max_fps">Max</string>
+    <string name="samples_count">Samples</string>
+    <string name="fps_source">Source</string>
+    <string name="fps_target_app">Target App</string>
+    <string name="fps_source_adreno">Adreno Inflight</string>
+    <string name="fps_source_mali">Mali DMA Fence</string>
+    <string name="fps_source_monitor">FPS Monitor</string>
+    <string name="current_fps">Current</string>
+    <string name="clear_recording">Clear</string>
+    <string name="fps_recording_disabled_overlay_off">Start Overlay first to record FPS</string>
 </resources>

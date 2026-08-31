@@ -36,6 +36,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.zIndex
 import com.ivarna.mkm.ui.components.*
 import com.ivarna.mkm.service.OverlayService
+import com.ivarna.mkm.utils.FpsSessionRecorder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -163,7 +164,12 @@ fun OverlayScreen(
             mutableStateOf((prefs.getString("component_order", defaultOrder) ?: defaultOrder).split(",")) 
         }
         var gridColumns by remember { mutableStateOf(prefs.getInt("grid_columns", 2)) }
-        var updateInterval by remember { mutableStateOf(prefs.getLong("update_interval", 2000L)) }
+        var updateInterval by remember { 
+            mutableStateOf(
+                prefs.getLong(OverlayService.KEY_UPDATE_INTERVAL, OverlayService.DEFAULT_UPDATE_INTERVAL_MS)
+                    .coerceIn(OverlayService.MIN_UPDATE_INTERVAL_MS, OverlayService.MAX_UPDATE_INTERVAL_MS)
+            ) 
+        }
         var isMovable by remember { mutableStateOf(prefs.getBoolean("movable", true)) }
         var overlayOpacity by remember { mutableStateOf(prefs.getFloat("overlay_opacity", 0.9f)) }
         var accentColorIndex by remember { mutableStateOf(prefs.getInt("accent_color_index", 0)) }
@@ -321,6 +327,83 @@ fun OverlayScreen(
                             notifyService()
                         }
                     )
+                }
+            }
+
+            item {
+                val isFpsRecording by FpsSessionRecorder.isRecording.collectAsState()
+                val fpsSession by FpsSessionRecorder.session.collectAsState()
+
+                SettingsSection(title = stringResource(com.ivarna.mkm.R.string.fps_recording)) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                onClick = {
+                                    if (isFpsRecording) {
+                                        FpsSessionRecorder.stop()
+                                    } else if (OverlayService.isRunning) {
+                                        FpsSessionRecorder.start()
+                                    }
+                                },
+                                enabled = isOverlayEnabled && OverlayService.isRunning,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isFpsRecording) MaterialTheme.colorScheme.error
+                                                     else MaterialTheme.colorScheme.primary
+                                )
+                            ) {
+                                Icon(
+                                    if (isFpsRecording) Icons.Default.Stop else Icons.Default.FiberManualRecord,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    if (isFpsRecording) stringResource(com.ivarna.mkm.R.string.stop_recording)
+                                    else stringResource(com.ivarna.mkm.R.string.start_recording)
+                                )
+                            }
+
+                            if (!isFpsRecording && (fpsSession?.samples?.isNotEmpty() == true)) {
+                                OutlinedButton(
+                                    onClick = { FpsSessionRecorder.clear() }
+                                ) {
+                                    Icon(
+                                        Icons.Default.DeleteOutline,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(stringResource(com.ivarna.mkm.R.string.clear_recording))
+                                }
+                            }
+                        }
+
+                        if (!isOverlayEnabled || !OverlayService.isRunning) {
+                            Text(
+                                text = stringResource(com.ivarna.mkm.R.string.fps_recording_disabled_overlay_off),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                        }
+
+                        fpsSession?.let { session ->
+                            if (isFpsRecording || session.samples.size >= 2) {
+                                FpsRecordGraph(
+                                    session = session,
+                                    isRecording = isFpsRecording
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -715,19 +798,19 @@ fun OverlayScreen(
                     SettingsItem(
                         icon = Icons.Default.Speed,
                         title = stringResource(com.ivarna.mkm.R.string.update_frequency),
-                        subtitle = "Interval: ${updateInterval}ms",
+                        subtitle = stringResource(com.ivarna.mkm.R.string.interval_format, updateInterval.toString()),
                         onClick = { }
                     ) {
                         Slider(
                             value = updateInterval.toFloat(),
                             onValueChange = { 
-                                updateInterval = it.toLong().coerceIn(100L, 5000L)
+                                updateInterval = it.toLong().coerceIn(OverlayService.MIN_UPDATE_INTERVAL_MS, OverlayService.MAX_UPDATE_INTERVAL_MS)
                             },
                             onValueChangeFinished = {
-                                prefs.edit().putLong("update_interval", updateInterval).apply()
+                                prefs.edit().putLong(OverlayService.KEY_UPDATE_INTERVAL, updateInterval).apply()
                                 notifyService()
                             },
-                            valueRange = 100f..5000f,
+                            valueRange = OverlayService.MIN_UPDATE_INTERVAL_MS.toFloat()..OverlayService.MAX_UPDATE_INTERVAL_MS.toFloat(),
                             modifier = Modifier.width(120.dp)
                         )
                     }

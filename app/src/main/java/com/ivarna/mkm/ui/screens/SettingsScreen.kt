@@ -181,10 +181,17 @@ fun SettingsScreen(
             )
         ) {
             item {
+                val packageVersionName = remember {
+                    try {
+                        context.packageManager.getPackageInfo(context.packageName, 0).versionName?.let { "v$it" } ?: "v1.8"
+                    } catch (e: Exception) {
+                        "v1.8"
+                    }
+                }
                 AppInfoCard(
                     appName = stringResource(com.ivarna.mkm.R.string.minimal_kernel_manager),
-                    version = "v1.7",
-                    buildDate = "June 16, 2026"
+                    version = packageVersionName,
+                    buildDate = "August 18, 2026"
                 )
             }
 
@@ -250,7 +257,7 @@ fun SettingsScreen(
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        val liveCalibrated = powerStatus.powerW * savedMultiplier
+                        val liveCalibrated = kotlin.math.abs(powerStatus.powerW) * savedMultiplier
                         val polaritySign = if (powerStatus.isCharging) "+" else "-"
                         val polarityColor = if (powerStatus.isCharging)
                             androidx.compose.ui.graphics.Color(0xFF4CAF50)
@@ -268,7 +275,7 @@ fun SettingsScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    text = "${polaritySign}%.3f W".format(powerStatus.powerW),
+                                    text = "${polaritySign}%.3f W".format(kotlin.math.abs(powerStatus.powerW)),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = polarityColor

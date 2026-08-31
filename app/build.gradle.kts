@@ -15,8 +15,8 @@ android {
         applicationId = "com.ivarna.mkm"
         minSdk = 24
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.7"
+        versionCode = 9
+        versionName = "1.8"
         ndkVersion = "29.0.14206865"
         resConfigs("en", "zh-rCN")
 

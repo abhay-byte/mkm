@@ -34,4 +34,40 @@
       Kotlin: new external declaration, add shellExec("dumpsys SurfaceFlinger --latency-frameinfo '$layer'") in computeFps() after --latency step fails
     Edge cases: device doesn't support frameinfo (empty output), zero presentTime rows, degenerate output detection like --latency parser
     Investigation: root FPS inaccuracy — check FPS math (fpsFromSortedTimestampsNanos), staleness window (1.5s), gfxinfo vs SurfaceFlinger source alignment, cross-reference against on-device tools
+- id: T4
+  title: Overlay Update Frequency does not apply
+  type: bug
+  priority: high
+  difficulty: easy
+  status: landed
+  why: Overlay slider wrote overlay_prefs/update_interval; service read PowerCalibrationManager. Fixed — service reads overlay_prefs, single 500 ms floor, loadSettings always.
+  impact: OverlayService, OverlayScreen
+  followups: keep Power-page interval separate
+  images: null
+  github_ref: GH-17
+  plan: docs/plans/gh-15-16-17-overlay-fps-polarity.md#1-gh-17--overlay-update-frequency--landed
+- id: T5
+  title: FPS session recording and basic graph
+  type: feature
+  priority: high
+  difficulty: medium
+  status: landed-with-residuals
+  why: Recorder + graph + root ftrace landed. B1 no-root fallback has no 2 s delay (tight dumpsys loop). B2 consecutiveFtraceFailures unused. Do not close GH-16 until B1 is fixed.
+  impact: GpuFpsCollector, FpsSessionRecorder, FpsRecordGraph; OverlayService; OverlayScreen
+  followups: B1 sampler cadence; B2 two-failure lock-in; no CSV this pass
+  images: null
+  github_ref: GH-16
+  plan: docs/plans/gh-15-16-17-overlay-fps-polarity.md#3-gh-16--fps-recording--landed-with-residuals
+- id: T6
+  title: Power polarity on charge and discharge
+  type: bug
+  priority: high
+  difficulty: easy
+  status: landed-pending-device-close
+  why: Charging used kernel current sign. Now Android plug state + cache bust + live isCharging copy. 5 s TTL remains for steady-state; plug/unplug invalidate + tick. H1 plugged!=0 still forces +. Close after device matrix.
+  impact: PowerProvider, BatteryProvider, BatterySessionTracker, BatteryCharging
+  followups: tighten isCharging if OEM pause-at-80 fails the test
+  images: null
+  github_ref: GH-15
+  plan: docs/plans/gh-15-16-17-overlay-fps-polarity.md#2-gh-15--polarity-on-charge-and-discharge--landed-device-close-pending
 ---

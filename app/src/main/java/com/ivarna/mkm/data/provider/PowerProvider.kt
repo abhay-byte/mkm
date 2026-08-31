@@ -18,102 +18,162 @@ import kotlin.math.sqrt
 
 class PowerProvider(private val context: Context? = null) {
 
+    companion object {
+        /** Raw (pre-calibration) power above this is treated as invalid sensor data. */
+        private const val MAX_PLAUSIBLE_POWER_W = 100f
+    }
+
+    /**
+     * Live power reading used by **Power page**, **Overlay PWR**, Settings calibration,
+     * and BatterySessionTracker magnitude.
+     *
+     * - Magnitude from battery-class sysfs (root/Shizuku) or BatteryManager.
+     * - [PowerStatus.isCharging] always from Android sticky broadcast — never kernel current sign.
+     */
     suspend fun getPowerStatus(multiplier: Float = 1.0f): PowerStatus = withContext(Dispatchers.IO) {
-        // Try root-based reading first
+        val androidState = readAndroidBatteryState()
+        val isCharging = androidState.isCharging
+
+        // Try root/Shizuku battery-class sysfs first
         val output = ShellManager.exec(PowerScripts.getPowerAndVoltage()).stdout
-        
+
         try {
             if (output.isNotBlank()) {
                 val parts = output.trim().split(" ")
                 if (parts.size >= 2) {
                     val currentRaw = parts[0].toLongOrNull() ?: 0L
                     val voltageRaw = parts[1].toLongOrNull() ?: 0L
-                    val batteryPercent = if (parts.size >= 3) parts[2].toIntOrNull() ?: 0 else 0
-                    
-                    // If we got valid readings from root, use them
+                    val shellPercent = if (parts.size >= 3) parts[2].toIntOrNull() ?: 0 else 0
+                    val batteryPercent = when {
+                        androidState.percent in 1..100 -> androidState.percent
+                        shellPercent in 0..100 -> shellPercent
+                        else -> 0
+                    }
+
                     if (currentRaw != 0L || voltageRaw != 0L) {
-                        // Positive currentRaw = charging, negative = discharging (kernel convention)
-                        val isCharging = currentRaw > 0L
-                        val currentUa = abs(currentRaw)
-                        val voltageUv = voltageRaw
-                        
-                        val powerUw = (currentUa * voltageUv) / 1_000_000L
-                        val powerW = powerUw / 1_000_000f
-                        val calibratedPowerW = powerW * multiplier
-                        
-                        return@withContext PowerStatus(
-                            voltageUv = voltageUv, 
-                            currentUa = currentUa, 
-                            powerUw = powerUw, 
-                            powerW = powerW,
-                            calibratedPowerW = calibratedPowerW,
-                            batteryPercent = batteryPercent,
-                            multiplier = multiplier,
-                            isCharging = isCharging
-                        )
+                        val (currentUa, voltageUv) = normalizeCurrentVoltage(currentRaw, voltageRaw)
+                        val powerW = computePowerWatts(currentUa, voltageUv)
+
+                        if (powerW <= MAX_PLAUSIBLE_POWER_W) {
+                            val powerUw = (powerW * 1_000_000f).toLong().coerceAtLeast(0L)
+                            val calibratedPowerW = powerW * multiplier
+                            return@withContext PowerStatus(
+                                voltageUv = voltageUv,
+                                currentUa = currentUa,
+                                powerUw = powerUw,
+                                powerW = powerW,
+                                calibratedPowerW = calibratedPowerW,
+                                batteryPercent = batteryPercent,
+                                multiplier = multiplier,
+                                isCharging = isCharging
+                            )
+                        }
+                        // Absurd magnitude (wrong rail / units) → BatteryManager fallback
                     }
                 }
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        
-        // Fallback to BatteryManager if root failed or returned zero values
-        return@withContext getPowerStatusFromBatteryManager(multiplier)
+
+        return@withContext getPowerStatusFromBatteryManager(multiplier, isCharging, androidState.percent)
     }
-    
+
     /**
-     * Fallback method for non-root devices using BatteryManager API.
-     * Reads real voltage + percent from the sticky ACTION_BATTERY_CHANGED broadcast.
+     * Android sticky broadcast: authoritative charging/plugged state and capacity.
+     * Matches BatteryProvider so Overlay, Power page, and Battery stay aligned.
      */
-    private fun getPowerStatusFromBatteryManager(multiplier: Float): PowerStatus {
+    private fun readAndroidBatteryState(): AndroidBatteryState {
+        if (context == null) return AndroidBatteryState()
+        return try {
+            val sticky = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+                ?: return AndroidBatteryState()
+            val isCharging = BatteryCharging.readAndroidCharging(sticky)
+            val level = sticky.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val scale = sticky.getIntExtra(BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1)
+            val percent = if (level >= 0) ((level * 100) / scale).coerceIn(0, 100) else 0
+            val voltageMv = sticky.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0)
+            AndroidBatteryState(isCharging = isCharging, percent = percent, voltageMv = voltageMv)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            AndroidBatteryState()
+        }
+    }
+
+    /**
+     * Normalize OEM unit quirks to µA / µV.
+     * Kernel standard is µA + µV; some devices expose mA + mV.
+     */
+    private fun normalizeCurrentVoltage(currentRaw: Long, voltageRaw: Long): Pair<Long, Long> {
+        val absI = abs(currentRaw)
+        val absV = abs(voltageRaw)
+
+        val voltageUv = when {
+            absV in 1_000_000L..50_000_000L -> absV           // already µV (~1–50 V)
+            absV in 1_000L..50_000L -> absV * 1_000L           // mV → µV
+            else -> absV
+        }
+
+        val currentUa = when {
+            // mV-scale voltage + small current → treat current as mA
+            absV in 1_000L..50_000L && absI in 1L until 20_000L -> absI * 1_000L
+            else -> absI // assume µA
+        }
+
+        return currentUa to voltageUv
+    }
+
+    /** Power (W) = |I_µA| × V_µV / 1e12 — Double intermediate avoids Long overflow. */
+    private fun computePowerWatts(currentUa: Long, voltageUv: Long): Float {
+        if (currentUa == 0L || voltageUv == 0L) return 0f
+        val watts = (currentUa.toDouble() * voltageUv.toDouble()) / 1_000_000_000_000.0
+        if (watts.isNaN() || watts.isInfinite() || watts < 0.0) return 0f
+        return watts.toFloat()
+    }
+
+    /**
+     * Fallback for non-root devices using BatteryManager + sticky broadcast.
+     */
+    private fun getPowerStatusFromBatteryManager(
+        multiplier: Float,
+        isCharging: Boolean,
+        stickyPercent: Int
+    ): PowerStatus {
         if (context == null) {
-            return PowerStatus(multiplier = multiplier)
+            return PowerStatus(multiplier = multiplier, isCharging = isCharging, batteryPercent = stickyPercent)
         }
 
         try {
             val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
-                ?: return PowerStatus(multiplier = multiplier)
+                ?: return PowerStatus(multiplier = multiplier, isCharging = isCharging, batteryPercent = stickyPercent)
 
             // ── Current ────────────────────────────────────────────────────────
             val currentNow = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
-            val currentUa = abs(currentNow.toLong())
-
-            // ── Charging flag ─────────────────────────────────────────────────
-            val isCharging = batteryManager.isCharging
+            val currentUa = if (currentNow == Int.MIN_VALUE || currentNow == 0) {
+                0L
+            } else {
+                abs(currentNow.toLong())
+            }
 
             // ── Battery % ─────────────────────────────────────────────────────
-            // BATTERY_PROPERTY_CAPACITY returns 0-100 directly; no BroadcastReceiver needed.
-            // If it returns -Int.MAX_VALUE the property is unsupported — fall back to sticky intent.
             var batteryPercent = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
             if (batteryPercent == Int.MIN_VALUE || batteryPercent <= 0) {
-                // MediaTek and some OEM kernels don't expose BATTERY_PROPERTY_CAPACITY.
-                // The sticky ACTION_BATTERY_CHANGED broadcast is always available.
-                val stickyIntent = context.registerReceiver(
-                    null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-                )
-                val rawLevel = stickyIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-                val rawScale = stickyIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
-                if (rawLevel >= 0 && rawScale > 0) {
-                    batteryPercent = (rawLevel * 100 / rawScale)
-                }
+                batteryPercent = stickyPercent
             }
+            if (batteryPercent <= 0 && stickyPercent > 0) batteryPercent = stickyPercent
             batteryPercent = batteryPercent.coerceIn(0, 100)
 
             // ── Voltage ───────────────────────────────────────────────────────
-            // Sticky broadcast gives real millivolt value; much more accurate than 4.0V constant.
-            val stickyIntent = context.registerReceiver(
-                null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-            )
-            val voltageMillivolts = stickyIntent?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0) ?: 0
-            val voltageUv = if (voltageMillivolts > 0) {
-                voltageMillivolts * 1000L      // mV → µV
+            val sticky = readAndroidBatteryState()
+            val voltageUv = if (sticky.voltageMv > 0) {
+                sticky.voltageMv * 1000L
             } else {
-                4_000_000L                     // last-resort 4.0 V fallback
+                4_000_000L
             }
 
-            val powerUw = (currentUa * voltageUv) / 1_000_000L
-            val powerW = powerUw / 1_000_000f
+            val powerW = computePowerWatts(currentUa, voltageUv)
+                .coerceAtMost(MAX_PLAUSIBLE_POWER_W)
+            val powerUw = (powerW * 1_000_000f).toLong().coerceAtLeast(0L)
             val calibratedPowerW = powerW * multiplier
 
             return PowerStatus(
@@ -128,9 +188,15 @@ class PowerProvider(private val context: Context? = null) {
             )
         } catch (e: Exception) {
             e.printStackTrace()
-            return PowerStatus(multiplier = multiplier)
+            return PowerStatus(multiplier = multiplier, isCharging = isCharging, batteryPercent = stickyPercent)
         }
     }
+
+    private data class AndroidBatteryState(
+        val isCharging: Boolean = false,
+        val percent: Int = 0,
+        val voltageMv: Int = 0
+    )
 
     data class BenchmarkResult<T>(val data: List<T>, val logs: String)
 
