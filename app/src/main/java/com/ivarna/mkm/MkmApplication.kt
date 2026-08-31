@@ -14,9 +14,6 @@ class MkmApplication : Application() {
             Shell.setDefaultBuilder(
                 Shell.Builder.create()
                     .setFlags(Shell.FLAG_REDIRECT_STDERR)
-                    // Some rooted Android builds omit `su` from an app's PATH.
-                    // KernelSU exposes the executable at this stable absolute path.
-                    .setCommands("/system/bin/su", "-c", "sh")
                     .setTimeout(10)
             )
         }

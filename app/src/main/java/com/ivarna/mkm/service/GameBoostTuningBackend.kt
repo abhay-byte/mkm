@@ -3,10 +3,12 @@ package com.ivarna.mkm.service
 import android.content.Context
 import com.ivarna.mkm.data.model.ApplyResult
 import com.ivarna.mkm.data.model.CpuBoostSnapshot
+import com.ivarna.mkm.data.model.CpuStatus
 import com.ivarna.mkm.data.model.GameBoostCapabilities
 import com.ivarna.mkm.data.model.GameBoostComponent
 import com.ivarna.mkm.data.model.GameBoostSnapshot
 import com.ivarna.mkm.data.model.GpuBoostSnapshot
+import com.ivarna.mkm.data.model.GpuStatus
 import com.ivarna.mkm.data.model.componentsNeedingRestore
 import com.ivarna.mkm.data.provider.CpuProvider
 import com.ivarna.mkm.data.provider.GameBoostProbe
@@ -33,6 +35,42 @@ interface GameBoostTuningBackend {
     fun inspect(snapshot: GameBoostSnapshot): GameBoostHardwareState
 }
 
+/** Capability-scoped snapshot capture kept pure so partial domains are testable. */
+internal object GameBoostSnapshotCapture {
+    fun cpu(status: CpuStatus, governorNeeded: Boolean, rangeNeeded: Boolean): List<CpuBoostSnapshot> =
+        if (!governorNeeded && !rangeNeeded) emptyList() else status.clusters.map { cluster ->
+            val state = requireNotNull(cluster.policyState) { "CPU policy ${cluster.id} could not be snapshotted" }
+            val governor = if (governorNeeded) {
+                state.governor.takeIf { it.isNotBlank() && it != "unknown" }
+                    ?: error("CPU policy ${cluster.id} governor could not be snapshotted")
+            } else null
+            val min = if (rangeNeeded) state.minFreq.takeIf { it > 0L }
+                ?: error("CPU policy ${cluster.id} minimum could not be snapshotted") else null
+            val max = if (rangeNeeded) state.maxFreq.takeIf { it >= min!! }
+                ?: error("CPU policy ${cluster.id} maximum could not be snapshotted") else null
+            val target = if (rangeNeeded) GameBoostProbe.cpuTarget(state)
+                ?: error("CPU policy ${cluster.id} maximum target could not be snapshotted") else null
+            CpuBoostSnapshot(state.policyId, state.path, governor, min, max, target)
+        }.also { require(it.isNotEmpty()) { "No CPU policy could be snapshotted" } }
+
+    fun gpu(status: GpuStatus, governorNeeded: Boolean, rangeNeeded: Boolean): GpuBoostSnapshot? {
+        if (!governorNeeded && !rangeNeeded) return null
+        val path = status.tuningCapabilities?.path?.takeIf { it.isNotBlank() }
+            ?: error("GPU tuning path could not be snapshotted")
+        val governor = if (governorNeeded) {
+            status.governor.takeIf { it.isNotBlank() && it != "unknown" }
+                ?: error("GPU governor could not be snapshotted")
+        } else null
+        val min = if (rangeNeeded) status.rawMinFreq.toLongOrNull()?.takeIf { it > 0L }
+            ?: error("GPU minimum could not be snapshotted") else null
+        val max = if (rangeNeeded) status.rawMaxFreq.toLongOrNull()?.takeIf { it >= min!! }
+            ?: error("GPU maximum could not be snapshotted") else null
+        val target = if (rangeNeeded) GameBoostProbe.gpuTarget(status)
+            ?: error("GPU maximum target could not be snapshotted") else null
+        return GpuBoostSnapshot(path, governor, min, max, target)
+    }
+}
+
 /** Adapter over existing provider transactions; Game Boost has no raw sysfs stack of its own. */
 class ProductionGameBoostTuningBackend(private val context: Context) : GameBoostTuningBackend {
     private val probe = GameBoostProbe(context)
@@ -43,39 +81,13 @@ class ProductionGameBoostTuningBackend(private val context: Context) : GameBoost
         val cpuGovernorNeeded = capabilities.supported(GameBoostComponent.CPU_GOVERNOR)
         val cpuMaxNeeded = capabilities.supported(GameBoostComponent.CPU_MAX_LOCK)
         val cpu = if (cpuGovernorNeeded || cpuMaxNeeded) {
-            CpuProvider.getCpuStatus().clusters.map { cluster ->
-                val state = requireNotNull(cluster.policyState) { "CPU policy ${cluster.id} could not be snapshotted" }
-                val governor = if (cpuGovernorNeeded) {
-                    state.governor.takeIf { it.isNotBlank() && it != "unknown" }
-                        ?: error("CPU policy ${cluster.id} governor could not be snapshotted")
-                } else null
-                val min = if (cpuMaxNeeded) state.minFreq.takeIf { it > 0L }
-                    ?: error("CPU policy ${cluster.id} minimum could not be snapshotted") else null
-                val max = if (cpuMaxNeeded) state.maxFreq.takeIf { it >= min!! }
-                    ?: error("CPU policy ${cluster.id} maximum could not be snapshotted") else null
-                val target = if (cpuMaxNeeded) GameBoostProbe.cpuTarget(state)
-                    ?: error("CPU policy ${cluster.id} maximum target could not be snapshotted") else null
-                CpuBoostSnapshot(state.policyId, state.path, governor, min, max, target)
-            }.also { require(it.isNotEmpty()) { "No CPU policy could be snapshotted" } }
+            GameBoostSnapshotCapture.cpu(CpuProvider.getCpuStatus(), cpuGovernorNeeded, cpuMaxNeeded)
         } else emptyList()
 
         val gpuGovernorNeeded = capabilities.supported(GameBoostComponent.GPU_GOVERNOR)
         val gpuMaxNeeded = capabilities.supported(GameBoostComponent.GPU_MAX_LOCK)
         val gpu = if (gpuGovernorNeeded || gpuMaxNeeded) {
-            val status = GpuProvider.getGpuStatus()
-            val path = status.tuningCapabilities?.path?.takeIf { it.isNotBlank() }
-                ?: error("GPU tuning path could not be snapshotted")
-            val governor = if (gpuGovernorNeeded) {
-                status.governor.takeIf { it.isNotBlank() && it != "unknown" }
-                    ?: error("GPU governor could not be snapshotted")
-            } else null
-            val min = if (gpuMaxNeeded) status.rawMinFreq.toLongOrNull()?.takeIf { it > 0L }
-                ?: error("GPU minimum could not be snapshotted") else null
-            val max = if (gpuMaxNeeded) status.rawMaxFreq.toLongOrNull()?.takeIf { it >= min!! }
-                ?: error("GPU maximum could not be snapshotted") else null
-            val target = if (gpuMaxNeeded) GameBoostProbe.gpuTarget(status)
-                ?: error("GPU maximum target could not be snapshotted") else null
-            GpuBoostSnapshot(path, governor, min, max, target)
+            GameBoostSnapshotCapture.gpu(GpuProvider.getGpuStatus(), gpuGovernorNeeded, gpuMaxNeeded)
         } else null
 
         val identity = GameBoostSnapshotStore(context).currentIdentity()

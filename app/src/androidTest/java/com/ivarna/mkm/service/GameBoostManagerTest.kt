@@ -229,6 +229,27 @@ class GameBoostManagerTest {
     }
 
     @Test
+    fun emptyEnablingSnapshotCannotBeClearedWhenOwnershipIsUncertain() = runBlocking {
+        val backend = FakeBackend()
+        val identity = GameBoostSnapshotStore(context).currentIdentity()
+        val snapshot = backend.captureSnapshot(backend.probe()).copy(
+            bootCount = identity.first,
+            bootId = identity.second,
+            phase = "ENABLING",
+            attempted = emptySet(),
+            applied = emptySet()
+        )
+        assumeTrue(snapshot.bootCount != null || snapshot.bootId != null)
+        GameBoostSnapshotStore(context).save(snapshot)
+
+        val manager = GameBoostManager(context, backend)
+        manager.reconcile()
+
+        assertTrue(GameBoostRegistry.state.value is GameBoostState.RecoveryRequired)
+        assertTrue(GameBoostSnapshotStore(context).load() != null)
+    }
+
+    @Test
     fun preMutationPersistenceFailureRestoresAllConservativelyDirtyComponents() = runBlocking {
         val backend = FakeBackend()
         val store = InMemoryStore(context).apply { failOnSave = 2 }
