@@ -140,7 +140,7 @@ object GpuProvider {
         val after = SysfsTuningExecutor.read("$path/governor")
         val outcome = if (after == governor) ApplyResult.Applied(governor, after)
         else ApplyResult.Adjusted(governor, after, "GPU driver selected a different governor.")
-        Log.i(TAG, "domain=GPU path=$path request=governor:$governor before=$before backend=${result.backend} after=$after result=${outcome::class.simpleName}")
+        Log.i(TAG, "domain=GPU path=$path vendor=${classifyGpuPath(path)} request=governor:$governor before=$before backend=${result.backend} after=$after result=${outcome::class.simpleName}")
         return outcome
     }
 
@@ -165,10 +165,12 @@ object GpuProvider {
             else -> FrequencyRangePlanner.forMin(currentMin, currentMax, desiredMin!!)
         }
         val before = "min=$currentMin,max=$currentMax"
+        val writeLog = mutableListOf<String>()
         for (step in plan.steps) {
             val file = if (step.isMin) "min_freq" else "max_freq"
             val result = SysfsTuningExecutor.write("$path/$file", step.value.toString())
             if (!result.isSuccess) return failed(file, result)
+            writeLog += "$file=OK(${result.backend})"
         }
         val first = readRange(path)
         Thread.sleep(150L)
@@ -184,7 +186,7 @@ object GpuProvider {
             plan.adjusted -> ApplyResult.Adjusted(requested, requested, plan.adjustmentReason ?: "Range adjusted")
             else -> ApplyResult.Applied(requested, requested)
         }
-        Log.i(TAG, "domain=GPU path=$path request=$requested before=$before plan=${plan.steps.joinToString { if (it.isMin) "min=${it.value}" else "max=${it.value}" }} after=$after result=${outcome::class.simpleName}")
+        Log.i(TAG, "domain=GPU path=$path vendor=${classifyGpuPath(path)} request=$requested before=$before plan=${plan.steps.joinToString { if (it.isMin) "min=${it.value}" else "max=${it.value}" }} writes=${writeLog.joinToString()} after=$after result=${outcome::class.simpleName}")
         return outcome
     }
 
@@ -200,8 +202,10 @@ object GpuProvider {
         val result = SysfsTuningExecutor.write("$path/target_freq", freq.toString())
         if (!result.isSuccess) return failed("target_freq", result)
         val actual = SysfsTuningExecutor.read("$path/target_freq").toLongOrNull() ?: 0L
-        return if (actual == freq) ApplyResult.Applied(freq.toString(), actual.toString())
+        val outcome = if (actual == freq) ApplyResult.Applied(freq.toString(), actual.toString())
         else ApplyResult.Adjusted(freq.toString(), actual.toString(), "GPU driver selected a different target frequency.")
+        Log.i(TAG, "domain=GPU path=$path vendor=${classifyGpuPath(path)} request=target:$freq backend=${result.backend} after=$actual result=${outcome::class.simpleName}")
+        return outcome
     }
 
     fun setGovernor(governor: String): Boolean = applyGovernor(governor) !is ApplyResult.Failed
@@ -275,6 +279,13 @@ object GpuProvider {
     private fun failed(path: String, result: ShellManager.CommandResult): ApplyResult {
         Log.e(TAG, "domain=GPU path=$path backend=${result.backend} exit=${result.exitCode} stderr=${result.stderr}")
         return ApplyResult.Failed("GPU write failed for $path", result.stderr)
+    }
+
+    private fun classifyGpuPath(path: String): String = when {
+        path.contains("kgsl", ignoreCase = true) -> "Adreno/KGSL"
+        path.contains("mali", ignoreCase = true) -> "Mali/MediaTek"
+        path.contains("pvr", ignoreCase = true) || path.contains("rgx", ignoreCase = true) -> "PowerVR"
+        else -> "Unknown"
     }
 
     private fun formatRawFrequency(raw: Long): String = ShellUtils.formatFreq(if (raw > 10_000_000L) raw / 1000L else raw)

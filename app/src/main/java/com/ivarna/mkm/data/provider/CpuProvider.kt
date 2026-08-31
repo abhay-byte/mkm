@@ -266,10 +266,12 @@ object CpuProvider {
             else -> FrequencyRangePlanner.forMin(currentMin, currentMax, desiredMin!!)
         }
         val before = "min=$currentMin,max=$currentMax"
+        val writeLog = mutableListOf<String>()
         for (step in plan.steps) {
             val file = if (step.isMin) "scaling_min_freq" else "scaling_max_freq"
             val result = SysfsTuningExecutor.write("$path/$file", step.value.toString())
             if (!result.isSuccess) return failed("CPU", "policy$policyId", file, result)
+            writeLog += "$file=OK(${result.backend})"
         }
         val afterFirst = readRange(path)
         Thread.sleep(150L)
@@ -285,7 +287,7 @@ object CpuProvider {
             plan.adjusted -> ApplyResult.Adjusted(requestedText, requestedText, plan.adjustmentReason ?: "Range adjusted")
             else -> ApplyResult.Applied(requestedText, requestedText)
         }
-        android.util.Log.i("CpuProvider", "domain=CPU policy=policy$policyId request=$requestedText before=$before plan=${plan.steps.joinToString { if (it.isMin) "min=${it.value}" else "max=${it.value}" }} afterFirst=$afterFirst after=$after result=${outcome::class.simpleName}")
+        android.util.Log.i("CpuProvider", "domain=CPU policy=policy$policyId request=$requestedText before=$before plan=${plan.steps.joinToString { if (it.isMin) "min=${it.value}" else "max=${it.value}" }} writes=${writeLog.joinToString()} afterFirst=$afterFirst after=$after result=${outcome::class.simpleName}")
         return outcome
     }
 
