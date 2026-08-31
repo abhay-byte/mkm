@@ -28,11 +28,7 @@ class GameBoostSnapshotStore(context: Context) {
 
     fun isSameBoot(snapshot: GameBoostSnapshot): Boolean {
         val current = currentIdentity()
-        return when {
-            snapshot.bootCount != null && current.first != null -> snapshot.bootCount == current.first && snapshot.bootId == current.second
-            snapshot.bootId != null && current.second != null -> snapshot.bootId == current.second
-            else -> false
-        }
+        return matchesBoot(snapshot.bootCount, snapshot.bootId, current.first, current.second)
     }
 
     fun currentIdentity(): Pair<Int?, String?> = currentBootCount(appContext) to currentBootId()
@@ -49,6 +45,14 @@ class GameBoostSnapshotStore(context: Context) {
         fun currentBootId(): String? = runCatching {
             File("/proc/sys/kernel/random/boot_id").takeIf { it.canRead() }?.readText()?.trim()?.takeIf { it.isNotEmpty() }
         }.getOrNull()
+
+        fun matchesBoot(snapshotCount: Int?, snapshotId: String?, currentCount: Int?, currentId: String?): Boolean = when {
+            snapshotCount != null && currentCount != null && snapshotId != null && currentId != null ->
+                snapshotCount == currentCount && snapshotId == currentId
+            snapshotCount != null && currentCount != null -> snapshotCount == currentCount
+            snapshotId != null && currentId != null -> snapshotId == currentId
+            else -> false
+        }
     }
 }
 
