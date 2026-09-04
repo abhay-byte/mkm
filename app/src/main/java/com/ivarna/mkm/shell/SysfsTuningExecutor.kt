@@ -22,7 +22,7 @@ object SysfsTuningExecutor {
             return ShellManager.CommandResult(-1, "", "Rejected unsafe sysfs path or value")
         }
         return ShellManager.exec(
-            "printf '%s' '${quote(value)}' > \"$path\"",
+            "chmod 644 \"$path\" 2>/dev/null; printf '%s' '${quote(value)}' > \"$path\"",
             ShellManager.PrivilegeRequirement.ELEVATED_SYSFS
         )
     }
@@ -43,7 +43,7 @@ object SysfsTuningExecutor {
             val result = ShellManager.exec(
                 "if ! test -e \"$path\"; then printf '%s' UNAVAILABLE; " +
                     "elif ! test -r \"$path\"; then printf '%s' UNAVAILABLE; " +
-                    "elif test -w \"$path\"; then printf '%s' READ_WRITE; " +
+                    "elif test -w \"$path\" || (chmod 644 \"$path\" 2>/dev/null && test -w \"$path\"); then printf '%s' READ_WRITE; " +
                     "else printf '%s' READ_ONLY; fi",
                 ShellManager.PrivilegeRequirement.ELEVATED_SYSFS
             )

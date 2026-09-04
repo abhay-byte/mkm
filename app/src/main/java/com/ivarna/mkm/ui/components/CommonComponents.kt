@@ -333,6 +333,8 @@ fun BootToggleCard(
     modifier: Modifier = Modifier
 ) {
     ElevatedCard(
+        onClick = { if (interactive) onToggle(!enabled) },
+        enabled = interactive,
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.elevatedCardColors(

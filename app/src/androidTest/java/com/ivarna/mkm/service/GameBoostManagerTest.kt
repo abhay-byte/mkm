@@ -44,7 +44,7 @@ class GameBoostManagerTest {
         assertTrue(manager.disable() is GameBoostTransitionResult.Success)
         assertTrue(GameBoostRegistry.state.value is GameBoostState.Off)
         assertEquals(
-            listOf("cpuGovernor", "cpuMax", "gpuGovernor", "gpuMax", "gpuRangeRestore", "gpuGovernorRestore", "cpuRangeRestore", "cpuGovernorRestore"),
+            listOf("cpuGovernor", "cpuMax", "gpuGovernor", "gpuMax", "storageGovernor", "storageMax", "storageRangeRestore", "storageGovernorRestore", "gpuRangeRestore", "gpuGovernorRestore", "cpuRangeRestore", "cpuGovernorRestore"),
             backend.calls
         )
         }
@@ -64,14 +64,16 @@ class GameBoostManagerTest {
     }
 
     @Test
-    fun adjustedApplyRollsBackAndLeavesOff() {
+    fun adjustedApplySucceedsWithWarningsInsteadOfRollback() {
         runBlocking {
         val backend = FakeBackend().apply { cpuMaxResult = ApplyResult.Adjusted("requested", "actual", "clamped") }
         val manager = GameBoostManager(context, backend)
-        assertTrue(manager.enable() is GameBoostTransitionResult.Failure)
-        assertTrue(GameBoostRegistry.state.value is GameBoostState.Off)
-        assertTrue("cpuGovernorRestore" in backend.calls)
-        assertEquals(null, GameBoostSnapshotStore(context).load())
+        val result = manager.enable()
+        assertTrue(result is GameBoostTransitionResult.Success)
+        assertTrue((result as GameBoostTransitionResult.Success).warnings.isNotEmpty())
+        assertTrue(GameBoostRegistry.state.value is GameBoostState.Active)
+        assertTrue(GameBoostSnapshotStore(context).load() != null)
+        assertTrue(manager.disable() is GameBoostTransitionResult.Success)
         }
     }
 
@@ -117,9 +119,9 @@ class GameBoostManagerTest {
             assertTrue(manager.enable() is GameBoostTransitionResult.Success)
             manager.onThermalStatus(PowerManager.THERMAL_STATUS_SEVERE)
             val state = GameBoostRegistry.state.value as GameBoostState.ThermalLimited
-            assertEquals(setOf(GameBoostComponent.CPU_GOVERNOR, GameBoostComponent.GPU_GOVERNOR), state.stillApplied)
-            assertEquals(setOf(GameBoostComponent.CPU_MAX_LOCK, GameBoostComponent.GPU_MAX_LOCK), state.released)
-            assertTrue("cpuMax" !in backend.calls.drop(4))
+            assertEquals(setOf(GameBoostComponent.CPU_GOVERNOR, GameBoostComponent.GPU_GOVERNOR, GameBoostComponent.STORAGE_GOVERNOR), state.stillApplied)
+            assertEquals(setOf(GameBoostComponent.CPU_MAX_LOCK, GameBoostComponent.GPU_MAX_LOCK, GameBoostComponent.STORAGE_MAX_LOCK), state.released)
+            assertTrue("cpuMax" !in backend.calls.drop(6))
             assertTrue(manager.disable() is GameBoostTransitionResult.Success)
         }
     }
@@ -257,7 +259,7 @@ class GameBoostManagerTest {
 
         assertTrue(manager.enable() is GameBoostTransitionResult.Failure)
         assertEquals(
-            listOf("gpuRangeRestore", "gpuGovernorRestore", "cpuRangeRestore", "cpuGovernorRestore"),
+            listOf("storageRangeRestore", "storageGovernorRestore", "gpuRangeRestore", "gpuGovernorRestore", "cpuRangeRestore", "cpuGovernorRestore"),
             backend.calls.filter { it.endsWith("Restore") }
         )
         assertTrue(GameBoostRegistry.state.value is GameBoostState.Off)
@@ -271,7 +273,7 @@ class GameBoostManagerTest {
 
         assertTrue(manager.enable() is GameBoostTransitionResult.Failure)
         assertEquals(
-            listOf("gpuRangeRestore", "gpuGovernorRestore", "cpuRangeRestore", "cpuGovernorRestore"),
+            listOf("storageRangeRestore", "storageGovernorRestore", "gpuRangeRestore", "gpuGovernorRestore", "cpuRangeRestore", "cpuGovernorRestore"),
             backend.calls.filter { it.endsWith("Restore") }
         )
         assertTrue(GameBoostRegistry.state.value is GameBoostState.Off)
@@ -301,6 +303,8 @@ class GameBoostManagerTest {
         var cpuMaxResult: ApplyResult = ApplyResult.Applied("cpu max", "cpu max")
         var gpuGovernorResult: ApplyResult = ApplyResult.Applied("gpu", "gpu")
         var gpuMaxResult: ApplyResult = ApplyResult.Applied("gpuMax", "gpuMax")
+        var storageGovernorResult: ApplyResult = ApplyResult.Applied("storage", "storage")
+        var storageMaxResult: ApplyResult = ApplyResult.Applied("storageMax", "storageMax")
         var cpuGovernorRestoreResult: ApplyResult = ApplyResult.Applied("restore", "restore")
         var restored: Boolean = false
 
@@ -312,17 +316,22 @@ class GameBoostManagerTest {
 
         override fun captureSnapshot(capabilities: GameBoostCapabilities) = GameBoostSnapshot(
             cpu = listOf(CpuBoostSnapshot(0, "/sys/cpu/policy0", "schedutil", 400L, 1_000L, 1_200L)),
-            gpu = GpuBoostSnapshot("/sys/gpu", "simple_ondemand", 100L, 800L, 1_000L)
+            gpu = GpuBoostSnapshot("/sys/gpu", "simple_ondemand", 100L, 800L, 1_000L),
+            storage = com.ivarna.mkm.data.model.StorageBoostSnapshot("/sys/storage", "powersave", 100L, 800L, 1_000L)
         )
 
         override fun applyCpuGovernor(snapshot: GameBoostSnapshot): ApplyResult { calls += "cpuGovernor"; return ApplyResult.Applied("cpu", "cpu") }
         override fun applyCpuMax(snapshot: GameBoostSnapshot): ApplyResult { calls += "cpuMax"; return cpuMaxResult }
         override fun applyGpuGovernor(snapshot: GameBoostSnapshot): ApplyResult { calls += "gpuGovernor"; return gpuGovernorResult }
         override fun applyGpuMax(snapshot: GameBoostSnapshot): ApplyResult { calls += "gpuMax"; return gpuMaxResult }
+        override fun applyStorageGovernor(snapshot: GameBoostSnapshot): ApplyResult { calls += "storageGovernor"; return storageGovernorResult }
+        override fun applyStorageMax(snapshot: GameBoostSnapshot): ApplyResult { calls += "storageMax"; return storageMaxResult }
         override fun restoreCpuGovernor(snapshot: GameBoostSnapshot): ApplyResult { calls += "cpuGovernorRestore"; return cpuGovernorRestoreResult }
         override fun restoreCpuRanges(snapshot: GameBoostSnapshot): ApplyResult { calls += "cpuRangeRestore"; return ApplyResult.Applied("range", "range") }
         override fun restoreGpuGovernor(snapshot: GameBoostSnapshot): ApplyResult { calls += "gpuGovernorRestore"; return ApplyResult.Applied("gpu", "gpu") }
         override fun restoreGpuRange(snapshot: GameBoostSnapshot): ApplyResult { calls += "gpuRangeRestore"; return ApplyResult.Applied("range", "range") }
+        override fun restoreStorageGovernor(snapshot: GameBoostSnapshot): ApplyResult { calls += "storageGovernorRestore"; return ApplyResult.Applied("storage", "storage") }
+        override fun restoreStorageRange(snapshot: GameBoostSnapshot): ApplyResult { calls += "storageRangeRestore"; return ApplyResult.Applied("range", "range") }
         override fun inspect(snapshot: GameBoostSnapshot) = GameBoostHardwareState(
             applied = if (restored) emptySet() else snapshot.applied,
             restored = if (restored) snapshot.componentsNeedingRestore() else emptySet()

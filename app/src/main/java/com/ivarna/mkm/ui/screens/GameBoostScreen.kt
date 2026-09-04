@@ -41,6 +41,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ivarna.mkm.R
 import com.ivarna.mkm.data.model.GameBoostComponent
 import com.ivarna.mkm.data.model.GameBoostState
+import com.ivarna.mkm.ui.components.BootToggleCard
 import com.ivarna.mkm.ui.viewmodel.GameBoostViewModel
 import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,6 +52,7 @@ fun GameBoostScreen(viewModel: GameBoostViewModel = viewModel(), onOpenDrawer: (
     val state by viewModel.state.collectAsState()
     val capabilities by viewModel.capabilities.collectAsState()
     val message by viewModel.message.collectAsState()
+    val bootEnabled by viewModel.bootEnabled.collectAsState()
     var showDisclosure by remember { mutableStateOf(false) }
     val owns = state !is GameBoostState.Off
     val transitioning = state is GameBoostState.Enabling || state is GameBoostState.Disabling
@@ -86,6 +88,12 @@ fun GameBoostScreen(viewModel: GameBoostViewModel = viewModel(), onOpenDrawer: (
                         if (transitioning) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 8.dp))
                     }
                 }
+            }
+            item {
+                BootToggleCard(
+                    enabled = bootEnabled,
+                    onToggle = { viewModel.toggleBootEnabled(it) }
+                )
             }
             item {
                 GameBoostStatusCard(state, capabilities)
@@ -137,7 +145,9 @@ internal fun GameBoostStatusCard(state: GameBoostState, capabilities: com.ivarna
                 GameBoostComponent.CPU_GOVERNOR to R.string.game_boost_cpu_governor,
                 GameBoostComponent.CPU_MAX_LOCK to R.string.game_boost_cpu_max,
                 GameBoostComponent.GPU_GOVERNOR to R.string.game_boost_gpu_governor,
-                GameBoostComponent.GPU_MAX_LOCK to R.string.game_boost_gpu_max
+                GameBoostComponent.GPU_MAX_LOCK to R.string.game_boost_gpu_max,
+                GameBoostComponent.STORAGE_GOVERNOR to R.string.game_boost_storage_governor,
+                GameBoostComponent.STORAGE_MAX_LOCK to R.string.game_boost_storage_max
             ).forEach { (component, label) ->
                 val capability = capabilities?.components?.get(component)
                 val value = when {

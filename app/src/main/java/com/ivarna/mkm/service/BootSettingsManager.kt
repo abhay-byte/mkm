@@ -41,6 +41,9 @@ object BootSettingsManager {
     private const val PREF_STORAGE_UFS_MIN_FREQ = "boot_storage_ufs_min_freq"
     private const val PREF_STORAGE_UFS_MAX_FREQ = "boot_storage_ufs_max_freq"
 
+    // Game Boost
+    private const val PREF_GAME_BOOST_ENABLED = "boot_game_boost_enabled"
+
     // ---- helpers --------------------------------------------------------
 
     private fun prefs(context: Context): SharedPreferences =
@@ -51,8 +54,18 @@ object BootSettingsManager {
         return p.getBoolean(PREF_CPU_ENABLED, false) ||
                 p.getBoolean(PREF_GPU_ENABLED, false) ||
                 p.getBoolean(PREF_RAM_ENABLED, false) ||
-                p.getBoolean(PREF_STORAGE_ENABLED, false)
+                p.getBoolean(PREF_STORAGE_ENABLED, false) ||
+                p.getBoolean(PREF_GAME_BOOST_ENABLED, false)
     }
+
+    // ---- Game Boost -----------------------------------------------------
+
+    fun setGameBoostEnabled(context: Context, enabled: Boolean) {
+        prefs(context).edit { putBoolean(PREF_GAME_BOOST_ENABLED, enabled) }
+    }
+
+    fun isGameBoostEnabled(context: Context): Boolean =
+        prefs(context).getBoolean(PREF_GAME_BOOST_ENABLED, false)
 
     // ---- CPU ------------------------------------------------------------
 

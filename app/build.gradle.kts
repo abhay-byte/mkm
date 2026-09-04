@@ -1,29 +1,39 @@
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+
 // F-Droid reproducible builds: disable baseline profiles using Groovy script
 apply(from = "fix-baseline-profiles.gradle")
 
 plugins {
     id("com.android.application")
-    kotlin("android")
-    id("org.jetbrains.kotlin.plugin.compose") version "2.0.21"
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
     namespace = "com.ivarna.mkm"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.ivarna.mkm"
         minSdk = 24
-        targetSdk = 36
-        versionCode = 9
-        versionName = "1.8"
+        targetSdk = 37
+        versionCode = 10
+        versionName = "1.9"
         ndkVersion = "29.0.14206865"
-        resConfigs("en", "zh-rCN")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        // Build date injected at configuration time (e.g. "September 04, 2026").
+        // Read in-app via AppBuildInfo / BuildConfig.BUILD_TIME so Settings
+        // always shows the actual build's version, versionCode and date.
+        val buildTime = ZonedDateTime.now(ZoneOffset.UTC)
+            .format(DateTimeFormatter.ofPattern("MMMM dd, yyyy", Locale.ENGLISH))
+        buildConfigField("String", "BUILD_TIME", "\"$buildTime\"")
 
         externalNativeBuild {
             cmake {
@@ -57,12 +67,14 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false
-            isShrinkResources = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            // AGP 9.3+ unified optimization DSL: enables R8 code optimization
+            // (shrink/minify/obfuscate/optimize) + optimized resource shrinking.
+            // Default Android platform keep rules (proguard-android-optimize.txt
+            // equivalent) are included automatically. Custom rules live in
+            // src/release/keepRules/*.keep so no real app code is stripped.
+            optimization {
+                enable = true
+            }
             // Disable baseline profiles for F-Droid reproducible builds
             packaging {
                 resources.excludes.add("META-INF/**")
@@ -77,18 +89,23 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
     }
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     androidResources {
         // Disable PNG crunching for reproducible builds
         @Suppress("UnstableApiUsage")
         ignoreAssetsPattern = "!.svn:!.git:.*:!CVS:!thumbs.db:!picasa.ini:!*.scc:*~"
+        @Suppress("UnstableApiUsage")
+        localeFilters += listOf("en", "zh-rCN")
     }
 
     packaging {

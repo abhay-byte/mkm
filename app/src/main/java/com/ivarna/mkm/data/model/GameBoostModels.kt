@@ -1,11 +1,13 @@
 package com.ivarna.mkm.data.model
 
-/** The four global tuning primitives owned by Game Boost. */
+/** The global tuning primitives owned by Game Boost. */
 enum class GameBoostComponent {
     CPU_GOVERNOR,
     CPU_MAX_LOCK,
     GPU_GOVERNOR,
-    GPU_MAX_LOCK
+    GPU_MAX_LOCK,
+    STORAGE_GOVERNOR,
+    STORAGE_MAX_LOCK
 }
 
 sealed interface GameBoostState {
@@ -13,11 +15,13 @@ sealed interface GameBoostState {
     data class Enabling(val step: String) : GameBoostState
     data class Active(
         val applied: Set<GameBoostComponent>,
-        val unsupported: Set<GameBoostComponent> = emptySet()
+        val unsupported: Set<GameBoostComponent> = emptySet(),
+        val warnings: List<String> = emptyList()
     ) : GameBoostState
     data class ThermalLimited(
         val stillApplied: Set<GameBoostComponent>,
-        val released: Set<GameBoostComponent>
+        val released: Set<GameBoostComponent>,
+        val warnings: List<String> = emptyList()
     ) : GameBoostState
     data object Disabling : GameBoostState
     data class RecoveryRequired(val reason: String, val remaining: List<String>) : GameBoostState
@@ -43,7 +47,8 @@ data class CpuBoostSnapshot(
     val governor: String? = null,
     val minFreq: Long? = null,
     val maxFreq: Long? = null,
-    val targetFreq: Long? = null
+    val targetFreq: Long? = null,
+    val targetGovernor: String? = null
 )
 
 data class GpuBoostSnapshot(
@@ -51,7 +56,17 @@ data class GpuBoostSnapshot(
     val governor: String? = null,
     val minFreq: Long? = null,
     val maxFreq: Long? = null,
-    val targetFreq: Long? = null
+    val targetFreq: Long? = null,
+    val targetGovernor: String? = null
+)
+
+data class StorageBoostSnapshot(
+    val path: String,
+    val governor: String? = null,
+    val minFreq: Long? = null,
+    val maxFreq: Long? = null,
+    val targetFreq: Long? = null,
+    val targetGovernor: String? = null
 )
 
 data class GameBoostSnapshot(
@@ -61,6 +76,7 @@ data class GameBoostSnapshot(
     val phase: String = "ENABLING",
     val cpu: List<CpuBoostSnapshot> = emptyList(),
     val gpu: GpuBoostSnapshot? = null,
+    val storage: StorageBoostSnapshot? = null,
     val attempted: Set<GameBoostComponent> = emptySet(),
     val applied: Set<GameBoostComponent> = emptySet(),
     val thermallyReleased: Set<GameBoostComponent> = emptySet()

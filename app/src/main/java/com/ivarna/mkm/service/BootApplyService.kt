@@ -178,6 +178,16 @@ class BootApplyService : Service() {
                     }
                 }
             }
+
+            // Game Boost (global performance session)
+            if (BootSettingsManager.isGameBoostEnabled(this@BootApplyService)) {
+                GameBoostService.start(this@BootApplyService)
+                val manager = GameBoostRegistry.manager(this@BootApplyService)
+                val result = manager.enable()
+                if (result is GameBoostTransitionResult.Failure) {
+                    failures += "Game Boost (${result.reason})"
+                }
+            }
             }
         }
         return ApplySummary(failures = failures, adjustments = adjustments)

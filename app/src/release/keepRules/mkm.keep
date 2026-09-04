@@ -1,0 +1,89 @@
+# MKM release keep rules (AGP 9.3+ `optimization { enable = true }`).
+# Default Android platform rules are included automatically by AGP.
+# These rules only cover entry points, JNI and reflection — everything else
+# is left for R8 to shrink / optimize / obfuscate.
+
+# ── JNI bridge (package name must match native exports) ──────────────
+-keep class com.mkm.fps.FpsBinder {
+    *;
+}
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# ── Shizuku (ShellManager uses getDeclaredMethod("newProcess", ...)) ──
+-keep class rikka.shizuku.Shizuku {
+    *;
+}
+-keep class rikka.shizuku.ShizukuProvider {
+    *;
+}
+-keep class rikka.shizuku.** {
+    *;
+}
+-dontwarn rikka.shizuku.**
+
+# ── libsu (root backend, reflection + native helpers) ────────────────
+-keep class com.topjohnwu.superuser.** {
+    *;
+}
+-keep interface com.topjohnwu.superuser.** {
+    *;
+}
+-dontwarn com.topjohnwu.superuser.**
+
+# ── Manifest entry points (also kept by default rules, explicit) ─────
+-keep class com.ivarna.mkm.MkmApplication {
+    *;
+}
+-keep class com.ivarna.mkm.MainActivity {
+    *;
+}
+-keep class com.ivarna.mkm.service.BatteryMonitorService {
+    *;
+}
+-keep class com.ivarna.mkm.service.OverlayService {
+    *;
+}
+-keep class com.ivarna.mkm.service.BootApplyService {
+    *;
+}
+-keep class com.ivarna.mkm.service.GameBoostService {
+    *;
+}
+-keep class com.ivarna.mkm.receiver.BootReceiver {
+    *;
+}
+-keep class com.ivarna.mkm.receiver.BatteryStatsResetReceiver {
+    *;
+}
+
+# ── ViewModels (instantiated via viewModel() / factories) ────────────
+-keep class * extends androidx.lifecycle.ViewModel {
+    <init>(...);
+    *;
+}
+
+# ── Enums resolved via valueOf() in Settings (theme / locale) ────────
+-keepclassmembers enum com.ivarna.mkm.ui.viewmodel.* {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+# ── Game Boost session (GameBoostComponent.valueOf in snapshot decode) ──
+-keepclassmembers enum com.ivarna.mkm.data.model.GameBoostComponent {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+-keep class com.ivarna.mkm.data.model.GameBoostSnapshot { *; }
+-keep class com.ivarna.mkm.data.model.CpuBoostSnapshot { *; }
+-keep class com.ivarna.mkm.data.model.GpuBoostSnapshot { *; }
+-keep class com.ivarna.mkm.data.model.StorageBoostSnapshot { *; }
+
+# ── Build info shown in Settings (constants, keep for safety) ────────
+-keep class com.ivarna.mkm.BuildConfig {
+    *;
+}
+-keep class com.ivarna.mkm.utils.AppBuildInfo {
+    *;
+}

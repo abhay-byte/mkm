@@ -70,7 +70,7 @@
     <string name="minimal_kernel_manager">极简内核管理器</string>
     <string name="version_1_8">v1.8</string>
     <string name="june_16_2026">2026 年 6 月 16 日</string>
-    <string name="version_build_format">%1$s • %2$s</string>
+    <string name="version_build_format">%1$s (%2$s) • %3$s</string>
     <string name="made_with">使用</string>
     <string name="in_kotlin">Kotlin 开发</string>
     <string name="app_logo">应用图标</string>
@@ -508,7 +508,7 @@
     <string name="fps_recording_disabled_overlay_off">请先启动覆盖层以录制 FPS</string>
     <string name="game_boost">游戏加速</string>
     <string name="game_boost_toggle">游戏加速</string>
-    <string name="game_boost_desc">单一全局性能会话，安全协调 CPU 和 GPU 调度器及最高频率控制。不启动或检测游戏。</string>
+    <string name="game_boost_desc">单一全局性能会话，安全协调 CPU、GPU 和存储调度器及最高频率控制。不启动或检测游戏。</string>
     <string name="game_boost_disclosure_title">启用游戏加速前</string>
     <string name="game_boost_disclosure">游戏加速可能增加发热和耗电。Android 和内核热保护保持启用。严重过热时 MKM 可能释放最高频率锁定。不承诺提高 FPS。</string>
     <string name="continue_text">继续</string>
@@ -517,6 +517,8 @@
     <string name="game_boost_cpu_max">CPU 最高频率锁定</string>
     <string name="game_boost_gpu_governor">GPU 调度器</string>
     <string name="game_boost_gpu_max">GPU 最高频率锁定</string>
+    <string name="game_boost_storage_governor">存储调度器</string>
+    <string name="game_boost_storage_max">存储最高频率锁定</string>
     <string name="game_boost_applied">已应用</string>
     <string name="game_boost_not_applied">未应用</string>
     <string name="game_boost_unsupported">不支持</string>

@@ -35,6 +35,7 @@ import com.ivarna.mkm.ui.viewmodel.AppTheme
 import com.ivarna.mkm.ui.viewmodel.PowerViewModel
 import com.ivarna.mkm.ui.viewmodel.SettingsViewModel
 import com.ivarna.mkm.utils.BatteryStatsResetPrefs
+import com.ivarna.mkm.utils.AppBuildInfo
 import com.ivarna.mkm.utils.LocaleHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -181,17 +182,12 @@ fun SettingsScreen(
             )
         ) {
             item {
-                val packageVersionName = remember {
-                    try {
-                        context.packageManager.getPackageInfo(context.packageName, 0).versionName?.let { "v$it" } ?: "v1.8"
-                    } catch (e: Exception) {
-                        "v1.8"
-                    }
-                }
+                val (appVersion, appVersionCode, appBuildDate) = rememberAppBuildInfo()
                 AppInfoCard(
                     appName = stringResource(com.ivarna.mkm.R.string.minimal_kernel_manager),
-                    version = packageVersionName,
-                    buildDate = "August 18, 2026"
+                    version = appVersion,
+                    versionCode = appVersionCode,
+                    buildDate = appBuildDate
                 )
             }
 
@@ -684,6 +680,18 @@ fun SettingsScreen(
             }
         )
     }
+}
+
+/**
+ * Reads version name, version code and build date from build data
+ * ([AppBuildInfo] / BuildConfig) with PackageManager fallback.
+ *
+ * @return Triple(versionLabel e.g. "v1.9", versionCode e.g. "10", buildDate e.g. "September 04, 2026")
+ */
+@Composable
+private fun rememberAppBuildInfo(): Triple<String, String, String> {
+    val context = LocalContext.current
+    return remember { AppBuildInfo.resolve(context) }
 }
 
 private fun setBatteryNotification(context: Context, enabled: Boolean) {

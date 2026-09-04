@@ -18,7 +18,7 @@ import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.atomic.AtomicBoolean
 
 sealed interface GameBoostTransitionResult {
-    data object Success : GameBoostTransitionResult
+    data class Success(val warnings: List<String> = emptyList()) : GameBoostTransitionResult
     data class Failure(val reason: String) : GameBoostTransitionResult
 }
 
@@ -26,10 +26,14 @@ private val APPLY_ORDER = listOf(
     GameBoostComponent.CPU_GOVERNOR,
     GameBoostComponent.CPU_MAX_LOCK,
     GameBoostComponent.GPU_GOVERNOR,
-    GameBoostComponent.GPU_MAX_LOCK
+    GameBoostComponent.GPU_MAX_LOCK,
+    GameBoostComponent.STORAGE_GOVERNOR,
+    GameBoostComponent.STORAGE_MAX_LOCK
 )
 
 private val RESTORE_ORDER = listOf(
+    GameBoostComponent.STORAGE_MAX_LOCK,
+    GameBoostComponent.STORAGE_GOVERNOR,
     GameBoostComponent.GPU_MAX_LOCK,
     GameBoostComponent.GPU_GOVERNOR,
     GameBoostComponent.CPU_MAX_LOCK,
@@ -97,6 +101,7 @@ class GameBoostManager(
         if (!store.save(working)) return failBeforeMutation("Could not durably save the original tuning state")
 
         val applied = linkedSetOf<GameBoostComponent>()
+        val warnings = mutableListOf<String>()
         val unsupported = APPLY_ORDER.filterNot { it in supported }.toSet()
         for (component in APPLY_ORDER) {
             val capability = capabilities.components.getValue(component)
@@ -119,11 +124,15 @@ class GameBoostManager(
             val result = runCatching { apply(component, working) }.getOrElse {
                 ApplyResult.Failed(it.message ?: "Game Boost mutation failed")
             }
-            if (result !is ApplyResult.Applied) {
+            // A kernel clamp (Adjusted) still boosts to the highest allowed
+            // clock, so it counts as applied and surfaces as a warning like
+            // the "Kernel clamped ..." note instead of aborting the session.
+            if (result is ApplyResult.Failed) {
                 // The current component may have changed before its failure was
                 // observed, so it is always part of the conservative rollback.
                 return abortWithRollback(result.message(), working, applied + component)
             }
+            if (result is ApplyResult.Adjusted) warnings += result.message()
 
             applied += component
             working = working.copy(applied = applied.toSet())
@@ -133,9 +142,9 @@ class GameBoostManager(
         }
 
         val finalState = if (working.thermallyReleased.isNotEmpty()) {
-            GameBoostState.ThermalLimited(applied.toSet(), working.thermallyReleased)
+            GameBoostState.ThermalLimited(applied.toSet(), working.thermallyReleased, warnings.toList())
         } else {
-            GameBoostState.Active(applied.toSet(), unsupported)
+            GameBoostState.Active(applied.toSet(), unsupported, warnings.toList())
         }
         working = working.copy(
             phase = if (finalState is GameBoostState.ThermalLimited) "THERMAL_LIMITED" else "ACTIVE"
@@ -144,7 +153,7 @@ class GameBoostManager(
             return abortWithRollback("Could not durably commit active Game Boost state", working, working.componentsNeedingRestore())
         }
         GameBoostRegistry.publish(finalState)
-        return GameBoostTransitionResult.Success
+        return GameBoostTransitionResult.Success(warnings.toList())
     }
 
     suspend fun disable(): GameBoostTransitionResult = mutex.withLock {
@@ -155,7 +164,7 @@ class GameBoostManager(
         val snapshot = store.load()
         if (snapshot == null) {
             GameBoostRegistry.publish(GameBoostState.Off)
-            return GameBoostTransitionResult.Success
+            return GameBoostTransitionResult.Success()
         }
         GameBoostRegistry.publish(GameBoostState.Disabling)
         val dirty = snapshot.componentsNeedingRestore()
@@ -167,7 +176,7 @@ class GameBoostManager(
             return enterRecovery(snapshot, dirty, "Hardware was restored, but Game Boost ownership metadata could not be cleared")
         }
         GameBoostRegistry.publish(GameBoostState.Off)
-        return GameBoostTransitionResult.Success
+        return GameBoostTransitionResult.Success()
     }
 
     suspend fun retryRecovery(): GameBoostTransitionResult = disable()
@@ -189,6 +198,7 @@ class GameBoostManager(
             val result = when (component) {
                 GameBoostComponent.CPU_MAX_LOCK -> backend.restoreCpuRanges(snapshot)
                 GameBoostComponent.GPU_MAX_LOCK -> backend.restoreGpuRange(snapshot)
+                GameBoostComponent.STORAGE_MAX_LOCK -> backend.restoreStorageRange(snapshot)
                 else -> ApplyResult.Applied("not a max lock", "not a max lock")
             }
             if (result !is ApplyResult.Applied) {
@@ -216,6 +226,7 @@ class GameBoostManager(
                 val result = when (component) {
                     GameBoostComponent.CPU_MAX_LOCK -> backend.restoreCpuRanges(snapshot)
                     GameBoostComponent.GPU_MAX_LOCK -> backend.restoreGpuRange(snapshot)
+                    GameBoostComponent.STORAGE_MAX_LOCK -> backend.restoreStorageRange(snapshot)
                     else -> ApplyResult.Applied("not a max lock", "not a max lock")
                 }
                 if (result !is ApplyResult.Applied) {
@@ -279,6 +290,8 @@ class GameBoostManager(
         GameBoostComponent.CPU_MAX_LOCK -> backend.applyCpuMax(snapshot)
         GameBoostComponent.GPU_GOVERNOR -> backend.applyGpuGovernor(snapshot)
         GameBoostComponent.GPU_MAX_LOCK -> backend.applyGpuMax(snapshot)
+        GameBoostComponent.STORAGE_GOVERNOR -> backend.applyStorageGovernor(snapshot)
+        GameBoostComponent.STORAGE_MAX_LOCK -> backend.applyStorageMax(snapshot)
     }
 
     private fun restore(dirty: Set<GameBoostComponent>, snapshot: GameBoostSnapshot): ApplyResult? {
@@ -288,6 +301,8 @@ class GameBoostManager(
                 GameBoostComponent.CPU_MAX_LOCK -> backend.restoreCpuRanges(snapshot)
                 GameBoostComponent.GPU_GOVERNOR -> backend.restoreGpuGovernor(snapshot)
                 GameBoostComponent.GPU_MAX_LOCK -> backend.restoreGpuRange(snapshot)
+                GameBoostComponent.STORAGE_GOVERNOR -> backend.restoreStorageGovernor(snapshot)
+                GameBoostComponent.STORAGE_MAX_LOCK -> backend.restoreStorageRange(snapshot)
             }
             if (result !is ApplyResult.Applied) return result
         }
@@ -342,5 +357,6 @@ class GameBoostManager(
     }
 
     private fun GameBoostComponent.isMaxLock() =
-        this == GameBoostComponent.CPU_MAX_LOCK || this == GameBoostComponent.GPU_MAX_LOCK
+        this == GameBoostComponent.CPU_MAX_LOCK || this == GameBoostComponent.GPU_MAX_LOCK ||
+            this == GameBoostComponent.STORAGE_MAX_LOCK
 }

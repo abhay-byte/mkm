@@ -6,6 +6,7 @@ import com.ivarna.mkm.data.model.CpuBoostSnapshot
 import com.ivarna.mkm.data.model.GameBoostComponent
 import com.ivarna.mkm.data.model.GameBoostSnapshot
 import com.ivarna.mkm.data.model.GpuBoostSnapshot
+import com.ivarna.mkm.data.model.StorageBoostSnapshot
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -76,10 +77,16 @@ object GameBoostSnapshotJson {
             snapshot.cpu.forEach { p -> put(JSONObject().apply {
                 put("policyId", p.policyId); put("path", p.path); putOpt("governor", p.governor)
                 putOpt("minFreq", p.minFreq); putOpt("maxFreq", p.maxFreq); putOpt("targetFreq", p.targetFreq)
+                putOpt("targetGovernor", p.targetGovernor)
             }) }
         })
         snapshot.gpu?.let { g -> put("gpu", JSONObject().apply {
             put("path", g.path); putOpt("governor", g.governor); putOpt("minFreq", g.minFreq); putOpt("maxFreq", g.maxFreq); putOpt("targetFreq", g.targetFreq)
+            putOpt("targetGovernor", g.targetGovernor)
+        }) }
+        snapshot.storage?.let { s -> put("storage", JSONObject().apply {
+            put("path", s.path); putOpt("governor", s.governor); putOpt("minFreq", s.minFreq); putOpt("maxFreq", s.maxFreq); putOpt("targetFreq", s.targetFreq)
+            putOpt("targetGovernor", s.targetGovernor)
         }) }
         put("attempted", JSONArray(snapshot.attempted.map { it.name }))
         put("applied", JSONArray(snapshot.applied.map { it.name }))
@@ -91,6 +98,8 @@ object GameBoostSnapshotJson {
             val values = obj.optJSONArray(key) ?: return@buildSet
             for (i in 0 until values.length()) runCatching { add(GameBoostComponent.valueOf(values.getString(i))) }
         }
+        fun optGovernor(o: JSONObject): String? =
+            o.optString("targetGovernor").takeIf { it.isNotBlank() && it != "null" }
         val cpu = buildList {
             val values = obj.optJSONArray("cpu") ?: JSONArray()
             for (i in 0 until values.length()) {
@@ -101,7 +110,8 @@ object GameBoostSnapshotJson {
                     governor = p.optString("governor").takeIf { it.isNotBlank() && it != "null" },
                     minFreq = p.optLong("minFreq", 0L).takeIf { it > 0L },
                     maxFreq = p.optLong("maxFreq", 0L).takeIf { it > 0L },
-                    targetFreq = p.optLong("targetFreq", 0L).takeIf { it > 0L }
+                    targetFreq = p.optLong("targetFreq", 0L).takeIf { it > 0L },
+                    targetGovernor = optGovernor(p)
                 ))
             }
         }
@@ -111,14 +121,26 @@ object GameBoostSnapshotJson {
                 governor = g.optString("governor").takeIf { it.isNotBlank() && it != "null" },
                 minFreq = g.optLong("minFreq", 0L).takeIf { it > 0L },
                 maxFreq = g.optLong("maxFreq", 0L).takeIf { it > 0L },
-                targetFreq = g.optLong("targetFreq", 0L).takeIf { it > 0L }
+                targetFreq = g.optLong("targetFreq", 0L).takeIf { it > 0L },
+                targetGovernor = optGovernor(g)
+            )
+        }
+        val storage = obj.optJSONObject("storage")?.let { s ->
+            StorageBoostSnapshot(
+                path = s.getString("path"),
+                governor = s.optString("governor").takeIf { it.isNotBlank() && it != "null" },
+                minFreq = s.optLong("minFreq", 0L).takeIf { it > 0L },
+                maxFreq = s.optLong("maxFreq", 0L).takeIf { it > 0L },
+                targetFreq = s.optLong("targetFreq", 0L).takeIf { it > 0L },
+                targetGovernor = optGovernor(s)
             )
         }
         return GameBoostSnapshot(
             version = obj.optInt("version", 1),
             bootCount = if (obj.has("bootCount") && !obj.isNull("bootCount")) obj.getInt("bootCount") else null,
             bootId = obj.optString("bootId").takeIf { it.isNotBlank() && it != "null" }, phase = obj.optString("phase", "ENABLING"),
-            cpu = cpu, gpu = gpu, attempted = components("attempted"), applied = components("applied"), thermallyReleased = components("thermallyReleased")
+            cpu = cpu, gpu = gpu, storage = storage,
+            attempted = components("attempted"), applied = components("applied"), thermallyReleased = components("thermallyReleased")
         )
     }
 }

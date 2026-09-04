@@ -70,7 +70,7 @@
     <string name="minimal_kernel_manager">Minimal Kernel Manager</string>
     <string name="version_1_8">v1.8</string>
     <string name="june_16_2026">June 16, 2026</string>
-    <string name="version_build_format">%1$s • %2$s</string>
+    <string name="version_build_format">%1$s (%2$s) • %3$s</string>
     <string name="made_with">Made with</string>
     <string name="in_kotlin">in Kotlin</string>
     <string name="app_logo">App Logo</string>
@@ -508,7 +508,7 @@
     <string name="fps_recording_disabled_overlay_off">Start Overlay first to record FPS</string>
     <string name="game_boost">Game Boost</string>
     <string name="game_boost_toggle">Game Boost</string>
-    <string name="game_boost_desc">A single global performance session that safely coordinates CPU and GPU governor and maximum-clock controls. It does not launch or detect games.</string>
+    <string name="game_boost_desc">A single global performance session that safely coordinates CPU, GPU and storage governor and maximum-clock controls. It does not launch or detect games.</string>
     <string name="game_boost_disclosure_title">Before enabling Game Boost</string>
     <string name="game_boost_disclosure">Game Boost can increase heat and battery use. Android and kernel thermal protection remain enabled. MKM may release maximum-clock locks during severe thermal stress. No FPS increase is promised.</string>
     <string name="continue_text">Continue</string>
@@ -517,6 +517,8 @@
     <string name="game_boost_cpu_max">CPU maximum lock</string>
     <string name="game_boost_gpu_governor">GPU governor</string>
     <string name="game_boost_gpu_max">GPU maximum lock</string>
+    <string name="game_boost_storage_governor">Storage governor</string>
+    <string name="game_boost_storage_max">Storage maximum lock</string>
     <string name="game_boost_applied">Applied</string>
     <string name="game_boost_not_applied">Not applied</string>
     <string name="game_boost_unsupported">Unsupported</string>

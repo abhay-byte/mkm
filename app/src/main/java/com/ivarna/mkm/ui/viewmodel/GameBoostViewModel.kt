@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ivarna.mkm.data.model.GameBoostCapabilities
 import com.ivarna.mkm.data.model.GameBoostState
+import com.ivarna.mkm.service.BootSettingsManager
 import com.ivarna.mkm.service.GameBoostManager
 import com.ivarna.mkm.service.GameBoostRegistry
 import com.ivarna.mkm.service.GameBoostService
@@ -24,6 +25,8 @@ class GameBoostViewModel(application: Application) : AndroidViewModel(applicatio
     val capabilities: StateFlow<GameBoostCapabilities?> = _capabilities.asStateFlow()
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
+    private val _bootEnabled = MutableStateFlow(BootSettingsManager.isGameBoostEnabled(application))
+    val bootEnabled: StateFlow<Boolean> = _bootEnabled.asStateFlow()
     private val prefs = application.getSharedPreferences(PREFS, Application.MODE_PRIVATE)
     val disclosureAcknowledged: Boolean get() = prefs.getBoolean(KEY_DISCLOSURE, false)
 
@@ -38,6 +41,11 @@ class GameBoostViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun acknowledgeDisclosure() {
         prefs.edit().putBoolean(KEY_DISCLOSURE, true).apply()
+    }
+
+    fun toggleBootEnabled(enabled: Boolean) {
+        _bootEnabled.value = enabled
+        BootSettingsManager.setGameBoostEnabled(getApplication(), enabled)
     }
 
     fun refreshCapabilities() {
@@ -58,6 +66,10 @@ class GameBoostViewModel(application: Application) : AndroidViewModel(applicatio
             if (result is GameBoostTransitionResult.Failure) {
                 _message.value = result.reason
                 if (enabled && !GameBoostRegistry.ownsTuning()) GameBoostService.stop(getApplication())
+            } else if (result is GameBoostTransitionResult.Success && result.warnings.isNotEmpty()) {
+                // Kernel clamps still count as boosted; surface them like the
+                // "Kernel clamped ..." note instead of failing the session.
+                _message.value = result.warnings.joinToString("\n")
             }
             if (!enabled && result is GameBoostTransitionResult.Success) GameBoostService.stop(getApplication())
             refreshCapabilities()

@@ -203,6 +203,7 @@ fun AboutMeCard(
 fun AppInfoCard(
     appName: String,
     version: String,
+    versionCode: String,
     buildDate: String
 ) {
     Column(
@@ -233,7 +234,7 @@ fun AppInfoCard(
             fontWeight = FontWeight.Black
         )
         Text(
-            text = stringResource(com.ivarna.mkm.R.string.version_build_format, version, buildDate),
+            text = stringResource(com.ivarna.mkm.R.string.version_build_format, version, versionCode, buildDate),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
