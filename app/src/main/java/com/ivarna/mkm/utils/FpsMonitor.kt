@@ -92,26 +92,38 @@ object FpsMonitor {
         }
     }
 
+    fun updateDisplayRefreshRate(rate: Float) {
+        if (rate > 0f) {
+            displayRefreshRate = rate
+        }
+    }
+
     fun readFps(): FpsResult {
         val now = SystemClock.uptimeMillis()
         if (lastDrawTimeMs > 0 && now - lastDrawTimeMs > 1500) {
             overlayFps = 0f
         }
 
+        val maxRate = displayRefreshRate.coerceAtLeast(60f)
+
         if (ShellManager.hasElevatedAccess()) {
             val pkg = foregroundPackage()
-            if (pkg != null && !pkg.contains("com.ivarna.mkm", ignoreCase = true)) {
+            if (pkg != null) {
                 try {
                     val fps = fpsBinder.computeFps(pkg) { cmd ->
                         ShellManager.exec(cmd).stdout
                     }
-                    if (fps > 0.0) return FpsResult(fps.toFloat(), 0)
+                    if (fps > 0.0) {
+                        val clampedFps = fps.toFloat().coerceIn(0f, maxRate)
+                        return FpsResult(clampedFps, 0)
+                    }
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed FpsBinder", e)
                 }
             }
         }
-        return FpsResult(overlayFps / 2.1f, 0)
+        val clampedOverlayFps = overlayFps.coerceIn(0f, maxRate)
+        return FpsResult(clampedOverlayFps, 0)
     }
 
     private val pkgRegex = Regex("""([a-zA-Z0-9._-]+)/""")

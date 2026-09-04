@@ -176,6 +176,8 @@ object GpuFpsCollector {
         val actualSpanSec = ((tEnd - t0) / 1000f).coerceAtLeast(0.1f)
 
         val nowMs = System.currentTimeMillis()
+        val maxRate = FpsMonitor.getDisplayRefreshRate().coerceAtLeast(60f)
+
         return if (rawFrames < 2 || events < 3) {
             FpsSample(
                 tMs = nowMs,
@@ -188,7 +190,7 @@ object GpuFpsCollector {
                 idle = true
             )
         } else {
-            val fps = (rawFrames / actualSpanSec).coerceAtLeast(0f)
+            val fps = (rawFrames / actualSpanSec).coerceIn(0f, maxRate)
             val frameMs = if (fps > 0f) 1000f / fps else 0f
             FpsSample(
                 tMs = nowMs,
@@ -252,6 +254,8 @@ object GpuFpsCollector {
         val actualSpanSec = ((tEnd - t0) / 1000f).coerceAtLeast(0.1f)
         val nowMs = System.currentTimeMillis()
 
+        val maxRate = FpsMonitor.getDisplayRefreshRate().coerceAtLeast(60f)
+
         return if (events < 2) {
             FpsSample(
                 tMs = nowMs,
@@ -264,7 +268,7 @@ object GpuFpsCollector {
                 idle = true
             )
         } else {
-            val fps = (events / actualSpanSec).coerceAtLeast(0f)
+            val fps = (events / actualSpanSec).coerceIn(0f, maxRate)
             val frameMs = if (fps > 0f) 1000f / fps else 0f
             FpsSample(
                 tMs = nowMs,
@@ -283,7 +287,8 @@ object GpuFpsCollector {
         // Guarantee proper sampling window cadence for fallback path
         delay((windowSec * 1000).toLong().coerceAtLeast(500L))
         val fpsResult = FpsMonitor.readFps()
-        val fps = fpsResult.fps
+        val maxRate = FpsMonitor.getDisplayRefreshRate().coerceAtLeast(60f)
+        val fps = fpsResult.fps.coerceIn(0f, maxRate)
         val frameMs = if (fps > 0f) 1000f / fps else 0f
         return FpsSample(
             tMs = System.currentTimeMillis(),

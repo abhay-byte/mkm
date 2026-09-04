@@ -294,15 +294,17 @@ class OverlayService : Service() {
                 
                 // Read FPS (gfxinfo for per-app, OnPreDrawListener fallback)
                 if (showFpsState) {
+                    val maxRate = getActiveRefreshRate().coerceAtLeast(60f)
+                    FpsMonitor.updateDisplayRefreshRate(maxRate)
                     if (::composeView.isInitialized && composeView.isAttachedToWindow) {
                         FpsMonitor.initOverlayFps(composeView)
                     }
                     val fpsResult = withContext(Dispatchers.IO) { FpsMonitor.readFps() }
-                    _fpsState.value = fpsResult
-                    val maxRate = getActiveRefreshRate().coerceAtLeast(60f)
-                    updateHistory("fps", (fpsResult.fps / maxRate).coerceIn(0f, 1f))
+                    val clampedResult = fpsResult.copy(fps = fpsResult.fps.coerceIn(0f, maxRate))
+                    _fpsState.value = clampedResult
+                    updateHistory("fps", (clampedResult.fps / maxRate).coerceIn(0f, 1f))
                     if (::composeView.isInitialized && composeView.isAttachedToWindow) {
-                        FpsMonitor.ensureDrawPacing(composeView, fpsResult.fps)
+                        FpsMonitor.ensureDrawPacing(composeView, clampedResult.fps)
                     }
                 } else {
                     FpsMonitor.stopOverlayFps()
@@ -497,10 +499,11 @@ class OverlayService : Service() {
                             metricsMap["fps"] = {
                                 if (showFpsState) {
                                     val currentFps by fpsState.collectAsState()
-                                    val maxRate = getActiveRefreshRate().coerceAtLeast(60f)
-                                    val fpsDisplay = if (currentFps.fps > 0f) String.format("%.0f", currentFps.fps) else "0"
-                                    val progress = (currentFps.fps / maxRate).coerceIn(0f, 1f)
-                                    CompactMetric("FPS", "${fpsDisplay} FPS", progress, true, Icons.Default.SlowMotionVideo, showIconsOnlyState, metricHistory["fps"])
+                val maxRate = getActiveRefreshRate().coerceAtLeast(60f)
+                val clampedFps = currentFps.fps.coerceIn(0f, maxRate)
+                val fpsDisplay = if (clampedFps > 0f) String.format("%.0f", clampedFps) else "0"
+                val progress = (clampedFps / maxRate).coerceIn(0f, 1f)
+                CompactMetric("FPS", fpsDisplay, progress, true, Icons.Default.SlowMotionVideo, showIconsOnlyState, metricHistory["fps"])
                                 }
                             }
 
@@ -615,7 +618,7 @@ class OverlayService : Service() {
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.width(42.dp),
+                    modifier = Modifier.widthIn(min = 42.dp),
                     textAlign = androidx.compose.ui.text.style.TextAlign.End,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
@@ -679,19 +682,29 @@ class OverlayService : Service() {
         recordingJob?.cancel()
         recordingJob = serviceScope.launch(Dispatchers.IO) {
             try {
+                val maxRate = getActiveRefreshRate().coerceAtLeast(60f)
+                FpsMonitor.updateDisplayRefreshRate(maxRate)
                 val platform = GpuFpsCollector.detectPlatform()
                 FpsSessionRecorder.setPlatform(platform.name)
                 var consecutiveFtraceFailures = 0
                 while (isActive && FpsSessionRecorder.isRecording.value) {
+                    val currentMaxRate = getActiveRefreshRate().coerceAtLeast(60f)
+                    FpsMonitor.updateDisplayRefreshRate(currentMaxRate)
                     val fallbackOnly = consecutiveFtraceFailures >= 2
                     val sample = GpuFpsCollector.sample(windowSec = 2f, fallbackOnly = fallbackOnly)
                     if (sample != null) {
-                        if (sample.source == FpsSource.FPS_MONITOR && GpuFpsCollector.probeTracing() && !fallbackOnly) {
+                        val clampedSample = if (sample.fps > currentMaxRate) {
+                            val frameMs = if (currentMaxRate > 0f) 1000f / currentMaxRate else 0f
+                            sample.copy(fps = currentMaxRate, frameMs = frameMs)
+                        } else {
+                            sample
+                        }
+                        if (clampedSample.source == FpsSource.FPS_MONITOR && GpuFpsCollector.probeTracing() && !fallbackOnly) {
                             consecutiveFtraceFailures++
-                        } else if (sample.source != FpsSource.FPS_MONITOR) {
+                        } else if (clampedSample.source != FpsSource.FPS_MONITOR) {
                             consecutiveFtraceFailures = 0
                         }
-                        FpsSessionRecorder.add(sample)
+                        FpsSessionRecorder.add(clampedSample)
                     }
                 }
             } finally {

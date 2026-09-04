@@ -91,16 +91,7 @@ class FpsBinder {
             if (gfxinfo.isNotBlank()) {
                 val rawFps = nativeFpsFromGfxinfoText(gfxinfo)
                 if (rawFps > 0) {
-                    // Only calibrate when SF found the app but produced no
-                    // usable frame data — genuine GPU-rendered apps on
-                    // broken-Android-15/16 devices. UI apps where SF simply
-                    // has no layer get raw gfxinfo (which is accurate).
-                    if (sfLayerFound) {
-                        val calibrated = Math.max(0.0, (rawFps - 30.0) * 0.85)
-                        Log.i(TAG, "FPS via gfxinfo (calibrated): raw=$rawFps → $calibrated")
-                        return calibrated
-                    }
-                    Log.i(TAG, "FPS via gfxinfo framestats: $rawFps")
+                    Log.i(TAG, "FPS via gfxinfo framestats ($pkg): $rawFps")
                     return rawFps
                 }
             }
