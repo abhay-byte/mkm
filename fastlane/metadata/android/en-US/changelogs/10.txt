@@ -1,0 +1,5 @@
+Added global Game Boost with policy-safe CPU/GPU tuning, thermal limiting, and recovery.
+Upgraded toolchain to AGP 9.3 and SDK 37 with R8 optimization.
+Fixed FPS accuracy: raw gfxinfo readings clamped to the active display refresh rate.
+Fixed overlay FPS HUD readout, recording feed, and metric clipping.
+Added KernelSU su path support and hardened GPU tuning discovery.
